@@ -1,0 +1,19 @@
+Assembly-*
+*.csproj
+*.pidb
+*.unityproj
+*.userprefs
+*.sln
+*.suo
+/obj
+/logs
+Temp
+*.swp
+Library
+UnitTestResults.xml
+Assets/UnityTestTools/*
+Assets/External/6by7/ProBuilder/API Examples/*
+Assets/External/6by7/ProBuilder/API Examples.meta
+UMA*
+umasaves*
+UnityVS*
