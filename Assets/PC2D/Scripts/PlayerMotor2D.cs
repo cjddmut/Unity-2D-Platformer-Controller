@@ -15,11 +15,10 @@ public class PlayerMotor2D : MonoBehaviour
     public float BaseJump = 0.5f;
     public float ExtraJumpHeight = 0.5f;
     public bool AllowDoubleJump = false;
+    public bool AllowWallJump = false;
 
     public bool AllowWallSlide = false;
     public float WallSlideSpeed = 1;
-
-    public bool AllowWallJump = false;
 
     public bool AllowCornerGrab = false;
     public float CornerHeightCheck = 0.1f;
@@ -502,7 +501,17 @@ public class PlayerMotor2D : MonoBehaviour
 
     private bool CheckIfAtCorner()
     {
-        Bounds box = renderer.bounds;
+        Bounds box;
+
+        if (ColliderToUse != null)
+        {
+            box = ColliderToUse.bounds;
+        }
+        else
+        {
+            box = collider2D.bounds;
+        }
+
         Vector2 min = box.min;
         Vector2 max = box.max;
 
@@ -550,7 +559,17 @@ public class PlayerMotor2D : MonoBehaviour
 
     private void SetStuckTo()
     {
-        Bounds box = renderer.bounds;
+        Bounds box;
+        
+        if (ColliderToUse != null)
+        {
+            box = ColliderToUse.bounds;
+        }
+        else
+        {
+            box = collider2D.bounds;
+        }
+
         Vector2 min = box.min;
         Vector2 max = box.max;
 
@@ -622,7 +641,17 @@ public class PlayerMotor2D : MonoBehaviour
             return;
 
         // Ground check.
-        Bounds box = renderer.bounds;
+        Bounds box;
+
+        if (ColliderToUse != null)
+        {
+            box = ColliderToUse.bounds;
+        }
+        else
+        {
+            box = collider2D.bounds;
+        }
+
 
         // Ground check box
         Vector2 min = box.min;
