@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using PC2D;
 
 [RequireComponent(typeof(Rigidbody2D))]
 public class PlayerMotor2D : MonoBehaviour
@@ -31,9 +32,20 @@ public class PlayerMotor2D : MonoBehaviour
     public bool ChangeLayerDuringDash = false;
     public int DashLayer = 0;
 
+    [HideInInspector]
+    // Set this to use a specific collider for checks instead of grabbing the collider from gameObject.collider.
+    public Collider2D ColliderToUse;
+
+    // Delegates, attach to these to get event calls.
+    public Notification OnDash;
+    public Notification OnDashEnd;
+    public Notification OnJump;
+
     // If this value is increased then unexpected behavior can occur when wall jumping (basically a wall check will occur after a jump). If
     // this needs to be fixed then add a debounce time to when a wall check can happen after a jump (really short is fine).
     public float CheckDistance = 0.025f;
+
+    // This is the layer mask checked by the motor to determine if the character has landed.
     public LayerMask CheckMask;
 
     public bool DrawGizmos = false;
@@ -65,7 +77,6 @@ public class PlayerMotor2D : MonoBehaviour
     private float _InitialDrag;
     private float _InitialGravity;
     private float _IgnoreMovementUntil = 0;
-    private float _IgnoreStickinessUntil = 0;
     private bool _OnCorner = false;
     
     private bool _FacingLeft = false;
@@ -80,6 +91,9 @@ public class PlayerMotor2D : MonoBehaviour
 
         public float Time = 0;
         public float TimeBuffer = 0.2f; // Amount of time that a jump can be triggered, same as the default unity controller script.
+
+        public bool Force = false;
+        public float ExtraSpeed;
     }
     private JumpState _Jumping = new JumpState();
 
@@ -93,6 +107,7 @@ public class PlayerMotor2D : MonoBehaviour
         public bool DashWithDirection;
         public Vector2 DashDir = Vector2.zero;
         public int OriginalLayer;
+        public bool ForceEnd = false;
     }
     private DashState _Dashing = new DashState();
 
@@ -119,14 +134,27 @@ public class PlayerMotor2D : MonoBehaviour
         _Dashing.OriginalLayer = gameObject.layer;
     }
 
+    void OnDestroy()
+    {
+        OnDash = null;
+        OnDashEnd = null;
+    }
+
     /**
      * Call this to have the GameObject try to jump, once called it will be handled in the FixedUpdate tick. The y axis is considered jump.
      **/
-    public void Jump()
+    public void Jump(float extraSpeed = 0)
     {
         _Jumping.Pressed = true;
         _Jumping.Time = Time.time;
         _Jumping.IsJumping = false;
+        _Jumping.ExtraSpeed = extraSpeed;
+    }
+
+    public void ForceJump(float extraSpeed = 0)
+    {
+        Jump(extraSpeed);
+        _Jumping.Force = true;
     }
 
     /**
@@ -160,6 +188,12 @@ public class PlayerMotor2D : MonoBehaviour
         _Dashing.DashDir = dir * DashSpeed;
     }
 
+    public void EndDash()
+    {
+        // If dashing then end now.
+        _Dashing.ForceEnd = true;
+    }
+
     /**
      * Set the movement direction. Ideally this should be a normalized vector but could be larger for faster speeds.
      **/
@@ -168,12 +202,22 @@ public class PlayerMotor2D : MonoBehaviour
         _MovementDir = dir;
     }
 
+    public void SetFacingOffAxis(float axis)
+    {
+        if (axis < - INPUT_THRESHOLD)
+        {
+            _FacingLeft = true;
+        }
+        else if (axis > INPUT_THRESHOLD)
+        {
+            _FacingLeft = false;
+        }
+    }
+
 
     /**
      * Call this to get state information about the motor. This will be information such as if the object is in the air or on the ground. This can be used
      * to set the appropriate animations.
-     * 
-     * TODO: Consider moving all state changes to a delegate event system.
      **/
     public MotorState GetMotorState()
     {
@@ -227,6 +271,11 @@ public class PlayerMotor2D : MonoBehaviour
                     _Dashing.DashDir = Vector2.right * DashSpeed;
                 }
             }
+
+            if (OnDash != null)
+            {
+                OnDash();
+            }
         }
 
         _Dashing.Pressed = false;
@@ -234,12 +283,15 @@ public class PlayerMotor2D : MonoBehaviour
         if (_Dashing.IsDashing)
         {
             // Dashing is special!
-            rigidbody2D.velocity = _Dashing.DashDir;
+            if (!_Dashing.ForceEnd)
+            {
+                rigidbody2D.velocity = _Dashing.DashDir;
+            }
 
-            if (Time.time >= _Dashing.EndDash)
+            if (Time.time >= _Dashing.EndDash || _Dashing.ForceEnd)
             {
                 // Done dashing, back to normals.
-
+                _Dashing.ForceEnd = false;
                 _Dashing.IsDashing = false;
                 rigidbody2D.gravityScale = _InitialGravity;
 
@@ -254,6 +306,11 @@ public class PlayerMotor2D : MonoBehaviour
 
                     // Changed layers so we dirty the physics with this hack.
                     transform.localScale = transform.localScale;
+                }
+
+                if (OnDashEnd != null)
+                {
+                    OnDashEnd();
                 }
             }
         }
@@ -284,7 +341,8 @@ public class PlayerMotor2D : MonoBehaviour
                 {
                     // Not in air.
                     rigidbody2D.drag = _InitialDrag;
-                    rigidbody2D.AddForce(_MovementDir * GroundAcceleration);
+                    //rigidbody2D.AddForce(_MovementDir * GroundAcceleration);
+                    rigidbody2D.velocity += _MovementDir * GroundAcceleration * Time.fixedDeltaTime;
                 }
                 else
                 {
@@ -376,10 +434,10 @@ public class PlayerMotor2D : MonoBehaviour
                 bool jumped = true;
 
                 // Jump might mean different things depending on the state.
-                if (StuckTo == Surface.Ground)
+                if (StuckTo == Surface.Ground || _Jumping.Force)
                 {
                     // Normal jump.
-                    rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, CalculateJumpSpeed());
+                    rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, CalculateJumpSpeed() + _Jumping.ExtraSpeed);
                 }
                 else if (_OnCorner)
                 {
@@ -395,11 +453,15 @@ public class PlayerMotor2D : MonoBehaviour
                     // It's likely the player is still pressing into the wall, ignore movement for a little amount of time.
                     // TODO: Only ignore left movement?
                     _IgnoreMovementUntil = Time.time + IGNORE_INPUT_TIME;
+
+                    // If wall jump is allowed but not wall slide then double jump will not be allowed earlier, allow it now.
+                    _Jumping.DoubleJumped = false;
                 }
                 else if (AllowWallJump && StuckTo == Surface.RightWall)
                 {
                         rigidbody2D.velocity = _UpLeft * CalculateJumpSpeed();
                         _IgnoreMovementUntil = Time.time + IGNORE_INPUT_TIME;
+                        _Jumping.DoubleJumped = false;
                 }
                 else if (AllowDoubleJump && StuckTo == Surface.None && !_Jumping.DoubleJumped)
                 {
@@ -418,8 +480,16 @@ public class PlayerMotor2D : MonoBehaviour
                     rigidbody2D.drag = 0;
                     _Jumping.Pressed = false;
                     _OnCorner = false;
+                    _Jumping.Force = false;
+
+                    if (OnJump != null)
+                    {
+                        OnJump();
+                    }
                 }
             }
+
+            // Remove left or right movements if trying to movement into the wall, this 
 
             // Check speeds.
             ClampVelocity();
@@ -427,6 +497,7 @@ public class PlayerMotor2D : MonoBehaviour
 
         // Reset some things.
         _MovementDir = Vector2.zero;
+        _Jumping.Held = false;
     }
 
     private bool CheckIfAtCorner()

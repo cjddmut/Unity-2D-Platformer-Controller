@@ -11,4 +11,8 @@ namespace PC2D
         public const string JUMP = "Jump";
         public const string DASH = "Fire1";
     }
+
+    public delegate void Notification();
+
+
 }
