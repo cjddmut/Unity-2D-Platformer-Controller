@@ -8,22 +8,22 @@ using System.Collections;
  **/
 
 [RequireComponent(typeof(PlayerMotor2D))]
-public class PlayerController2D : MonoBehaviour
+public class PlatformerController2D : MonoBehaviour
 {
-    public bool CanControl = true;
+    public bool canControl = true;
 
-    private PlayerMotor2D _Motor;
+    private PlayerMotor2D motor;
 
     // Use this for initialization
     void Start()
     {
-        _Motor = GetComponent<PlayerMotor2D>();
+        motor = GetComponent<PlayerMotor2D>();
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (!CanControl)
+        if (!canControl)
         {
             return;
         }
@@ -32,23 +32,23 @@ public class PlayerController2D : MonoBehaviour
         // any vertical movement. So only set the x.
         Vector2 moveDir = new Vector2();
         moveDir.x = Input.GetAxis(PC2D.Input.HORIZONTAL);
-        _Motor.SetMovementDirection(moveDir);
+        motor.movementDir = moveDir;
 
         // Jump?
         if (Input.GetButtonDown(PC2D.Input.JUMP))
         {
-            _Motor.Jump();
+            motor.Jump();
         }
 
         if (Input.GetButton(PC2D.Input.JUMP))
         {
             // Held down?
-            _Motor.JumpHeld();
+            motor.JumpHeld();
         }
 
         if (Input.GetButtonDown(PC2D.Input.DASH))
         {
-            _Motor.Dash();
+            motor.Dash();
         }
     }
 }

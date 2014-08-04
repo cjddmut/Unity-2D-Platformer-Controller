@@ -5,49 +5,54 @@ using PC2D;
 [RequireComponent(typeof(Rigidbody2D))]
 public class PlayerMotor2D : MonoBehaviour
 {
-    public float GroundAcceleration = 30;
-    public float AirAcceleration = 10;
+    public bool alwaysOnGround = false;
 
-    public float MaxGroundSpeed = 3f;
-    public float MaxAirSpeed = 2f;
-    public float MaxFallSpeed = 5f;
+    public bool accelerate = true;
+    public float groundAcceleration = 30;
+    public float airAcceleration = 10;
 
-    public float BaseJump = 0.5f;
-    public float ExtraJumpHeight = 0.5f;
-    public bool AllowDoubleJump = false;
-    public bool AllowWallJump = false;
+    public float maxGroundSpeed = 3f;
+    public float maxAirSpeed = 2f;
+    public float maxFallSpeed = 5f;
 
-    public bool AllowWallSlide = false;
-    public float WallSlideSpeed = 1;
+    public float baseJump = 0.5f;
+    public float extraJumpHeight = 0.5f;
+    public bool allowDoubleJump = false;
+    public bool allowWallJump = false;
 
-    public bool AllowCornerGrab = false;
-    public float CornerHeightCheck = 0.1f;
-    public float CornerWidthCheck = 0.1f;
+    public bool allowWallSlide = false;
+    public float wallSlideSpeed = 1;
 
-    public bool CanDash = false;
-    public float DashCooldown = 1;
-    public float DashSpeed = 5;
-    public float DashDuration = 0.2f;
-    public bool ChangeLayerDuringDash = false;
-    public int DashLayer = 0;
+    public bool allowCornerGrab = false;
 
-    [HideInInspector]
+    // These might need to change depending on the scale of sprites in Unity units.
+    public float cornerHeightCheck = 0.1f;
+    public float cornerWidthCheck = 0.1f;
+
+    public bool canDash = false;
+    public float dashCooldown = 1;
+    public float dashSpeed = 5;
+    public float dashDuration = 0.2f;
+    public bool changeLayerDuringDash = false;
+    public int dashLayer = 0;
+
     // Set this to use a specific collider for checks instead of grabbing the collider from gameObject.collider.
-    public Collider2D ColliderToUse;
+    [HideInInspector]
+    public Collider2D colliderToUse;
 
     // Delegates, attach to these to get event calls.
-    public Notification OnDash;
-    public Notification OnDashEnd;
-    public Notification OnJump;
+    public Notification onDash;
+    public Notification onDashEnd;
+    public Notification onJump;
 
     // If this value is increased then unexpected behavior can occur when wall jumping (basically a wall check will occur after a jump). If
     // this needs to be fixed then add a debounce time to when a wall check can happen after a jump (really short is fine).
-    public float CheckDistance = 0.025f;
+    public float checkDistance = 0.025f;
 
     // This is the layer mask checked by the motor to determine if the character has landed.
-    public LayerMask CheckMask;
+    public LayerMask checkMask;
 
-    public bool DrawGizmos = false;
+    public bool drawGizmos = true;
 
     public enum MotorState
     {
@@ -58,9 +63,7 @@ public class PlayerMotor2D : MonoBehaviour
         Dashing
     }
 
-    private MotorState _MotorState;
-
-    private Surface StuckTo = Surface.None;
+    private Surface stuckTo = Surface.None;
     private enum Surface
     {
         None,
@@ -69,53 +72,46 @@ public class PlayerMotor2D : MonoBehaviour
         RightWall,
     }
 
-    private Vector2 _MovementDir;
-
-    private Vector2 _UpRight;
-    private Vector2 _UpLeft;
-    private float _InitialDrag;
-    private float _InitialGravity;
-    private float _IgnoreMovementUntil = 0;
-    private bool _OnCorner = false;
+    private Vector2 upRight;
+    private Vector2 upLeft;
+    private float initialDrag;
+    private float initialGravity;
+    private float ignoreMovementUntil = 0;
+    private bool onCorner = false;
     
-    private bool _FacingLeft = false;
-
     // Contains the various jump variables, this is for organization.
     private class JumpState
     {
-        public bool IsJumping = false;
-        public bool Pressed = false;
-        public bool Held = false;
-        public bool DoubleJumped = false;
+        public bool isJumping = false;
+        public bool pressed = false;
+        public bool held = false;
+        public bool doubleJumped = false;
 
-        public float Time = 0;
-        public float TimeBuffer = 0.2f; // Amount of time that a jump can be triggered, same as the default unity controller script.
+        public float time = 0;
+        public float timeBuffer = 0.2f; // Amount of time that a jump can be triggered, same as the default unity controller script.
 
-        public bool Force = false;
-        public float ExtraSpeed;
+        public bool force = false;
+        public float extraSpeed;
     }
-    private JumpState _Jumping = new JumpState();
+    private JumpState jumping = new JumpState();
 
     // Contains the various dash variables.
     private class DashState
     {
-        public bool IsDashing = false;
-        public bool Pressed = false;
-        public float CanDashAgain;
-        public float EndDash;
-        public bool DashWithDirection;
-        public Vector2 DashDir = Vector2.zero;
-        public int OriginalLayer;
-        public bool ForceEnd = false;
+        public bool isDashing = false;
+        public bool pressed = false;
+        public float canDashAgain;
+        public float endDash;
+        public bool dashWithDirection;
+        public Vector2 dashDir = Vector2.zero;
+        public int originalLayer;
+        public bool forceEnd = false;
     }
-    private DashState _Dashing = new DashState();
+    private DashState dashing = new DashState();
 
     // This seems to be the magic number where you won't collide with the "ground" by being on the wall and not be able to sit on a corner
     // without colliding with the ground.
     private const float TRIM_STUCKTO_NUM = 0.01f;
-
-    // Input threshold in order to take effect. Arbitarily set.
-    private const float INPUT_THRESHOLD = 0.1f;
 
     // When jumping off of a wall, this is the amount of time that movement input is ignored.
     private const float IGNORE_INPUT_TIME = 0.2f;
@@ -124,19 +120,19 @@ public class PlayerMotor2D : MonoBehaviour
 
     void Start()
     {
-        _UpRight = Vector2.up + Vector2.right;
-        _UpRight.Normalize();
-        _UpLeft = new Vector2(-_UpRight.x, _UpRight.y);
+        upRight = Vector2.up + Vector2.right;
+        upRight.Normalize();
+        upLeft = new Vector2(-upRight.x, upRight.y);
 
-        _InitialDrag = rigidbody2D.drag;
-        _InitialGravity = rigidbody2D.gravityScale;
-        _Dashing.OriginalLayer = gameObject.layer;
+        initialDrag = rigidbody2D.drag;
+        initialGravity = rigidbody2D.gravityScale;
+        dashing.originalLayer = gameObject.layer;
     }
 
     void OnDestroy()
     {
-        OnDash = null;
-        OnDashEnd = null;
+        onDash = null;
+        onDashEnd = null;
     }
 
     /**
@@ -144,16 +140,16 @@ public class PlayerMotor2D : MonoBehaviour
      **/
     public void Jump(float extraSpeed = 0)
     {
-        _Jumping.Pressed = true;
-        _Jumping.Time = Time.time;
-        _Jumping.IsJumping = false;
-        _Jumping.ExtraSpeed = extraSpeed;
+        jumping.pressed = true;
+        jumping.time = Time.time;
+        jumping.isJumping = false;
+        jumping.extraSpeed = extraSpeed;
     }
 
     public void ForceJump(float extraSpeed = 0)
     {
         Jump(extraSpeed);
-        _Jumping.Force = true;
+        jumping.force = true;
     }
 
     /**
@@ -161,9 +157,9 @@ public class PlayerMotor2D : MonoBehaviour
      **/
     public void JumpHeld()
     {
-        if (_Jumping.IsJumping)
+        if (jumping.isJumping)
         {
-            _Jumping.Held = true;
+            jumping.held = true;
         }
     }
 
@@ -173,8 +169,8 @@ public class PlayerMotor2D : MonoBehaviour
      **/
     public void Dash()
     {
-        _Dashing.Pressed = true;
-        _Dashing.DashWithDirection = false;
+        dashing.pressed = true;
+        dashing.dashWithDirection = false;
     }
 
     /**
@@ -182,134 +178,108 @@ public class PlayerMotor2D : MonoBehaviour
      **/
     public void Dash(Vector2 dir)
     {
-        _Dashing.Pressed = true;
-        _Dashing.DashWithDirection = true;
-        _Dashing.DashDir = dir * DashSpeed;
+        dashing.pressed = true;
+        dashing.dashWithDirection = true;
+        dashing.dashDir = dir * dashSpeed;
     }
 
     public void EndDash()
     {
         // If dashing then end now.
-        _Dashing.ForceEnd = true;
-    }
-
-    /**
-     * Set the movement direction. Ideally this should be a normalized vector but could be larger for faster speeds.
-     **/
-    public void SetMovementDirection(Vector2 dir)
-    {
-        _MovementDir = dir;
+        dashing.forceEnd = true;
     }
 
     public void SetFacingOffAxis(float axis)
     {
-        if (axis < - INPUT_THRESHOLD)
+        if (axis < -PC2D.Globals.INPUT_THRESHOLD)
         {
-            _FacingLeft = true;
+            facingLeft = true;
         }
-        else if (axis > INPUT_THRESHOLD)
+        else if (axis > PC2D.Globals.INPUT_THRESHOLD)
         {
-            _FacingLeft = false;
+            facingLeft = false;
         }
-    }
-
-
-    /**
-     * Call this to get state information about the motor. This will be information such as if the object is in the air or on the ground. This can be used
-     * to set the appropriate animations.
-     **/
-    public MotorState GetMotorState()
-    {
-        return _MotorState;
-    }
-
-    /**
-     * Since the motor needs to know the facing of the object, this information is made available to anyone else who might need it.
-     **/
-    public bool IsFacingLeft()
-    {
-        return _FacingLeft;
     }
 
     void FixedUpdate()
     {
-        if (_MovementDir.x < -INPUT_THRESHOLD)
+        if (movementDir.x < -PC2D.Globals.INPUT_THRESHOLD)
         {
-            _FacingLeft = true;
+            facingLeft = true;
         }
-        else if (_MovementDir.x > INPUT_THRESHOLD)
+        else if (movementDir.x > PC2D.Globals.INPUT_THRESHOLD)
         {
-            _FacingLeft = false;
+            facingLeft = false;
         }
 
         // First, are we trying to dash?
-        if (CanDash && _Dashing.Pressed && Time.time >= _Dashing.CanDashAgain)
+        if (canDash && dashing.pressed && Time.time >= dashing.canDashAgain)
         {
-            _Dashing.IsDashing = true;
-            _Dashing.CanDashAgain = Time.time + DashCooldown;
-            _Dashing.EndDash = Time.time + DashDuration;
+            dashing.isDashing = true;
+            dashing.canDashAgain = Time.time + dashCooldown;
+            dashing.endDash = Time.time + dashDuration;
             rigidbody2D.drag = 0;
             rigidbody2D.gravityScale = 0;
-            _MotorState = MotorState.Dashing;
+            motorState = MotorState.Dashing;
 
-            if (ChangeLayerDuringDash)
+            if (changeLayerDuringDash)
             {
-                gameObject.layer = DashLayer;
+                gameObject.layer = dashLayer;
                 // Changed layers so we dirty the physics with this hack.
                 transform.localScale = transform.localScale;
             }
 
-            if (!_Dashing.DashWithDirection)
+            if (!dashing.dashWithDirection)
             {
-                if (_FacingLeft)
+                if (facingLeft)
                 {
-                    _Dashing.DashDir = -Vector2.right * DashSpeed;
+                    dashing.dashDir = -Vector2.right * dashSpeed;
                 }
                 else
                 {
-                    _Dashing.DashDir = Vector2.right * DashSpeed;
+                    dashing.dashDir = Vector2.right * dashSpeed;
                 }
             }
 
-            if (OnDash != null)
+            if (onDash != null)
             {
-                OnDash();
+                onDash();
             }
         }
 
-        _Dashing.Pressed = false;
+        dashing.pressed = false;
 
-        if (_Dashing.IsDashing)
+        if (dashing.isDashing)
         {
             // Dashing is special!
-            if (!_Dashing.ForceEnd)
+            if (!dashing.forceEnd)
             {
-                rigidbody2D.velocity = _Dashing.DashDir;
+                rigidbody2D.velocity = dashing.dashDir;
             }
 
-            if (Time.time >= _Dashing.EndDash || _Dashing.ForceEnd)
+            if (Time.time >= dashing.endDash || dashing.forceEnd)
             {
                 // Done dashing, back to normals.
-                _Dashing.ForceEnd = false;
-                _Dashing.IsDashing = false;
-                rigidbody2D.gravityScale = _InitialGravity;
+                dashing.forceEnd = false;
+                dashing.isDashing = false;
+                rigidbody2D.gravityScale = initialGravity;
 
-                if (StuckTo == Surface.Ground)
+                if (stuckTo == Surface.Ground)
                 {
-                    rigidbody2D.drag = _InitialDrag;
+                    rigidbody2D.drag = initialDrag;
                 }
 
-                if (ChangeLayerDuringDash)
+                if (changeLayerDuringDash)
                 {
-                    gameObject.layer = _Dashing.OriginalLayer;
+                    gameObject.layer = dashing.originalLayer;
 
                     // Changed layers so we dirty the physics with this hack.
                     transform.localScale = transform.localScale;
                 }
 
-                if (OnDashEnd != null)
+                if (onDashEnd != null)
                 {
-                    OnDashEnd();
+                    onDashEnd();
                 }
             }
         }
@@ -318,72 +288,86 @@ public class PlayerMotor2D : MonoBehaviour
             // Are we grounded?
             SetStuckTo();
 
-            if (StuckTo != Surface.None && rigidbody2D.velocity.y < 0)
+            if (stuckTo != Surface.None && rigidbody2D.velocity.y < 0)
             {
                 // If we're grounded then we are not jumping.
-                _Jumping.IsJumping = false;
+                jumping.isJumping = false;
             }
 
-            if (StuckTo == Surface.Ground)
+            if (stuckTo == Surface.Ground)
             {
-                _MotorState = MotorState.OnGround;
+                motorState = MotorState.OnGround;
             }
             else
             {
-                _MotorState = MotorState.InAir;
+                motorState = MotorState.InAir;
             }
 
             // Apply movement if we're not ignoring it.
-            if (Time.time >= _IgnoreMovementUntil)
+            if (Time.time >= ignoreMovementUntil)
             {
-                if (StuckTo == Surface.Ground)
+                if (stuckTo == Surface.Ground)
                 {
                     // Not in air.
-                    rigidbody2D.drag = _InitialDrag;
-                    //rigidbody2D.AddForce(_MovementDir * GroundAcceleration);
-                    rigidbody2D.velocity += _MovementDir * GroundAcceleration * Time.fixedDeltaTime;
+                    rigidbody2D.drag = initialDrag;
+
+                    if (accelerate)
+                    {
+                        rigidbody2D.velocity += movementDir * groundAcceleration * Time.fixedDeltaTime;
+                    }
+                    else
+                    {
+                        rigidbody2D.velocity = movementDir * maxGroundSpeed;
+                    }
                 }
                 else
                 {
                     rigidbody2D.drag = 0;
 
                     // Don't apply the force if we're already on the wall.
-                    if (_MovementDir.x > 0 && StuckTo == Surface.LeftWall ||
-                        _MovementDir.x < 0 && StuckTo == Surface.RightWall ||
-                        StuckTo == Surface.None)
+                    if (movementDir.x > 0 && stuckTo == Surface.LeftWall ||
+                        movementDir.x < 0 && stuckTo == Surface.RightWall ||
+                        stuckTo == Surface.None)
                     {
-                        rigidbody2D.AddForce(_MovementDir * AirAcceleration);
+                        if (accelerate)
+                        {
+                            rigidbody2D.velocity += movementDir * airAcceleration * Time.fixedDeltaTime;
+                        }
+                        else
+                        {
+                            rigidbody2D.velocity = movementDir * maxAirSpeed;
+                        }
                     }
                 }
             }
 
             // Wall hug?
-            if (AllowWallSlide)
+            if (allowWallSlide)
             {
                 // Only if we're currently falling.
                 if (rigidbody2D.velocity.y < 0 &&
-                    (StuckTo == Surface.LeftWall && _MovementDir.x < -INPUT_THRESHOLD ||
-                     StuckTo == Surface.RightWall && _MovementDir.x > INPUT_THRESHOLD))
+                    (stuckTo == Surface.LeftWall && movementDir.x < -PC2D.Globals.INPUT_THRESHOLD ||
+                     stuckTo == Surface.RightWall && movementDir.x > PC2D.Globals.INPUT_THRESHOLD))
                 {
                     // Sticky!
                     Vector2 v = rigidbody2D.velocity;
 
                     // Set the y to one acceleration tick upwards against gravity.
-                    v.y = -1 * rigidbody2D.gravityScale * Physics2D.gravity.y * Time.fixedDeltaTime - WallSlideSpeed;
+                    v.y = -1 * rigidbody2D.gravityScale * Physics2D.gravity.y * Time.fixedDeltaTime - wallSlideSpeed;
                     rigidbody2D.velocity = v;
-                    _MotorState = MotorState.Sliding;
+                    motorState = MotorState.Sliding;
                 }
             }
 
             // Corner grab?
-            if (AllowCornerGrab)
+            if (allowCornerGrab)
             {
-                if (rigidbody2D.velocity.y < 0 || _OnCorner)
+                if (rigidbody2D.velocity.y < 0 || onCorner)
                 {
-                    _OnCorner = false;
+                    onCorner = false;
 
-                    if (StuckTo == Surface.LeftWall && _MovementDir.x < -INPUT_THRESHOLD ||
-                        StuckTo == Surface.RightWall && _MovementDir.x > INPUT_THRESHOLD)
+                    if (stuckTo == Surface.LeftWall && movementDir.x < -PC2D.Globals.INPUT_THRESHOLD ||
+                        stuckTo == Surface.RightWall && movementDir.x > PC2D.Globals.INPUT_THRESHOLD)
                     {
                         if (CheckIfAtCorner())
                         {
@@ -393,9 +377,9 @@ public class PlayerMotor2D : MonoBehaviour
                             // Set the y to one acceleration tick upwards against gravity.
                             v.y = -1 * rigidbody2D.gravityScale * Physics2D.gravity.y * Time.fixedDeltaTime;
                             rigidbody2D.velocity = v;
-                            _OnCorner = true;
-                            _MotorState = MotorState.OnCorner;
-                            _Jumping.DoubleJumped = false;
+                            onCorner = true;
+                            motorState = MotorState.OnCorner;
+                            jumping.doubleJumped = false;
                         }
                     }
                 }
@@ -404,15 +388,15 @@ public class PlayerMotor2D : MonoBehaviour
             // This is something that the default Unity Controller script does, allows the player to press jump button
             // earlier than would normally be allowed. They say it leads to a more pleasant experience for the
             // user. I'll assume they're on to something.
-            if (Time.time > _Jumping.Time + _Jumping.TimeBuffer)
+            if (Time.time > jumping.time + jumping.timeBuffer)
             {
-                _Jumping.Pressed = false;
+                jumping.pressed = false;
             }
 
             // If we're currently jumping and the jump button is still held down ignore gravity to allow us to acheive the extra height.
-            if (_Jumping.IsJumping && _Jumping.Held)
+            if (jumping.isJumping && jumping.held)
             {
-                if (Time.time < _Jumping.Time + ExtraJumpHeight / CalculateJumpSpeed())
+                if (Time.time < jumping.time + extraJumpHeight / CalculateJumpSpeed())
                 {
                     // TODO: This might want to be based off of the jump direction (in case of wall jumps) which might give a better
                     //       feel.
@@ -422,50 +406,50 @@ public class PlayerMotor2D : MonoBehaviour
 
             // If our state is not in the air then open up the possibility of double jump (we need to be able to double jump if
             // we walk off an edge so it can't be based of when a jump occured).
-            if (_MotorState != MotorState.InAir)
+            if (motorState != MotorState.InAir)
             {
-                _Jumping.DoubleJumped = false;
+                jumping.doubleJumped = false;
             }
 
             // Jump?
-            if (_Jumping.Pressed)
+            if (jumping.pressed)
             {
                 bool jumped = true;
 
                 // Jump might mean different things depending on the state.
-                if (StuckTo == Surface.Ground || _Jumping.Force)
+                if (stuckTo == Surface.Ground || jumping.force)
                 {
                     // Normal jump.
-                    rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, CalculateJumpSpeed() + _Jumping.ExtraSpeed);
+                    rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, CalculateJumpSpeed() + jumping.extraSpeed);
                 }
-                else if (_OnCorner)
+                else if (onCorner)
                 {
                     // If we are on a corner then jump up.
                     rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, CalculateJumpSpeed());
-                    _IgnoreMovementUntil = Time.time + IGNORE_INPUT_TIME;
+                    ignoreMovementUntil = Time.time + IGNORE_INPUT_TIME;
                 }
-                else if (AllowWallJump && StuckTo == Surface.LeftWall)
+                else if (allowWallJump && stuckTo == Surface.LeftWall)
                 {
                     // If jump was pressed as we or before we entered the wall then just jump away.
-                    rigidbody2D.velocity = _UpRight * CalculateJumpSpeed();
+                    rigidbody2D.velocity = upRight * CalculateJumpSpeed();
 
                     // It's likely the player is still pressing into the wall, ignore movement for a little amount of time.
                     // TODO: Only ignore left movement?
-                    _IgnoreMovementUntil = Time.time + IGNORE_INPUT_TIME;
+                    ignoreMovementUntil = Time.time + IGNORE_INPUT_TIME;
 
                     // If wall jump is allowed but not wall slide then double jump will not be allowed earlier, allow it now.
-                    _Jumping.DoubleJumped = false;
+                    jumping.doubleJumped = false;
                 }
-                else if (AllowWallJump && StuckTo == Surface.RightWall)
+                else if (allowWallJump && stuckTo == Surface.RightWall)
                 {
-                        rigidbody2D.velocity = _UpLeft * CalculateJumpSpeed();
-                        _IgnoreMovementUntil = Time.time + IGNORE_INPUT_TIME;
-                        _Jumping.DoubleJumped = false;
+                        rigidbody2D.velocity = upLeft * CalculateJumpSpeed();
+                        ignoreMovementUntil = Time.time + IGNORE_INPUT_TIME;
+                        jumping.doubleJumped = false;
                 }
-                else if (AllowDoubleJump && StuckTo == Surface.None && !_Jumping.DoubleJumped)
+                else if (allowDoubleJump && stuckTo == Surface.None && !jumping.doubleJumped)
                 {
                     rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, CalculateJumpSpeed());
-                    _Jumping.DoubleJumped = true;
+                    jumping.doubleJumped = true;
                 }
                 else
                 {
@@ -475,15 +459,15 @@ public class PlayerMotor2D : MonoBehaviour
 
                 if (jumped)
                 {
-                    _Jumping.IsJumping = true;
+                    jumping.isJumping = true;
                     rigidbody2D.drag = 0;
-                    _Jumping.Pressed = false;
-                    _OnCorner = false;
-                    _Jumping.Force = false;
+                    jumping.pressed = false;
+                    onCorner = false;
+                    jumping.force = false;
 
-                    if (OnJump != null)
+                    if (onJump != null)
                     {
-                        OnJump();
+                        onJump();
                     }
                 }
             }
@@ -495,17 +479,17 @@ public class PlayerMotor2D : MonoBehaviour
         }
 
         // Reset some things.
-        _MovementDir = Vector2.zero;
-        _Jumping.Held = false;
+        movementDir = Vector2.zero;
+        jumping.held = false;
     }
 
     private bool CheckIfAtCorner()
     {
         Bounds box;
 
-        if (ColliderToUse != null)
+        if (colliderToUse != null)
         {
-            box = ColliderToUse.bounds;
+            box = colliderToUse.bounds;
         }
         else
         {
@@ -517,20 +501,20 @@ public class PlayerMotor2D : MonoBehaviour
 
         // New min y is always at the current max y.
         min.y = max.y;
-        max.y += CornerHeightCheck;
+        max.y += cornerHeightCheck;
 
-        if (StuckTo == Surface.LeftWall)
+        if (stuckTo == Surface.LeftWall)
         {
             max.x = min.x;
-            min.x -= CornerWidthCheck;
+            min.x -= cornerWidthCheck;
         }
-        else if (StuckTo == Surface.RightWall)
+        else if (stuckTo == Surface.RightWall)
         {
             min.x = max.x;
-            max.x += CornerWidthCheck;
+            max.x += cornerWidthCheck;
         }
 
-        Collider2D col = Physics2D.OverlapArea(min, max, CheckMask);
+        Collider2D col = Physics2D.OverlapArea(min, max, checkMask);
 
         return col == null;
     }
@@ -539,18 +523,18 @@ public class PlayerMotor2D : MonoBehaviour
     {
         Vector2 checkedSpeed = rigidbody2D.velocity;
 
-        if (StuckTo == Surface.Ground)
+        if (stuckTo == Surface.Ground)
         {
-            checkedSpeed.x = Mathf.Clamp(checkedSpeed.x, -MaxGroundSpeed, MaxGroundSpeed);
+            checkedSpeed.x = Mathf.Clamp(checkedSpeed.x, -maxGroundSpeed, maxGroundSpeed);
         }
         else
         {
             // Check both horizontal air speed and fall speed.
-            checkedSpeed.x = Mathf.Clamp(checkedSpeed.x, -MaxAirSpeed, MaxAirSpeed);
+            checkedSpeed.x = Mathf.Clamp(checkedSpeed.x, -maxAirSpeed, maxAirSpeed);
 
-            if (checkedSpeed.y < -MaxFallSpeed)
+            if (checkedSpeed.y < -maxFallSpeed)
             {
-                checkedSpeed.y = -MaxFallSpeed;
+                checkedSpeed.y = -maxFallSpeed;
             }
         }
 
@@ -559,11 +543,17 @@ public class PlayerMotor2D : MonoBehaviour
 
     private void SetStuckTo()
     {
+        if (alwaysOnGround)
+        {
+            stuckTo = Surface.Ground;
+            return;
+        }
+
         Bounds box;
         
-        if (ColliderToUse != null)
+        if (colliderToUse != null)
         {
-            box = ColliderToUse.bounds;
+            box = colliderToUse.bounds;
         }
         else
         {
@@ -576,20 +566,20 @@ public class PlayerMotor2D : MonoBehaviour
         min.x += TRIM_STUCKTO_NUM;
         max.x -= TRIM_STUCKTO_NUM;
 
-        min.y -= CheckDistance;
+        min.y -= checkDistance;
         max.y = transform.position.y; // Go ahead and bring the maximum y down.
 
         // TODO: This requires that a ground layer is set up to work. Consider moving to a set up that will consider all
         //       collisions but ignore the player's collider.
 
-        Collider2D col = Physics2D.OverlapArea(min, max, CheckMask);
+        Collider2D col = Physics2D.OverlapArea(min, max, checkMask);
 
-        StuckTo = col != null ? Surface.Ground : Surface.None;
+        stuckTo = col != null ? Surface.Ground : Surface.None;
 
-        if (StuckTo == Surface.None)
+        if (stuckTo == Surface.None)
         {
             // Consider possible stuck to left wall if we're pressing into it.
-            if (_MovementDir.x < -INPUT_THRESHOLD)
+            if (movementDir.x < -PC2D.Globals.INPUT_THRESHOLD)
             {
                 // How about on the walls for wall jump? Left wall first.
                 min = box.min;
@@ -598,17 +588,17 @@ public class PlayerMotor2D : MonoBehaviour
                 min.y += TRIM_STUCKTO_NUM;
                 max.y -= TRIM_STUCKTO_NUM;
 
-                min.x -= CheckDistance;
+                min.x -= checkDistance;
                 max.x = transform.position.x;
 
-                col = Physics2D.OverlapArea(min, max, CheckMask);
+                col = Physics2D.OverlapArea(min, max, checkMask);
 
                 if (col != null)
                 {
-                    StuckTo = Surface.LeftWall;
+                    stuckTo = Surface.LeftWall;
                 }
             }
-            else if (_MovementDir.x > INPUT_THRESHOLD)
+            else if (movementDir.x > PC2D.Globals.INPUT_THRESHOLD)
             {
                 // Now right wall.
                 min = box.min;
@@ -618,13 +608,13 @@ public class PlayerMotor2D : MonoBehaviour
                 max.y -= TRIM_STUCKTO_NUM;
 
                 min.x = transform.position.x;
-                max.x += CheckDistance;
+                max.x += checkDistance;
 
-                col = Physics2D.OverlapArea(min, max, CheckMask);
+                col = Physics2D.OverlapArea(min, max, checkMask);
 
                 if (col != null)
                 {
-                    StuckTo = Surface.RightWall;
+                    stuckTo = Surface.RightWall;
                 }
             }
         }
@@ -632,68 +622,102 @@ public class PlayerMotor2D : MonoBehaviour
 
     private float CalculateJumpSpeed()
     {
-        return Mathf.Sqrt(-2 * BaseJump * rigidbody2D.gravityScale * Physics2D.gravity.y);
+        return Mathf.Sqrt(-2 * baseJump * rigidbody2D.gravityScale * Physics2D.gravity.y);
     }
+
+    //
+    // Getters/Setters
+    //
+
+    /**
+     * Set the movement direction. Ideally this should be a normalized vector but could be larger for faster speeds. READONLY
+     **/
+    public Vector2 movementDir { set; private get; }
+
+    /**
+     * Call this to get state information about the motor. This will be information such as if the object is in the air or on the ground. This can be used
+     * to set the appropriate animations.
+     **/
+    public MotorState motorState { get; private set; }
+
+    /**
+     * Since the motor needs to know the facing of the object, this information is made available to anyone else who might need it.
+     **/
+    public bool facingLeft { get; private set; }
+
+    //
+    // Debug
+    //
 
     void OnDrawGizmosSelected()
     {
-        if (!DrawGizmos)
+        if (!drawGizmos)
             return;
 
         // Ground check.
         Bounds box;
+        Vector2 min;
+        Vector2 max;
 
-        if (ColliderToUse != null)
+        if (colliderToUse != null)
         {
-            box = ColliderToUse.bounds;
+            box = colliderToUse.bounds;
         }
         else
         {
             box = collider2D.bounds;
+        } 
+
+        if (!alwaysOnGround)
+        {
+            // Ground check box
+            min = box.min;
+            max = box.max;
+            min.x += TRIM_STUCKTO_NUM;
+            max.x -= TRIM_STUCKTO_NUM;
+            min.y -= checkDistance;
+            max.y = transform.position.y;
+            Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
+
+            if (allowCornerGrab || allowWallJump || allowWallSlide)
+            {
+                // Left check box
+                min = box.min;
+                max = box.max;
+                min.y += TRIM_STUCKTO_NUM;
+                max.y -= TRIM_STUCKTO_NUM;
+                min.x -= checkDistance;
+                max.x = transform.position.x;
+                Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
+
+                // Right check box
+                min = box.min;
+                max = box.max;
+                min.y += TRIM_STUCKTO_NUM;
+                max.y -= TRIM_STUCKTO_NUM;
+                min.x = transform.position.x;
+                max.x += checkDistance;
+                Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
+            }
+
+            if (allowCornerGrab)
+            {
+                min = box.min;
+                max = box.max;
+                min.y = max.y;
+                max.y += cornerHeightCheck;
+                max.x = min.x;
+                min.x -= cornerWidthCheck;
+                Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
+
+                min = box.min;
+                max = box.max;
+                min.y = max.y;
+                max.y += cornerHeightCheck;
+                min.x = max.x;
+                max.x += cornerWidthCheck;
+                Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
+            }
         }
-
-
-        // Ground check box
-        Vector2 min = box.min;
-        Vector2 max = box.max;
-        min.x += TRIM_STUCKTO_NUM;
-        max.x -= TRIM_STUCKTO_NUM;
-        min.y -= CheckDistance;
-        max.y = transform.position.y;
-        Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
-
-        // Left check box
-        min = box.min;
-        max = box.max;
-        min.y += TRIM_STUCKTO_NUM;
-        max.y -= TRIM_STUCKTO_NUM;
-        min.x -= CheckDistance;
-        max.x = transform.position.x;
-        Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
-
-        // Right check box
-        min = box.min;
-        max = box.max;
-        min.y += TRIM_STUCKTO_NUM;
-        max.y -= TRIM_STUCKTO_NUM;
-        min.x = transform.position.x;
-        max.x += CheckDistance;
-        Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
-
-        min = box.min;
-        max = box.max;
-        min.y = max.y;
-        max.y += CornerHeightCheck;
-        max.x = min.x;
-        min.x -= CornerWidthCheck;
-        Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
-
-        min = box.min;
-        max = box.max;
-        min.y = max.y;
-        max.y += CornerHeightCheck;
-        min.x = max.x;
-        max.x += CornerWidthCheck;
-        Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
     }
 }

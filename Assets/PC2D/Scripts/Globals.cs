@@ -14,5 +14,9 @@ namespace PC2D
 
     public delegate void Notification();
 
-
+    public class Globals
+    {
+        // Input threshold in order to take effect. Arbitarily set.
+        public const float INPUT_THRESHOLD = 0.1f;
+    }
 }
