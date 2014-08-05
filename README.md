@@ -11,9 +11,9 @@ A customizable player controller asset that can be dropped into any scene for im
 
 ### General ###
 
-**Always On Ground** - Should the motor always consider the player on the ground? Turn this one for top down motor control. Note, don't tell the motor to jump if this is true.
+**Always On Ground** - Should the motor always consider the player on the ground? Turn this on for top down motor control. Note, don't tell the motor to jump if this is true.
 
-**Environment Check Mask** - Note: **This has to be set** if 'Always On Ground' is false. This tells the motor what layer collisions to consider the environment (to determine if on the ground, wall, or corner).
+**Environment Check Mask** - Note: **This has to be set if 'Always On Ground' is false.** This tells the motor what layer collisions to consider the environment (to determine if on the ground, wall, or corner).
 
 **Ground Check Distance** - This is how far out the motor will check for the environment.  
 
