@@ -1,11 +1,23 @@
 # UnityPlayerController2D
 =======================
+Latest version (dev): https://github.com/cjddmut/UnityPlayerController2D/blob/develop/out/PC2D_0.1.0b.unitypackage?raw=true
+=======================
 
 A customizable player controller asset that can be dropped into any scene for immediate 2D motion support.
 
 ## Overview of Public Properties of Motor
 
+### General ###
+
+**Always On Ground** - Should the motor always consider the player on the ground? Turn this one for top down motor control. Note, don't tell the motor to jump if this is true.
+
+**Environment Check Mask** - Note: **This has to be set** if 'Always On Ground' is false. This tells the motor what layer collisions to consider the environment (to determine if on the ground, wall, or corner).
+
+**Ground Check Distance** - This is how far out the motor will check for the environment.  
+
 ### Movement ###
+
+**Acceleration** - If the motor will accelerate the game object or immediately set it to the maximum speed.
 
 **Ground Acceleration** - The acceleration of the Motor in Unity units when considered on the ground. This value is applied by the movement dir set by the Controller.
 
@@ -41,7 +53,7 @@ A customizable player controller asset that can be dropped into any scene for im
 
 ### Dashing ###
 
-**Can Dash** - Is dashing allowed?
+**Allow Dashing** - Is dashing allowed?
 
 **Dash Cooldown** - How long, in seconds, before the Motor will allow dash again?
 
@@ -52,13 +64,6 @@ A customizable player controller asset that can be dropped into any scene for im
 **Change Layer During Dash** - If the layer of the Motor should change when dashing. This is useful if the character wants to ignore certain colliders when dashing.
 
 **Dash Layer** - If the layer changes then this is the layer that the Motor will change the Game Object to.
-
-### Other ###
-
-**Check Distance** - The distance out of the character's collider that the motor will check to determine if the character is grounded or on a wall.
-
-**Check Mask** - Layer mask that the Motor checks against for ground/wall checks. **This needs to be set**.
-
 
 ## Overview of Public Properties of Controller
 

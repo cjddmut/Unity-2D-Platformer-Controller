@@ -91,7 +91,7 @@ public class PlayerMotor2DEditor : Editor
         {
             EditorGUILayout.PropertyField(groundAccelerationProp, new GUIContent("Ground Acceleration"));
 
-            if (accelerateProp.hasMultipleDifferentValues || alwaysOnGroundProp.boolValue)
+            if (accelerateProp.hasMultipleDifferentValues || !alwaysOnGroundProp.boolValue)
             {
                 EditorGUILayout.PropertyField(airAccelerationProp, new GUIContent("Air Acceleration"));
             }
