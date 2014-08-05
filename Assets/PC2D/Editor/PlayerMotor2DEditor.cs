@@ -149,8 +149,14 @@ public class PlayerMotor2DEditor : Editor
 
             if (changeLayerDuringDashProp.hasMultipleDifferentValues || changeLayerDuringDashProp.boolValue)
             {
-                EditorGUILayout.PropertyField(dashLayerProp, new GUIContent("Dash Layer"));
-                //dashLayerProp.intValue = EditorGUILayout.LayerField("Layer", dashLayerProp.intValue);
+                if (!dashLayerProp.hasMultipleDifferentValues)
+                {
+                    dashLayerProp.intValue = EditorGUILayout.LayerField("Layer", dashLayerProp.intValue);
+                }
+                else
+                {
+                    EditorGUILayout.LabelField("Dash layer editing disabled when editing mutliple objects with different values.");
+                }
             }
         }
 
