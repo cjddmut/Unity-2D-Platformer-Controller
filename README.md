@@ -1,6 +1,8 @@
 # UnityPlayerController2D
 =======================
-Latest version (dev): https://github.com/cjddmut/UnityPlayerController2D/blob/develop/out/PC2D_0.1.0b.unitypackage?raw=true
+
+Latest version (dev): (https://github.com/cjddmut/UnityPlayerController2D/blob/develop/out/PC2D_0.1.0b.unitypackage?raw=true "0.1.0b")
+
 =======================
 
 A customizable player controller asset that can be dropped into any scene for immediate 2D motion support.
