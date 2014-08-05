@@ -151,11 +151,14 @@ public class PlayerMotor2DEditor : Editor
             {
                 if (!dashLayerProp.hasMultipleDifferentValues)
                 {
-                    dashLayerProp.intValue = EditorGUILayout.LayerField("Layer", dashLayerProp.intValue);
+                    dashLayerProp.intValue = EditorGUILayout.LayerField("Dash Layer", dashLayerProp.intValue);
                 }
                 else
                 {
-                    EditorGUILayout.LabelField("Dash layer editing disabled when editing mutliple objects with different values.");
+                    // I can't find a way to work with enumerated layers and instead if there are different multiple values
+                    // then will just display the integer. (I might be able to construct my own list and display that, will
+                    // look into later).
+                    EditorGUILayout.PropertyField(dashLayerProp, new GUIContent("Dash Layer"));
                 }
             }
         }
