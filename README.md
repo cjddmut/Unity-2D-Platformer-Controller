@@ -1,7 +1,9 @@
 # UnityPlayerController2D
 =======================
 
-Latest version (dev): [0.1.0b](https://github.com/cjddmut/UnityPlayerController2D/blob/develop/out/PC2D_0.1.0b.unitypackage?raw=true)
+Latest version (beta): [0.1.0b](https://github.com/cjddmut/UnityPlayerController2D/releases/tag/v0.1.0-beta.0)
+
+Pull for latest dev version.
 
 =======================
 
