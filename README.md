@@ -1,13 +1,16 @@
 # UnityPlayerController2D
 =======================
 
-Latest version (beta): [0.1.0b](https://github.com/cjddmut/UnityPlayerController2D/releases/tag/v0.1.0-beta.0)
-
-Pull for latest dev version.
-
-=======================
-
 A customizable player controller asset that can be dropped into any scene for immediate 2D motion support.
+
+####Obtain!####
+[Releases](https://github.com/cjddmut/Unity-2D-Player-Controller/releases)
+
+If you'd like the most up to date version (which is the most cool), then pull the repo or download it [here](https://github.com/cjddmut/Unity-2D-Player-Controller/archive/develop.zip) and copy the files in Assets to your project's Assets folder.
+
+## Setup
+
+Simply drag either the PlatformContoller2D or the TopdownController2D script on an object for immediate control support. 
 
 ## Overview of Public Properties of Motor
 
