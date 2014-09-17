@@ -30,8 +30,7 @@ public class PlayerMotor2DEditor : Editor
     SerializedProperty allowWallSlideProp;
     SerializedProperty wallSlideSpeedProp;
     SerializedProperty allowCornerGrabProp;
-    SerializedProperty cornerHeightCheckProp;
-    SerializedProperty cornerWidthCheckProp;
+    SerializedProperty cornerDistanceCheckProp;
     SerializedProperty canDashProp;
     SerializedProperty dashCooldownProp;
     SerializedProperty dashSpeedProp;
@@ -58,8 +57,7 @@ public class PlayerMotor2DEditor : Editor
         allowWallSlideProp = serializedObject.FindProperty("allowWallSlide");
         wallSlideSpeedProp = serializedObject.FindProperty("wallSlideSpeed");
         allowCornerGrabProp = serializedObject.FindProperty("allowCornerGrab");
-        cornerHeightCheckProp = serializedObject.FindProperty("cornerHeightCheck");
-        cornerWidthCheckProp = serializedObject.FindProperty("cornerWidthCheck");
+        cornerDistanceCheckProp = serializedObject.FindProperty("cornerDistanceCheck");
         canDashProp = serializedObject.FindProperty("canDash");
         dashCooldownProp = serializedObject.FindProperty("dashCooldown");
         dashSpeedProp = serializedObject.FindProperty("dashSpeed");
@@ -131,8 +129,7 @@ public class PlayerMotor2DEditor : Editor
 
             if (allowCornerGrabProp.hasMultipleDifferentValues || allowCornerGrabProp.boolValue)
             {
-                EditorGUILayout.PropertyField(cornerHeightCheckProp, new GUIContent("Corner Check Height"));
-                EditorGUILayout.PropertyField(cornerWidthCheckProp, new GUIContent("Corner Check Width"));
+                EditorGUILayout.PropertyField(cornerDistanceCheckProp, new GUIContent("Corner Distance Check"));
             }
 
             EditorGUILayout.Separator();

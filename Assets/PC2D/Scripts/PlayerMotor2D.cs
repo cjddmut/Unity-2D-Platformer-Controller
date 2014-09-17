@@ -26,8 +26,7 @@ public class PlayerMotor2D : MonoBehaviour
     public bool allowCornerGrab = false;
 
     // These might need to change depending on the scale of sprites in Unity units.
-    public float cornerHeightCheck = 0.1f;
-    public float cornerWidthCheck = 0.1f;
+    public float cornerDistanceCheck = 0.1f;
 
     public bool canDash = false;
     public float dashCooldown = 1;
@@ -51,8 +50,6 @@ public class PlayerMotor2D : MonoBehaviour
 
     // This is the layer mask checked by the motor to determine if the character has landed.
     public LayerMask checkMask;
-
-    public bool drawGizmos = true;
 
     public enum MotorState
     {
@@ -501,17 +498,17 @@ public class PlayerMotor2D : MonoBehaviour
 
         // New min y is always at the current max y.
         min.y = max.y;
-        max.y += cornerHeightCheck;
+        max.y += cornerDistanceCheck;
 
         if (stuckTo == Surface.LeftWall)
         {
             max.x = min.x;
-            min.x -= cornerWidthCheck;
+            min.x -= cornerDistanceCheck;
         }
         else if (stuckTo == Surface.RightWall)
         {
             min.x = max.x;
-            max.x += cornerWidthCheck;
+            max.x += cornerDistanceCheck;
         }
 
         Collider2D col = Physics2D.OverlapArea(min, max, checkMask);
@@ -651,9 +648,6 @@ public class PlayerMotor2D : MonoBehaviour
 
     void OnDrawGizmosSelected()
     {
-        if (!drawGizmos)
-            return;
-
         // Ground check.
         Bounds box;
         Vector2 min;
@@ -705,17 +699,17 @@ public class PlayerMotor2D : MonoBehaviour
                 min = box.min;
                 max = box.max;
                 min.y = max.y;
-                max.y += cornerHeightCheck;
+                max.y += cornerDistanceCheck;
                 max.x = min.x;
-                min.x -= cornerWidthCheck;
+                min.x -= cornerDistanceCheck;
                 Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
 
                 min = box.min;
                 max = box.max;
                 min.y = max.y;
-                max.y += cornerHeightCheck;
+                max.y += cornerDistanceCheck;
                 min.x = max.x;
-                max.x += cornerWidthCheck;
+                max.x += cornerDistanceCheck;
                 Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
             }
         }
