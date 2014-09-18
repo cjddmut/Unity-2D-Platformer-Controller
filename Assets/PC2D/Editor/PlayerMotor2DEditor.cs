@@ -26,11 +26,19 @@ public class PlayerMotor2DEditor : Editor
     SerializedProperty baseJumpProp;
     SerializedProperty extraJumpHeightProp;
     SerializedProperty allowDoubleJumpProp;
+
     SerializedProperty allowWallJumpProp;
+
+    SerializedProperty allowWallClingProp;
+    SerializedProperty wallClingDurationProp;
+
     SerializedProperty allowWallSlideProp;
     SerializedProperty wallSlideSpeedProp;
+
     SerializedProperty allowCornerGrabProp;
+    SerializedProperty cornerGrabDurationProp;
     SerializedProperty cornerDistanceCheckProp;
+
     SerializedProperty canDashProp;
     SerializedProperty dashCooldownProp;
     SerializedProperty dashSpeedProp;
@@ -39,7 +47,9 @@ public class PlayerMotor2DEditor : Editor
     SerializedProperty dashLayerProp;
     SerializedProperty checkMaskProp;
     SerializedProperty checkDistanceProp;
-    SerializedProperty drawGizmosProp;
+
+    SerializedProperty inputThresholdProp;
+    SerializedProperty heavyInputThresholdProp;
 
     void OnEnable()
     {
@@ -53,11 +63,19 @@ public class PlayerMotor2DEditor : Editor
         baseJumpProp = serializedObject.FindProperty("baseJump");
         extraJumpHeightProp = serializedObject.FindProperty("extraJumpHeight");
         allowDoubleJumpProp = serializedObject.FindProperty("allowDoubleJump");
+
         allowWallJumpProp = serializedObject.FindProperty("allowWallJump");
+
+        allowWallClingProp = serializedObject.FindProperty("allowWallCling");
+        wallClingDurationProp = serializedObject.FindProperty("wallClingDuration");
+
         allowWallSlideProp = serializedObject.FindProperty("allowWallSlide");
         wallSlideSpeedProp = serializedObject.FindProperty("wallSlideSpeed");
+
         allowCornerGrabProp = serializedObject.FindProperty("allowCornerGrab");
+        cornerGrabDurationProp = serializedObject.FindProperty("cornerGrabDuration");
         cornerDistanceCheckProp = serializedObject.FindProperty("cornerDistanceCheck");
+
         canDashProp = serializedObject.FindProperty("canDash");
         dashCooldownProp = serializedObject.FindProperty("dashCooldown");
         dashSpeedProp = serializedObject.FindProperty("dashSpeed");
@@ -66,7 +84,9 @@ public class PlayerMotor2DEditor : Editor
         dashLayerProp = serializedObject.FindProperty("dashLayer");
         checkMaskProp = serializedObject.FindProperty("checkMask");
         checkDistanceProp = serializedObject.FindProperty("checkDistance");
-        drawGizmosProp = serializedObject.FindProperty("drawGizmos");
+
+        inputThresholdProp = serializedObject.FindProperty("inputThreshold");
+        heavyInputThresholdProp = serializedObject.FindProperty("heavyInputThreshold");
     }
 
     public override void OnInspectorGUI()
@@ -78,7 +98,7 @@ public class PlayerMotor2DEditor : Editor
         if (alwaysOnGroundProp.hasMultipleDifferentValues || !alwaysOnGroundProp.boolValue)
         {
             EditorGUILayout.PropertyField(checkMaskProp, new GUIContent("Environment Check Mask"));
-            EditorGUILayout.PropertyField(checkDistanceProp, new GUIContent("Ground Check Distance"));
+            EditorGUILayout.PropertyField(checkDistanceProp, new GUIContent("Environment Check Distance"));
         }
 
         EditorGUILayout.Separator();
@@ -116,6 +136,15 @@ public class PlayerMotor2DEditor : Editor
 
             EditorGUILayout.Separator();
 
+            EditorGUILayout.PropertyField(allowWallClingProp, new GUIContent("Allow Wall Cling"));
+
+            if (allowWallClingProp.hasMultipleDifferentValues || allowWallClingProp.boolValue)
+            {
+                EditorGUILayout.PropertyField(wallClingDurationProp, new GUIContent("Wall Cling Duration"));
+            }
+
+            EditorGUILayout.Separator();
+
             EditorGUILayout.PropertyField(allowWallSlideProp, new GUIContent("Allow Wall Slide"));
 
             if (allowWallSlideProp.hasMultipleDifferentValues || allowWallSlideProp.boolValue)
@@ -129,10 +158,11 @@ public class PlayerMotor2DEditor : Editor
 
             if (allowCornerGrabProp.hasMultipleDifferentValues || allowCornerGrabProp.boolValue)
             {
+                EditorGUILayout.PropertyField(cornerGrabDurationProp, new GUIContent("Corner Grab Duration"));
                 EditorGUILayout.PropertyField(cornerDistanceCheckProp, new GUIContent("Corner Distance Check"));
             }
 
-            EditorGUILayout.Separator();
+            EditorGUILayout.Separator(); 
         }
 
         EditorGUILayout.PropertyField(canDashProp, new GUIContent("Allow Dashing"));
@@ -162,7 +192,12 @@ public class PlayerMotor2DEditor : Editor
 
         EditorGUILayout.Separator();
 
-        EditorGUILayout.PropertyField(drawGizmosProp, new GUIContent("Draw Gizmos"));
+        EditorGUILayout.PropertyField(inputThresholdProp, new GUIContent("Input Threshold"));
+
+        if (alwaysOnGroundProp.hasMultipleDifferentValues || !alwaysOnGroundProp.boolValue)
+        {
+            EditorGUILayout.PropertyField(heavyInputThresholdProp, new GUIContent("Heavy Input Threshold"));
+        }
 
         serializedObject.ApplyModifiedProperties();
     }

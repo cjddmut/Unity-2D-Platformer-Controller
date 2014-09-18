@@ -20,10 +20,14 @@ public class PlayerMotor2D : MonoBehaviour
     public bool allowDoubleJump = false;
     public bool allowWallJump = false;
 
+    public bool allowWallCling = false;
+    public float wallClingDuration = 0.5f;
+
     public bool allowWallSlide = false;
     public float wallSlideSpeed = 1;
 
     public bool allowCornerGrab = false;
+    public float cornerGrabDuration = 0.5f;
 
     // These might need to change depending on the scale of sprites in Unity units.
     public float cornerDistanceCheck = 0.1f;
@@ -35,7 +39,11 @@ public class PlayerMotor2D : MonoBehaviour
     public bool changeLayerDuringDash = false;
     public int dashLayer = 0;
 
-    // Set this to use a specific collider for checks instead of grabbing the collider from gameObject.collider.
+    // Input threshold for the motor.
+    public float inputThreshold = 0.2f;
+    public float heavyInputThreshold = 0.5f;
+
+    // Set this to use a specific collider for checks instead of grabbing the collider from gameObject.collider2D.
     [HideInInspector]
     public Collider2D colliderToUse;
 
@@ -57,6 +65,7 @@ public class PlayerMotor2D : MonoBehaviour
         InAir,
         Sliding,
         OnCorner,
+        Clinging,
         Dashing
     }
 
@@ -74,7 +83,6 @@ public class PlayerMotor2D : MonoBehaviour
     private float initialDrag;
     private float initialGravity;
     private float ignoreMovementUntil = 0;
-    private bool onCorner = false;
     
     // Contains the various jump variables, this is for organization.
     private class JumpState
@@ -105,6 +113,21 @@ public class PlayerMotor2D : MonoBehaviour
         public bool forceEnd = false;
     }
     private DashState dashing = new DashState();
+
+    // Contains information for wall clings, slides, and corner grabs.
+    private class WallState
+    {
+        public bool onCorner = false;
+        public float cornerHangTime = 0;
+
+        public bool sliding = false;
+
+        public bool clinging = false;
+        public float clingTime = 0;
+
+        public bool canHangAgain = true;
+    }
+    private WallState wallInfo = new WallState();
 
     // This seems to be the magic number where you won't collide with the "ground" by being on the wall and not be able to sit on a corner
     // without colliding with the ground.
@@ -200,11 +223,11 @@ public class PlayerMotor2D : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (movementDir.x < -PC2D.Globals.INPUT_THRESHOLD)
+        if (movementDir.x < -inputThreshold)
         {
             facingLeft = true;
         }
-        else if (movementDir.x > PC2D.Globals.INPUT_THRESHOLD)
+        else if (movementDir.x > inputThreshold)
         {
             facingLeft = false;
         }
@@ -291,6 +314,16 @@ public class PlayerMotor2D : MonoBehaviour
                 jumping.isJumping = false;
             }
 
+            if (stuckTo != Surface.RightWall && stuckTo != Surface.LeftWall)
+            {
+                if (!wallInfo.canHangAgain)
+                {
+                    Debug.Log("Can hang again!");
+                    Debug.Log(stuckTo);
+                }
+                wallInfo.canHangAgain = true;
+            }
+
             if (stuckTo == Surface.Ground)
             {
                 motorState = MotorState.OnGround;
@@ -332,41 +365,38 @@ public class PlayerMotor2D : MonoBehaviour
                         }
                         else
                         {
-                            rigidbody2D.velocity = movementDir * maxAirSpeed;
+                            // In air so we set the x but add the y.
+
+                            rigidbody2D.velocity = new Vector2(
+                                movementDir.x * maxAirSpeed, 
+                                rigidbody2D.velocity.y + movementDir.y * maxAirSpeed);
                         }
                     }
-                }
-            }
-
-            // Wall hug?
-            if (allowWallSlide)
-            {
-                // Only if we're currently falling.
-                if (rigidbody2D.velocity.y < 0 &&
-                    (stuckTo == Surface.LeftWall && movementDir.x < -PC2D.Globals.INPUT_THRESHOLD ||
-                     stuckTo == Surface.RightWall && movementDir.x > PC2D.Globals.INPUT_THRESHOLD))
-                {
-                    // Sticky!
-                    Vector2 v = rigidbody2D.velocity;
-
-                    // Set the y to one acceleration tick upwards against gravity.
-                    v.y = -1 * rigidbody2D.gravityScale * Physics2D.gravity.y * Time.fixedDeltaTime - wallSlideSpeed;
-                    rigidbody2D.velocity = v;
-                    motorState = MotorState.Sliding;
                 }
             }
 
             // Corner grab?
             if (allowCornerGrab)
             {
-                if (rigidbody2D.velocity.y < 0 || onCorner)
+                if (rigidbody2D.velocity.y < 0 || wallInfo.onCorner)
                 {
-                    onCorner = false;
-
-                    if (stuckTo == Surface.LeftWall && movementDir.x < -PC2D.Globals.INPUT_THRESHOLD ||
-                        stuckTo == Surface.RightWall && movementDir.x > PC2D.Globals.INPUT_THRESHOLD)
+                    if ((stuckTo == Surface.LeftWall && movementDir.x < -heavyInputThreshold ||
+                        stuckTo == Surface.RightWall && movementDir.x > heavyInputThreshold) &&
+                        CheckIfAtCorner())
                     {
-                        if (CheckIfAtCorner())
+                        if (wallInfo.onCorner && wallInfo.canHangAgain)
+                        {
+                            wallInfo.onCorner = true;
+                            wallInfo.canHangAgain = false;
+                            wallInfo.cornerHangTime = Time.time + cornerGrabDuration;
+                        }
+
+                        if (wallInfo.onCorner && Time.time >= wallInfo.cornerHangTime)
+                        {
+                            wallInfo.onCorner = false;
+                        }
+
+                        if (wallInfo.onCorner)
                         {
                             // Stick completely!
                             Vector2 v = rigidbody2D.velocity;
@@ -374,14 +404,76 @@ public class PlayerMotor2D : MonoBehaviour
                             // Set the y to one acceleration tick upwards against gravity.
                             v.y = -1 * rigidbody2D.gravityScale * Physics2D.gravity.y * Time.fixedDeltaTime;
                             rigidbody2D.velocity = v;
-                            onCorner = true;
                             motorState = MotorState.OnCorner;
-                            jumping.doubleJumped = false;
                         }
+                    }
+                    else
+                    {
+                        wallInfo.onCorner = false;
                     }
                 }
             }
 
+            // Wall Cling
+            if (allowWallCling)
+            {
+                if (rigidbody2D.velocity.y < 0 || wallInfo.clinging)
+                {
+                    if (stuckTo == Surface.LeftWall && movementDir.x < -heavyInputThreshold ||
+                    stuckTo == Surface.RightWall && movementDir.x > heavyInputThreshold)
+                    {
+                        if (!wallInfo.clinging && wallInfo.canHangAgain)
+                        {
+                            wallInfo.clinging = true;
+                            wallInfo.canHangAgain = false;
+                            wallInfo.clingTime = Time.time + wallClingDuration;
+                        }
+
+                        if (wallInfo.clinging && Time.time >= wallInfo.clingTime)
+                        {
+                            wallInfo.clinging = false;
+                        }
+
+                        if (wallInfo.clinging)
+                        {
+                            // Sticky!
+                            Vector2 v = rigidbody2D.velocity;
+
+                            // Set the y to one acceleration tick upwards against gravity.
+                            v.y = -1 * rigidbody2D.gravityScale * Physics2D.gravity.y * Time.fixedDeltaTime;
+                            rigidbody2D.velocity = v;
+                            motorState = MotorState.Clinging;
+                        }
+                    }
+                    else
+                    {
+                        wallInfo.clinging = false;
+                    }
+                }
+            }
+
+            // Wall slide?
+            if (allowWallSlide)
+            {
+                if (rigidbody2D.velocity.y < 0 || wallInfo.sliding)
+                {
+                    wallInfo.sliding = false;
+
+                    // Only if we're currently falling.
+                    if (stuckTo == Surface.LeftWall && movementDir.x < -heavyInputThreshold ||
+                        stuckTo == Surface.RightWall && movementDir.x > heavyInputThreshold)
+                    {
+                        // Sticky!
+                        Vector2 v = rigidbody2D.velocity;
+
+                        // Set the y to one acceleration tick upwards against gravity.
+                        v.y = -1 * rigidbody2D.gravityScale * Physics2D.gravity.y * Time.fixedDeltaTime - wallSlideSpeed;
+                        rigidbody2D.velocity = v;
+                        motorState = MotorState.Sliding;
+                        wallInfo.sliding = true;
+                    }
+                }
+            }
             // This is something that the default Unity Controller script does, allows the player to press jump button
             // earlier than would normally be allowed. They say it leads to a more pleasant experience for the
             // user. I'll assume they're on to something.
@@ -419,7 +511,7 @@ public class PlayerMotor2D : MonoBehaviour
                     // Normal jump.
                     rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, CalculateJumpSpeed() + jumping.extraSpeed);
                 }
-                else if (onCorner)
+                else if (wallInfo.onCorner)
                 {
                     // If we are on a corner then jump up.
                     rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, CalculateJumpSpeed());
@@ -459,7 +551,9 @@ public class PlayerMotor2D : MonoBehaviour
                     jumping.isJumping = true;
                     rigidbody2D.drag = 0;
                     jumping.pressed = false;
-                    onCorner = false;
+                    wallInfo.onCorner = false;
+                    wallInfo.sliding = false;
+                    wallInfo.clinging = false;
                     jumping.force = false;
 
                     if (onJump != null)
@@ -576,7 +670,7 @@ public class PlayerMotor2D : MonoBehaviour
         if (stuckTo == Surface.None)
         {
             // Consider possible stuck to left wall if we're pressing into it.
-            if (movementDir.x < -PC2D.Globals.INPUT_THRESHOLD)
+            if (movementDir.x < -inputThreshold)
             {
                 // How about on the walls for wall jump? Left wall first.
                 min = box.min;
@@ -595,7 +689,7 @@ public class PlayerMotor2D : MonoBehaviour
                     stuckTo = Surface.LeftWall;
                 }
             }
-            else if (movementDir.x > PC2D.Globals.INPUT_THRESHOLD)
+            else if (movementDir.x > inputThreshold)
             {
                 // Now right wall.
                 min = box.min;
