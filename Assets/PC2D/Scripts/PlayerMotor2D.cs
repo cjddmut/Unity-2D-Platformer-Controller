@@ -21,7 +21,9 @@ public class PlayerMotor2D : MonoBehaviour
     public float baseJump = 0.5f;
     public float extraJumpHeight = 0.5f;
     public bool allowDoubleJump = false;
+
     public bool allowWallJump = false;
+    public float wallJumpMultiplier = 1f;
 
     public bool allowWallCling = false;
     public float wallClingDuration = 0.5f;
@@ -30,6 +32,7 @@ public class PlayerMotor2D : MonoBehaviour
     public float wallSlideSpeed = 1;
 
     public bool allowCornerGrab = false;
+    public float cornerJumpMultiplier = 1f;
     public float cornerGrabDuration = 0.5f;
 
     // These might need to change depending on the scale of sprites in Unity units.
@@ -37,13 +40,16 @@ public class PlayerMotor2D : MonoBehaviour
 
     public bool canDash = false;
     public float dashCooldown = 1;
-    public float dashSpeed = 5;
+    public float dashDistance = 1;
     public float dashDuration = 0.2f;
     public bool changeLayerDuringDash = false;
     public int dashLayer = 0;
 
     // Input threshold for the motor.
+    [Range(0f, 1f)]
     public float inputThreshold = 0.2f;
+
+    [Range(0f, 1f)]
     public float heavyInputThreshold = 0.5f;
 
     // Set this to use a specific collider for checks instead of grabbing the collider from gameObject.collider2D.
@@ -141,6 +147,13 @@ public class PlayerMotor2D : MonoBehaviour
 
     private const float IGNORE_STICKINESS_TIME = 0.2f;
 
+    void Awake()
+    {
+        // Placed in awake so some other script can change it in Start().
+        clampVelocity = true;
+        changeDrag = true;
+    }
+
     void Start()
     {
         upRight = Vector2.up + Vector2.right;
@@ -175,6 +188,9 @@ public class PlayerMotor2D : MonoBehaviour
         jumping.force = true;
     }
 
+    /**
+     * Allows a double jump to occur. This only has effect if double jumps are allowed. 
+     * */
     public void AllowDoubleJump()
     {
         jumping.doubleJumped = false;
@@ -197,7 +213,7 @@ public class PlayerMotor2D : MonoBehaviour
     {
         dashing.pressed = true;
         dashing.dashWithDirection = true;
-        dashing.dashDir = dir * dashSpeed;
+        dashing.dashDir = dir * (dashDistance / dashDuration);
     }
 
     public void EndDash()
@@ -220,6 +236,12 @@ public class PlayerMotor2D : MonoBehaviour
 
     void FixedUpdate()
     {
+        // Frozen?
+        if (frozen)
+        {
+            return;
+        }
+
         if (movementDir.x < -inputThreshold)
         {
             facingLeft = true;
@@ -235,7 +257,12 @@ public class PlayerMotor2D : MonoBehaviour
             dashing.isDashing = true;
             dashing.canDashAgain = Time.time + dashCooldown;
             dashing.endDash = Time.time + dashDuration;
-            rigidbody2D.drag = 0;
+
+            if (changeDrag)
+            {
+                rigidbody2D.drag = 0;
+            }
+
             rigidbody2D.gravityScale = 0;
             motorState = MotorState.Dashing;
 
@@ -250,11 +277,11 @@ public class PlayerMotor2D : MonoBehaviour
             {
                 if (facingLeft)
                 {
-                    dashing.dashDir = -Vector2.right * dashSpeed;
+                    dashing.dashDir = -Vector2.right * (dashDistance / dashDuration);
                 }
                 else
                 {
-                    dashing.dashDir = Vector2.right * dashSpeed;
+                    dashing.dashDir = Vector2.right * (dashDistance / dashDuration);
                 }
             }
 
@@ -281,7 +308,7 @@ public class PlayerMotor2D : MonoBehaviour
                 dashing.isDashing = false;
                 rigidbody2D.gravityScale = initialGravity;
 
-                if (stuckTo == Surface.Ground)
+                if (stuckTo == Surface.Ground && changeDrag)
                 {
                     rigidbody2D.drag = initialDrag;
                 }
@@ -331,7 +358,10 @@ public class PlayerMotor2D : MonoBehaviour
                 if (stuckTo == Surface.Ground)
                 {
                     // Not in air.
-                    rigidbody2D.drag = initialDrag;
+                    if (changeDrag)
+                    {
+                        rigidbody2D.drag = initialDrag;
+                    }
 
                     if (accelerate)
                     {
@@ -344,9 +374,12 @@ public class PlayerMotor2D : MonoBehaviour
                 }
                 else
                 {
-                    rigidbody2D.drag = 0;
+                    if (changeDrag)
+                    {
+                        rigidbody2D.drag = 0;
+                    }
 
-                    if (airDrag > 0 && Mathf.Abs(movementDir.x) < inputThreshold)
+                    if (changeDrag && airDrag > 0 && Mathf.Abs(movementDir.x) < inputThreshold)
                     {
                         // slow down horizontal.
                         Vector3 vel = rigidbody2D.velocity;
@@ -405,7 +438,7 @@ public class PlayerMotor2D : MonoBehaviour
                         stuckTo == Surface.RightWall && movementDir.x > heavyInputThreshold) &&
                         CheckIfAtCorner())
                     {
-                        if (wallInfo.onCorner && wallInfo.canHangAgain)
+                        if (!wallInfo.onCorner && wallInfo.canHangAgain)
                         {
                             wallInfo.onCorner = true;
                             wallInfo.canHangAgain = false;
@@ -535,13 +568,13 @@ public class PlayerMotor2D : MonoBehaviour
                 else if (wallInfo.onCorner)
                 {
                     // If we are on a corner then jump up.
-                    rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, CalculateJumpSpeed());
+                    rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, CalculateJumpSpeed() * cornerJumpMultiplier);
                     ignoreMovementUntil = Time.time + IGNORE_INPUT_TIME;
                 }
                 else if (allowWallJump && stuckTo == Surface.LeftWall)
                 {
                     // If jump was pressed as we or before we entered the wall then just jump away.
-                    rigidbody2D.velocity = upRight * CalculateJumpSpeed();
+                    rigidbody2D.velocity = upRight * CalculateJumpSpeed() * wallJumpMultiplier;
 
                     // It's likely the player is still pressing into the wall, ignore movement for a little amount of time.
                     // TODO: Only ignore left movement?
@@ -552,9 +585,9 @@ public class PlayerMotor2D : MonoBehaviour
                 }
                 else if (allowWallJump && stuckTo == Surface.RightWall)
                 {
-                        rigidbody2D.velocity = upLeft * CalculateJumpSpeed();
-                        ignoreMovementUntil = Time.time + IGNORE_INPUT_TIME;
-                        jumping.doubleJumped = false;
+                    rigidbody2D.velocity = upLeft * CalculateJumpSpeed() * wallJumpMultiplier;
+                    ignoreMovementUntil = Time.time + IGNORE_INPUT_TIME;
+                    jumping.doubleJumped = false;
                 }
                 else if (allowDoubleJump && stuckTo == Surface.None && !jumping.doubleJumped)
                 {
@@ -570,7 +603,12 @@ public class PlayerMotor2D : MonoBehaviour
                 if (jumped)
                 {
                     jumping.isJumping = true;
-                    rigidbody2D.drag = 0;
+
+                    if (changeDrag)
+                    {
+                        rigidbody2D.drag = 0;
+                    }
+
                     jumping.pressed = false;
                     wallInfo.onCorner = false;
                     wallInfo.sliding = false;
@@ -635,6 +673,11 @@ public class PlayerMotor2D : MonoBehaviour
 
     private void ClampVelocity()
     {
+        if (!clampVelocity)
+        {
+            return;
+        }
+
         Vector2 checkedSpeed = rigidbody2D.velocity;
 
         if (stuckTo == Surface.Ground)
@@ -789,6 +832,64 @@ public class PlayerMotor2D : MonoBehaviour
             jumping.held = value;
         }
     }
+
+    /**
+     * Setting frozen to true will put the motor in a 'frozen' state. All information will be saved and set once unfrozen (the motor also
+     * reduce gravity to 0).
+     * 
+     * Note: This isn't a way to turn off the motor. To turn off the motor, simply set the script to disabled.
+     **/
+    public bool frozen
+    {
+        get
+        {
+            return _frozen;
+        }
+        set
+        {
+            if (_frozen != value)
+            {
+                _frozen = value;
+
+                if (_frozen)
+                {
+                    frozenTime = Time.time;
+                    frozenVelocity = rigidbody2D.velocity;
+                    frozenGravity = rigidbody2D.gravityScale;
+
+                    rigidbody2D.velocity = Vector2.zero;
+                    rigidbody2D.gravityScale = 0;
+                }
+                else
+                {
+                    // Any cooldown or time events happen here.
+                    float delta = Time.time - frozenTime;
+                    dashing.canDashAgain += delta;
+                    dashing.endDash += delta;
+
+                    rigidbody2D.velocity = frozenVelocity;
+                    rigidbody2D.gravityScale = frozenGravity;
+                }
+            }
+        }
+    }
+    private bool _frozen;
+    private float frozenTime;
+    private Vector2 frozenVelocity;
+    private float frozenGravity;
+
+    /**
+     * Should the motor clamp the velocity of the GameObject? Set to true by default.
+     * */
+    public bool clampVelocity { get; set; }
+
+    /**
+     * Should the motor change drag of the rigidbody2D. The motor commonly changes the drag depending on the situation, if this conflicts
+     * with your own manipulation of rigidbody2D's drag then set this to false.
+     * 
+     * If this is false then the horizontal air drag is also ignored.
+     * */
+    public bool changeDrag { get; set; }
 
     //
     // Debug

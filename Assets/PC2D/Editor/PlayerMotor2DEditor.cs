@@ -33,6 +33,7 @@ public class PlayerMotor2DEditor : Editor
     SerializedProperty allowDoubleJumpProp;
 
     SerializedProperty allowWallJumpProp;
+    SerializedProperty wallJumpMultiplierProp;
 
     SerializedProperty allowWallClingProp;
     SerializedProperty wallClingDurationProp;
@@ -41,12 +42,13 @@ public class PlayerMotor2DEditor : Editor
     SerializedProperty wallSlideSpeedProp;
 
     SerializedProperty allowCornerGrabProp;
+    SerializedProperty cornerJumpMultiplierProp;
     SerializedProperty cornerGrabDurationProp;
     SerializedProperty cornerDistanceCheckProp;
 
     SerializedProperty canDashProp;
     SerializedProperty dashCooldownProp;
-    SerializedProperty dashSpeedProp;
+    SerializedProperty dashDistanceProp;
     SerializedProperty dashDurationProp;
     SerializedProperty changeLayerDuringDashProp;
     SerializedProperty dashLayerProp;
@@ -75,6 +77,7 @@ public class PlayerMotor2DEditor : Editor
         allowDoubleJumpProp = serializedObject.FindProperty("allowDoubleJump");
 
         allowWallJumpProp = serializedObject.FindProperty("allowWallJump");
+        wallJumpMultiplierProp = serializedObject.FindProperty("wallJumpMultiplier");
 
         allowWallClingProp = serializedObject.FindProperty("allowWallCling");
         wallClingDurationProp = serializedObject.FindProperty("wallClingDuration");
@@ -83,12 +86,13 @@ public class PlayerMotor2DEditor : Editor
         wallSlideSpeedProp = serializedObject.FindProperty("wallSlideSpeed");
 
         allowCornerGrabProp = serializedObject.FindProperty("allowCornerGrab");
+        cornerJumpMultiplierProp = serializedObject.FindProperty("cornerJumpMultiplier");
         cornerGrabDurationProp = serializedObject.FindProperty("cornerGrabDuration");
         cornerDistanceCheckProp = serializedObject.FindProperty("cornerDistanceCheck");
 
         canDashProp = serializedObject.FindProperty("canDash");
         dashCooldownProp = serializedObject.FindProperty("dashCooldown");
-        dashSpeedProp = serializedObject.FindProperty("dashSpeed");
+        dashDistanceProp = serializedObject.FindProperty("dashDistance");
         dashDurationProp = serializedObject.FindProperty("dashDuration");
         changeLayerDuringDashProp = serializedObject.FindProperty("changeLayerDuringDash");
         dashLayerProp = serializedObject.FindProperty("dashLayer");
@@ -145,7 +149,15 @@ public class PlayerMotor2DEditor : Editor
             EditorGUILayout.PropertyField(baseJumpProp, new GUIContent("Base Jump Height"));
             EditorGUILayout.PropertyField(extraJumpHeightProp, new GUIContent("Held Extra Jump Height"));
             EditorGUILayout.PropertyField(allowDoubleJumpProp, new GUIContent("Allow Double Jump"));
+
+            EditorGUILayout.Separator();
+
             EditorGUILayout.PropertyField(allowWallJumpProp, new GUIContent("Allow Wall Jump"));
+
+            if (allowWallJumpProp.hasMultipleDifferentValues || allowWallJumpProp.boolValue)
+            {
+                EditorGUILayout.PropertyField(wallJumpMultiplierProp, new GUIContent("Wall Jump Multiplier"));
+            }
 
             EditorGUILayout.Separator();
 
@@ -172,6 +184,7 @@ public class PlayerMotor2DEditor : Editor
             if (allowCornerGrabProp.hasMultipleDifferentValues || allowCornerGrabProp.boolValue)
             {
                 EditorGUILayout.PropertyField(cornerGrabDurationProp, new GUIContent("Corner Grab Duration"));
+                EditorGUILayout.PropertyField(cornerJumpMultiplierProp, new GUIContent("Corner Jump Multiplier"));
                 EditorGUILayout.PropertyField(cornerDistanceCheckProp, new GUIContent("Corner Distance Check"));
             }
 
@@ -182,9 +195,9 @@ public class PlayerMotor2DEditor : Editor
 
         if (canDashProp.hasMultipleDifferentValues || canDashProp.boolValue)
         {
-            EditorGUILayout.PropertyField(dashCooldownProp, new GUIContent("Dash Cooldown"));
-            EditorGUILayout.PropertyField(dashSpeedProp, new GUIContent("Dash Speed"));
+            EditorGUILayout.PropertyField(dashDistanceProp, new GUIContent("Dash Distance"));
             EditorGUILayout.PropertyField(dashDurationProp, new GUIContent("Dash Duration"));
+            EditorGUILayout.PropertyField(dashCooldownProp, new GUIContent("Dash Cooldown"));
             EditorGUILayout.PropertyField(changeLayerDuringDashProp, new GUIContent("Change Layer During Dash"));
 
             if (changeLayerDuringDashProp.hasMultipleDifferentValues || changeLayerDuringDashProp.boolValue)
