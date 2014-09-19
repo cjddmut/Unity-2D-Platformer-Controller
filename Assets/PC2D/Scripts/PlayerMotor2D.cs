@@ -52,10 +52,6 @@ public class PlayerMotor2D : MonoBehaviour
     [Range(0f, 1f)]
     public float heavyInputThreshold = 0.5f;
 
-    // Set this to use a specific collider for checks instead of grabbing the collider from gameObject.collider2D.
-    [HideInInspector]
-    public Collider2D colliderToUse;
-
     // Delegates, attach to these to get event calls.
     public Notification onDash;
     public Notification onDashEnd;
@@ -75,7 +71,8 @@ public class PlayerMotor2D : MonoBehaviour
         Sliding,
         OnCorner,
         Clinging,
-        Dashing
+        Dashing,
+        Frozen
     }
 
     private Surface stuckTo = Surface.None;
@@ -189,9 +186,9 @@ public class PlayerMotor2D : MonoBehaviour
     }
 
     /**
-     * Allows a double jump to occur. This only has effect if double jumps are allowed. 
+     * Resets a double jump to occur. This only has effect if double jumps are allowed. 
      * */
-    public void AllowDoubleJump()
+    public void ResetDoubleJump()
     {
         jumping.doubleJumped = false;
     }
@@ -220,18 +217,6 @@ public class PlayerMotor2D : MonoBehaviour
     {
         // If dashing then end now.
         dashing.forceEnd = true;
-    }
-
-    public void SetFacingOffAxis(float axis)
-    {
-        if (axis < -inputThreshold)
-        {
-            facingLeft = true;
-        }
-        else if (axis > inputThreshold)
-        {
-            facingLeft = false;
-        }
     }
 
     void FixedUpdate()
@@ -799,7 +784,7 @@ public class PlayerMotor2D : MonoBehaviour
     /**
      * Set the movement direction. Ideally this should be a normalized vector but could be larger for faster speeds. READONLY
      **/
-    public Vector2 movementDir { set; private get; }
+    public Vector2 movementDir { get; set; }
 
     /**
      * Call this to get state information about the motor. This will be information such as if the object is in the air or on the ground. This can be used
@@ -810,7 +795,7 @@ public class PlayerMotor2D : MonoBehaviour
     /**
      * Since the motor needs to know the facing of the object, this information is made available to anyone else who might need it.
      **/
-    public bool facingLeft { get; private set; }
+    public bool facingLeft { get; set; }
 
     /**
      * Set this true to have the motor fall faster. Set to false to fall at normal speeds.
@@ -859,6 +844,7 @@ public class PlayerMotor2D : MonoBehaviour
 
                     rigidbody2D.velocity = Vector2.zero;
                     rigidbody2D.gravityScale = 0;
+                    motorState = MotorState.Frozen;
                 }
                 else
                 {
@@ -890,6 +876,11 @@ public class PlayerMotor2D : MonoBehaviour
      * If this is false then the horizontal air drag is also ignored.
      * */
     public bool changeDrag { get; set; }
+
+    /**
+     * Set this to use a specific collider for checks instead of grabbing the collider from gameObject.collider2D.
+     * */
+    public Collider2D colliderToUse { get; set; }
 
     //
     // Debug
