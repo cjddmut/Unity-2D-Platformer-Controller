@@ -94,6 +94,124 @@ Simply drag either the PlatformContoller2D or the TopdownController2D script on 
 
 **Heavy Input Theshold** - The input threshold for wall clings, corner grabs, and slides. Could be set to higher to prevent unwanted sticking to walls.
 
+### PlayerMotor2D Members ###
+
+```csharp
+Vector2 movementDir
+```
+
+The direction that the motor should move the GameObject. The magnitude of this vector should be between 0 and 1 (can be taken directly from Input.GetAxis()) and will be multiplied by the acceleration or ground speed.
+
+```csharp
+MotorState motorState // Readonly
+
+enum MotorState
+{
+    OnGround,
+    InAir,
+    Sliding,
+    OnCorner,
+    Clinging,
+    Dashing,
+    Frozen
+}
+```
+
+The state that the motor is in.
+
+```csharp
+bool facingLeft
+```
+
+If the motor is considering itself to be facing left.
+
+```csharp
+bool fallFast
+```
+
+If the motor shoudl allow the GameObject to move faster. This can be set to true if the player is holding down and false otherwise.
+
+```csharp
+bool jumpingHeld
+```
+
+If the extra jump height should be used in the jump calculation. Could be set to true if the jump button is held and false otherwise.
+
+```csharp
+bool frozen
+```
+
+Setting frozen to true will put the motor in a 'frozen' state. All information will be saved and set once unfrozen (the motor also reduce gravity to 0).
+
+Note: This isn't a way to turn off the motor. To turn off the motor, simply set the script to disabled.
+
+```csharp
+bool clampVelocity
+```
+
+Should the motor clamp the velocity of the GameObject? Set to true by default.
+
+```csharp
+bool changeDrag
+```
+
+Should the motor change drag of the rigidbody2D. The motor commonly changes the drag depending on the situation, if this conflicts with your own manipulation of rigidbody2D's drag then set this to false.
+
+If this is false then the horizontal air drag is also ignored.
+
+```csharp
+Collider2D colliderToUse
+```
+Set this to use a specific collider for checks instead of grabbing the collider from gameObject.collider2D.
+
+```csharp
+delegate void Notification()
+
+Notification onDash
+Notification onDashEnd
+Notification onJump
+```
+
+Attach to these delegates to receive notifications for dash, dash end, and jump events.
+
+### PlayerMotor2D Methods ###
+
+```csharp
+void Jump(float extraSpeed = 0)
+```
+
+Call this to have the GameObject try to jump, once called it will be handled in the FixedUpdate tick. The y axis is considered jump. The parameter extraSpeed adds additional speed to the jump.
+
+```csharp
+void ForceJump(float extraSpeed = 0)
+```
+
+This works similar to Jump() except it will jump even if the motor doesn't detect a valid jump scenario. Note, this is ignore while the motor is dashing.
+
+```csharp
+void ResetDoubleJump()
+```
+
+Resets the motor's double jump state. If the motor has already double jumped and this is called then the motor will allow an additional jump. This method has no use if double jumps aren't allowed.
+
+```csharp
+void Dash()
+```
+
+Call this to have the GameObject try to dash, once called it will be handled in the FixedUpdate tick. This casues the object to dash along their facing (if left or right for side scrollers).
+
+```csharp
+void Dash(Vector2 dir)
+```
+
+Send a direction vector to dash allow dashing in a specific direction. 
+
+```csharp
+void EndDash()
+```
+
+Ends dash early.
+
 ## Overview of Public Properties of Controller
 
 Most likely this file will need to be modified to suit the needs of the game.
