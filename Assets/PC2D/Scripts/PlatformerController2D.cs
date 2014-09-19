@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿
+using UnityEngine;
 using System.Collections;
 
 
@@ -40,10 +41,11 @@ public class PlatformerController2D : MonoBehaviour
             motor.Jump();
         }
 
-        if (Input.GetButton(PC2D.Input.JUMP))
+        motor.jumpingHeld = Input.GetButton(PC2D.Input.JUMP);
+
+        if (Input.GetAxis(PC2D.Input.VERTICAL) < PC2D.Globals.INPUT_THRESHOLD)
         {
-            // Held down?
-            motor.JumpHeld();
+            motor.fallFast = true;
         }
 
         if (Input.GetButtonDown(PC2D.Input.DASH))

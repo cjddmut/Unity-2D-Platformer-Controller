@@ -14,6 +14,9 @@ public class PlayerMotor2D : MonoBehaviour
     public float maxGroundSpeed = 3f;
     public float maxAirSpeed = 2f;
     public float maxFallSpeed = 5f;
+    public float maxFastFallSpeed = 5f;
+
+    public float airDrag = 0;
 
     public float baseJump = 0.5f;
     public float extraJumpHeight = 0.5f;
@@ -172,15 +175,9 @@ public class PlayerMotor2D : MonoBehaviour
         jumping.force = true;
     }
 
-    /**
-     * Call this function if the jump button is considered held (not on the initial detection but others (OnButton)).
-     **/
-    public void JumpHeld()
+    public void AllowDoubleJump()
     {
-        if (jumping.isJumping)
-        {
-            jumping.held = true;
-        }
+        jumping.doubleJumped = false;
     }
 
     /**
@@ -211,11 +208,11 @@ public class PlayerMotor2D : MonoBehaviour
 
     public void SetFacingOffAxis(float axis)
     {
-        if (axis < -PC2D.Globals.INPUT_THRESHOLD)
+        if (axis < -inputThreshold)
         {
             facingLeft = true;
         }
-        else if (axis > PC2D.Globals.INPUT_THRESHOLD)
+        else if (axis > inputThreshold)
         {
             facingLeft = false;
         }
@@ -316,11 +313,6 @@ public class PlayerMotor2D : MonoBehaviour
 
             if (stuckTo != Surface.RightWall && stuckTo != Surface.LeftWall)
             {
-                if (!wallInfo.canHangAgain)
-                {
-                    Debug.Log("Can hang again!");
-                    Debug.Log(stuckTo);
-                }
                 wallInfo.canHangAgain = true;
             }
 
@@ -354,22 +346,51 @@ public class PlayerMotor2D : MonoBehaviour
                 {
                     rigidbody2D.drag = 0;
 
-                    // Don't apply the force if we're already on the wall.
-                    if (movementDir.x > 0 && stuckTo == Surface.LeftWall ||
-                        movementDir.x < 0 && stuckTo == Surface.RightWall ||
-                        stuckTo == Surface.None)
+                    if (airDrag > 0 && Mathf.Abs(movementDir.x) < inputThreshold)
                     {
-                        if (accelerate)
-                        {
-                            rigidbody2D.velocity += movementDir * airAcceleration * Time.fixedDeltaTime;
-                        }
-                        else
-                        {
-                            // In air so we set the x but add the y.
+                        // slow down horizontal.
+                        Vector3 vel = rigidbody2D.velocity;
 
-                            rigidbody2D.velocity = new Vector2(
-                                movementDir.x * maxAirSpeed, 
-                                rigidbody2D.velocity.y + movementDir.y * maxAirSpeed);
+                        if (vel.x < 0)
+                        {
+                            vel.x += airDrag * Time.fixedDeltaTime;
+
+                            if (vel.x > 0)
+                            {
+                                vel.x = 0;
+                            }
+                        }
+                        else if (vel.x > 0)
+                        {
+                            vel.x -= airDrag * Time.fixedDeltaTime;
+
+                            if (vel.x < 0)
+                            {
+                                vel.x = 0;
+                            }
+                        }
+
+                        rigidbody2D.velocity = vel;
+                    }
+                    else
+                    {
+                        // Don't apply the force if we're already on the wall.
+                        if (movementDir.x > 0 && stuckTo == Surface.LeftWall ||
+                            movementDir.x < 0 && stuckTo == Surface.RightWall ||
+                            stuckTo == Surface.None)
+                        {
+                            if (accelerate)
+                            {
+                                rigidbody2D.velocity += movementDir * airAcceleration * Time.fixedDeltaTime;
+                            }
+                            else
+                            {
+                                // In air so we set the x but add the y.
+
+                                rigidbody2D.velocity = new Vector2(
+                                    movementDir.x * maxAirSpeed,
+                                    rigidbody2D.velocity.y + movementDir.y * maxAirSpeed);
+                            }
                         }
                     }
                 }
@@ -569,9 +590,11 @@ public class PlayerMotor2D : MonoBehaviour
             ClampVelocity();
         }
 
-        // Reset some things.
-        movementDir = Vector2.zero;
-        jumping.held = false;
+        if (Physics2D.gravity != Vector2.zero && rigidbody2D.gravityScale != 0 && motorState == MotorState.InAir)
+        {
+            // The rigidbody might go to sleep if clinged onto a wall.
+            rigidbody2D.WakeUp();
+        }
     }
 
     private bool CheckIfAtCorner()
@@ -623,9 +646,19 @@ public class PlayerMotor2D : MonoBehaviour
             // Check both horizontal air speed and fall speed.
             checkedSpeed.x = Mathf.Clamp(checkedSpeed.x, -maxAirSpeed, maxAirSpeed);
 
-            if (checkedSpeed.y < -maxFallSpeed)
+            if (fallFast)
             {
-                checkedSpeed.y = -maxFallSpeed;
+                if (checkedSpeed.y < -maxFastFallSpeed)
+                {
+                    checkedSpeed.y = -maxFastFallSpeed;
+                }
+            }
+            else
+            {
+                if (checkedSpeed.y < -maxFallSpeed)
+                {
+                    checkedSpeed.y = -maxFallSpeed;
+                }
             }
         }
 
@@ -735,6 +768,27 @@ public class PlayerMotor2D : MonoBehaviour
      * Since the motor needs to know the facing of the object, this information is made available to anyone else who might need it.
      **/
     public bool facingLeft { get; private set; }
+
+    /**
+     * Set this true to have the motor fall faster. Set to false to fall at normal speeds.
+     * */
+    public bool fallFast { get; set; }
+
+    /**
+     * If jumpingHeld is set to true then the motor will jump further. Set to false if jumping isn't 'held'.
+     * */
+    public bool jumpingHeld
+    {
+        get
+        {
+            return jumping.held;
+        }
+
+        set
+        {
+            jumping.held = value;
+        }
+    }
 
     //
     // Debug

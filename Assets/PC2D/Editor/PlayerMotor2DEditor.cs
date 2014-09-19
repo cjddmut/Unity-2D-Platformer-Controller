@@ -20,9 +20,14 @@ public class PlayerMotor2DEditor : Editor
     SerializedProperty accelerateProp;
     SerializedProperty groundAccelerationProp;
     SerializedProperty airAccelerationProp;
+    
     SerializedProperty maxGroundSpeedProp;
     SerializedProperty maxAirSpeedProp;
     SerializedProperty maxFallSpeedProp;
+    SerializedProperty maxFastFallSpeedProp;
+
+    SerializedProperty airDragProp;
+
     SerializedProperty baseJumpProp;
     SerializedProperty extraJumpHeightProp;
     SerializedProperty allowDoubleJumpProp;
@@ -57,9 +62,14 @@ public class PlayerMotor2DEditor : Editor
         accelerateProp = serializedObject.FindProperty("accelerate");
         groundAccelerationProp = serializedObject.FindProperty("groundAcceleration");
         airAccelerationProp = serializedObject.FindProperty("airAcceleration");
+
         maxGroundSpeedProp = serializedObject.FindProperty("maxGroundSpeed");
         maxAirSpeedProp = serializedObject.FindProperty("maxAirSpeed");
         maxFallSpeedProp = serializedObject.FindProperty("maxFallSpeed");
+        maxFastFallSpeedProp = serializedObject.FindProperty("maxFastFallSpeed");
+
+        airDragProp = serializedObject.FindProperty("airDrag");
+
         baseJumpProp = serializedObject.FindProperty("baseJump");
         extraJumpHeightProp = serializedObject.FindProperty("extraJumpHeight");
         allowDoubleJumpProp = serializedObject.FindProperty("allowDoubleJump");
@@ -121,8 +131,11 @@ public class PlayerMotor2DEditor : Editor
 
         if (alwaysOnGroundProp.hasMultipleDifferentValues || !alwaysOnGroundProp.boolValue)
         {
-            EditorGUILayout.PropertyField(maxAirSpeedProp, new GUIContent("Max Air Speed"));
+            EditorGUILayout.PropertyField(maxAirSpeedProp, new GUIContent("Max Horizontal Air Speed"));
             EditorGUILayout.PropertyField(maxFallSpeedProp, new GUIContent("Max Fall Speed"));
+            EditorGUILayout.PropertyField(maxFastFallSpeedProp, new GUIContent("Max Fast Fall Speed"));
+            EditorGUILayout.PropertyField(airDragProp, new GUIContent("Horizontal Air Drag"));
+
         }
 
         EditorGUILayout.Separator();
@@ -194,7 +207,10 @@ public class PlayerMotor2DEditor : Editor
 
         EditorGUILayout.PropertyField(inputThresholdProp, new GUIContent("Input Threshold"));
 
-        if (alwaysOnGroundProp.hasMultipleDifferentValues || !alwaysOnGroundProp.boolValue)
+        if ((alwaysOnGroundProp.hasMultipleDifferentValues || !alwaysOnGroundProp.boolValue) &&
+            ((allowWallClingProp.hasMultipleDifferentValues || allowWallClingProp.boolValue) ||
+            (allowCornerGrabProp.hasMultipleDifferentValues || allowCornerGrabProp.boolValue) ||
+            (allowWallSlideProp.hasMultipleDifferentValues || allowWallSlideProp.boolValue)))
         {
             EditorGUILayout.PropertyField(heavyInputThresholdProp, new GUIContent("Heavy Input Threshold"));
         }
