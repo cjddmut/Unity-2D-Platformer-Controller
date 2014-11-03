@@ -1,4 +1,3 @@
-<!---%=title%-->
 # Unity 2D PlayerController
 =======================
 
