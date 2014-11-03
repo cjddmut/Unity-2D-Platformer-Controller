@@ -3,7 +3,7 @@
 
 <!---%=description%-->
 
-A customizable player controller asset that can be dropped into any scene for immediate 2D motion support.
+A customizable player controller asset that can be dropped into any scene for immediate 2D motion support. Includes platformer mechanics such as double jump, wall jumps, and corner grabs!
 
 <!---%=obtain%-->
 
