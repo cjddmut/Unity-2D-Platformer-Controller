@@ -2,35 +2,24 @@
 using UnityEngine;
 using System.Collections;
 
-
-/**
- * This script is set up to work with the default Unity input settings to be an easy example. Alter this file
- * along with the input settings to change what keys do what. In fact, I'd say this is encouraged :).
- **/
-
+/// <summary>
+/// This class is a simple example of how to build a controller that interacts with PlatformerMotor2D.
+/// </summary>
 [RequireComponent(typeof(PlatformerMotor2D))]
-public class PlatformerController2D : MonoBehaviour
+public class PlayerController2D : MonoBehaviour
 {
-    public bool canControl = true;
-
     private PlatformerMotor2D motor;
 
     // Use this for initialization
     void Start()
     {
         motor = GetComponent<PlatformerMotor2D>();
-        float a = 1;
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (!canControl)
-        {
-            return;
-        }
-
-        motor.normalizedXMovement = Input.GetAxis(PC2D.Input.HORIZONTAL); ;
+        motor.normalizedXMovement = Input.GetAxis(PC2D.Input.HORIZONTAL);
 
         // Jump?
         if (Input.GetButtonDown(PC2D.Input.JUMP))
@@ -40,7 +29,7 @@ public class PlatformerController2D : MonoBehaviour
 
         motor.jumpingHeld = Input.GetButton(PC2D.Input.JUMP);
 
-        if (Input.GetAxis(PC2D.Input.VERTICAL) < -PC2D.Globals.INPUT_THRESHOLD)
+        if (Input.GetAxis(PC2D.Input.VERTICAL) < -PC2D.Globals.FAST_FALL_THRESHOLD)
         {
             motor.fallFast = true;
         }

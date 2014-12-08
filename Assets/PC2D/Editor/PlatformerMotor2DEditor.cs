@@ -55,8 +55,7 @@ public class PlatformerMotor2DEditor : Editor
     SerializedProperty checkMaskProp;
     SerializedProperty checkDistanceProp;
 
-    SerializedProperty inputThresholdProp;
-    SerializedProperty heavyInputThresholdProp;
+    SerializedProperty wallInteractionThresholdProp;
 
     void OnEnable()
     {
@@ -101,8 +100,7 @@ public class PlatformerMotor2DEditor : Editor
         checkMaskProp = serializedObject.FindProperty("checkMask");
         checkDistanceProp = serializedObject.FindProperty("checkDistance");
 
-        inputThresholdProp = serializedObject.FindProperty("inputThreshold");
-        heavyInputThresholdProp = serializedObject.FindProperty("heavyInputThreshold");
+        wallInteractionThresholdProp = serializedObject.FindProperty("wallInteractionThreshold");
     }
 
     public override void OnInspectorGUI()
@@ -177,6 +175,15 @@ public class PlatformerMotor2DEditor : Editor
 
         EditorGUILayout.Separator();
 
+        if ((allowWallClingProp.hasMultipleDifferentValues || allowWallClingProp.boolValue) ||
+            (allowCornerGrabProp.hasMultipleDifferentValues || allowCornerGrabProp.boolValue) ||
+            (allowWallSlideProp.hasMultipleDifferentValues || allowWallSlideProp.boolValue))
+        {
+            EditorGUILayout.PropertyField(wallInteractionThresholdProp, new GUIContent("Wall Interaction Threshold"));
+        }
+
+        EditorGUILayout.Separator();
+
         EditorGUILayout.PropertyField(allowDashProp, new GUIContent("Allow Dashing"));
 
         if (allowDashProp.hasMultipleDifferentValues || allowDashProp.boolValue)
@@ -187,27 +194,6 @@ public class PlatformerMotor2DEditor : Editor
             EditorGUILayout.PropertyField(dashEasingFunctionProp, new GUIContent("Dash Easing Function"));
         }
 
-        EditorGUILayout.Separator();
-
-        EditorGUILayout.PropertyField(inputThresholdProp, new GUIContent("Input Threshold"));
-
-        if ((allowWallClingProp.hasMultipleDifferentValues || allowWallClingProp.boolValue) ||
-            (allowCornerGrabProp.hasMultipleDifferentValues || allowCornerGrabProp.boolValue) ||
-            (allowWallSlideProp.hasMultipleDifferentValues || allowWallSlideProp.boolValue))
-        {
-            EditorGUILayout.PropertyField(heavyInputThresholdProp, new GUIContent("Heavy Input Threshold"));
-        }
-
         serializedObject.ApplyModifiedProperties();
-    }
-
-    private bool IsEasingFunctionThatEndsWithSpeed(PC2D.EasingFunctions.Functions easingFunction)
-    {
-        /*
-        switch (easingFunction)
-        {
-            case PC2D.EasingFunctions.Functions.
-        }*/
-        return false;
     }
 }

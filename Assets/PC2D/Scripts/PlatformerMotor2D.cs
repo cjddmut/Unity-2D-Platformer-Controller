@@ -155,17 +155,11 @@ public class PlatformerMotor2D : MonoBehaviour
     public EasingFunctions.Functions dashEasingFunction = EasingFunctions.Functions.EaseOutQuad;
 
     /// <summary>
-    /// The inputThreshold for the motor. The motor will absolute values less than this for movement.
-    /// </summary>
-    [Range(0f, 1f)]
-    public float inputThreshold = 0.2f;
-
-    /// <summary>
-    /// The heavyInputThreshold for the motor. Works similarly as inputThreshold but used for wall clings, wall slides, wall jumps,
+    /// The threshold that normalizedXMovement will have to be higher than to consider wall clings, wall slides, wall jumps,
     /// and corner grabs.
     /// </summary>
     [Range(0f, 1f)]
-    public float heavyInputThreshold = 0.5f;
+    public float wallInteractionThreshold = 0.5f;
 
     /// <summary>
     /// Delegate to attach to when the motor dashes.
@@ -737,8 +731,8 @@ public class PlatformerMotor2D : MonoBehaviour
         {
             if (rigidbody2D.velocity.y < 0 || _wallInfo.onCorner)
             {
-                if ((_stuckTo == Surface.LeftWall && normalizedXMovement < -heavyInputThreshold ||
-                    _stuckTo == Surface.RightWall && normalizedXMovement > heavyInputThreshold) &&
+                if ((_stuckTo == Surface.LeftWall && normalizedXMovement < -wallInteractionThreshold ||
+                    _stuckTo == Surface.RightWall && normalizedXMovement > wallInteractionThreshold) &&
                     CheckIfAtCorner())
                 {
                     if (!_wallInfo.onCorner && _wallInfo.canHangAgain)
@@ -776,8 +770,8 @@ public class PlatformerMotor2D : MonoBehaviour
         {
             if (rigidbody2D.velocity.y < 0 || _wallInfo.clinging)
             {
-                if (_stuckTo == Surface.LeftWall && normalizedXMovement < -heavyInputThreshold ||
-                _stuckTo == Surface.RightWall && normalizedXMovement > heavyInputThreshold)
+                if (_stuckTo == Surface.LeftWall && normalizedXMovement < -wallInteractionThreshold ||
+                _stuckTo == Surface.RightWall && normalizedXMovement > wallInteractionThreshold)
                 {
                     if (!_wallInfo.clinging && _wallInfo.canHangAgain)
                     {
@@ -817,8 +811,8 @@ public class PlatformerMotor2D : MonoBehaviour
                 _wallInfo.sliding = false;
 
                 // Only if we're currently falling.
-                if (_stuckTo == Surface.LeftWall && normalizedXMovement < -heavyInputThreshold ||
-                    _stuckTo == Surface.RightWall && normalizedXMovement > heavyInputThreshold)
+                if (_stuckTo == Surface.LeftWall && normalizedXMovement < -wallInteractionThreshold ||
+                    _stuckTo == Surface.RightWall && normalizedXMovement > wallInteractionThreshold)
                 {
                     rigidbody2D.gravityScale = 0;
                     rigidbody2D.velocity = -Vector2.up  * wallSlideSpeed;
@@ -834,7 +828,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private void ApplyMovement()
     {
-        if (Mathf.Abs(normalizedXMovement) >= inputThreshold)
+        if (Mathf.Abs(normalizedXMovement) > 0)
         {
             if (_stuckTo == Surface.Ground)
             {
@@ -988,11 +982,11 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private void SetFacing()
     {
-        if (normalizedXMovement < -inputThreshold)
+        if (normalizedXMovement < 0)
         {
             facingLeft = true;
         }
-        else if (normalizedXMovement > inputThreshold)
+        else if (normalizedXMovement > 0)
         {
             facingLeft = false;
         }
@@ -1105,7 +1099,7 @@ public class PlatformerMotor2D : MonoBehaviour
         if (_stuckTo == Surface.None)
         {
             // Consider possible stuck to left wall if we're pressing into it.
-            if (normalizedXMovement < -inputThreshold)
+            if (normalizedXMovement < 0)
             {
                 // How about on the walls for wall jump? Left wall first.
                 min = box.min;
@@ -1124,7 +1118,7 @@ public class PlatformerMotor2D : MonoBehaviour
                     _stuckTo = Surface.LeftWall;
                 }
             }
-            else if (normalizedXMovement > inputThreshold)
+            else if (normalizedXMovement > 0)
             {
                 // Now right wall.
                 min = box.min;

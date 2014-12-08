@@ -16,5 +16,6 @@ namespace PC2D
     {
         // Input threshold in order to take effect. Arbitarily set.
         public const float INPUT_THRESHOLD = 0.1f;
+        public const float FAST_FALL_THRESHOLD = 0.5f;
     }
 }
