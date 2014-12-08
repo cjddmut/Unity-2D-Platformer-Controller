@@ -7,18 +7,18 @@ using System.Collections;
  * along with the input settings to change what keys do what. In fact, I'd say this is encouraged :).
  **/
 
-[RequireComponent(typeof(PlayerMotor2D))]
+[RequireComponent(typeof(PlatformerMotor2D))]
 public class TopDownController2D : MonoBehaviour
 {
     public bool canControl = true;
 
-    private PlayerMotor2D motor;
+    private PlatformerMotor2D motor;
     private Vector2 lastHeading;
 
     // Use this for initialization
     void Start()
     {
-        motor = GetComponent<PlayerMotor2D>();
+        motor = GetComponent<PlatformerMotor2D>();
         lastHeading = -Vector2.up;
     }
 
@@ -58,7 +58,7 @@ public class TopDownController2D : MonoBehaviour
                 lastHeading = moveDir;
             }
 
-            motor.movementDir = moveDir;
+            motor.normalizedXMovement = moveDir.x;
         }
     }
 }

@@ -8,17 +8,18 @@ using System.Collections;
  * along with the input settings to change what keys do what. In fact, I'd say this is encouraged :).
  **/
 
-[RequireComponent(typeof(PlayerMotor2D))]
+[RequireComponent(typeof(PlatformerMotor2D))]
 public class PlatformerController2D : MonoBehaviour
 {
     public bool canControl = true;
 
-    private PlayerMotor2D motor;
+    private PlatformerMotor2D motor;
 
     // Use this for initialization
     void Start()
     {
-        motor = GetComponent<PlayerMotor2D>();
+        motor = GetComponent<PlatformerMotor2D>();
+        float a = 1;
     }
 
     // Update is called once per frame
@@ -29,11 +30,7 @@ public class PlatformerController2D : MonoBehaviour
             return;
         }
 
-        // Handle input communication with the motor. Since this is a side scrolling platformer, we do not want
-        // any vertical movement. So only set the x.
-        Vector2 moveDir = new Vector2();
-        moveDir.x = Input.GetAxis(PC2D.Input.HORIZONTAL);
-        motor.movementDir = moveDir;
+        motor.normalizedXMovement = Input.GetAxis(PC2D.Input.HORIZONTAL); ;
 
         // Jump?
         if (Input.GetButtonDown(PC2D.Input.JUMP))
@@ -43,9 +40,13 @@ public class PlatformerController2D : MonoBehaviour
 
         motor.jumpingHeld = Input.GetButton(PC2D.Input.JUMP);
 
-        if (Input.GetAxis(PC2D.Input.VERTICAL) < PC2D.Globals.INPUT_THRESHOLD)
+        if (Input.GetAxis(PC2D.Input.VERTICAL) < -PC2D.Globals.INPUT_THRESHOLD)
         {
             motor.fallFast = true;
+        }
+        else
+        {
+            motor.fallFast = false;
         }
 
         if (Input.GetButtonDown(PC2D.Input.DASH))
