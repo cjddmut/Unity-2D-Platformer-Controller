@@ -19,7 +19,10 @@ public class PlayerController2D : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        motor.normalizedXMovement = Input.GetAxis(PC2D.Input.HORIZONTAL);
+        if (Mathf.Abs(Input.GetAxis(PC2D.Input.HORIZONTAL)) > PC2D.Globals.INPUT_THRESHOLD)
+        {
+            motor.normalizedXMovement = Input.GetAxis(PC2D.Input.HORIZONTAL);
+        }
 
         // Jump?
         if (Input.GetButtonDown(PC2D.Input.JUMP))
