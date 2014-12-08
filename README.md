@@ -1,12 +1,18 @@
-# UnityPlayerController2D
+# Unity 2D PlayerController
 =======================
 
-A customizable player controller asset that can be dropped into any scene for immediate 2D motion support.
+<!---%=description%-->
+
+A customizable player controller asset that can be dropped into any scene for immediate 2D motion support. Includes platformer mechanics such as double jump, wall jumps, and corner grabs!
+
+<!---%=obtain%-->
 
 ####Obtain!####
 [Releases](https://github.com/cjddmut/Unity-2D-Player-Controller/releases)
 
 If you'd like the most up to date version (which is the most cool), then pull the repo or download it [here](https://github.com/cjddmut/Unity-2D-Player-Controller/archive/develop.zip) and copy the files in Assets to your project's Assets folder.
+
+<!---%=docrest%-->
 
 ## Setup
 
@@ -217,3 +223,7 @@ Ends dash early.
 Most likely this file will need to be modified to suit the needs of the game.
 
 **Can Control** - If input should be given to the Motor. If false then the character will not respond to input (will react to gravity and other forces).
+
+<!---%title=Unity 2D Player Controller%-->
+<!---%download=https://github.com/cjddmut/Unity-2D-Player-Controller/releases/download/v0.2.0/PC2D_v0.2.0b.unitypackage%-->
+<!---%github=https://github.com/cjddmut/Unity-2D-Player-Controller%-->
