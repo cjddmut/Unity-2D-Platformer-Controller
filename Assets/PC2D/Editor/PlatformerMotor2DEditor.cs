@@ -120,7 +120,7 @@ public class PlatformerMotor2DEditor : Editor
 
         EditorGUILayout.PropertyField(maxAirSpeedProp, new GUIContent("Horizontal Air Speed"));
         EditorGUILayout.PropertyField(timeToMaxAirSpeedProp, new GUIContent("Time To Air Speed"));
-        EditorGUILayout.PropertyField(airStopDistanceProp, new GUIContent("Air Stop Speed"));
+        EditorGUILayout.PropertyField(airStopDistanceProp, new GUIContent("Air Stop Distance"));
 
         EditorGUILayout.Separator();
 
