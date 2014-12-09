@@ -1,6 +1,5 @@
 ﻿
 using UnityEngine;
-using System.Collections;
 
 /// <summary>
 /// This class is a simple example of how to build a controller that interacts with PlatformerMotor2D.
@@ -8,12 +7,12 @@ using System.Collections;
 [RequireComponent(typeof(PlatformerMotor2D))]
 public class PlayerController2D : MonoBehaviour
 {
-    private PlatformerMotor2D motor;
+    private PlatformerMotor2D _motor;
 
     // Use this for initialization
     void Start()
     {
-        motor = GetComponent<PlatformerMotor2D>();
+        _motor = GetComponent<PlatformerMotor2D>();
     }
 
     // Update is called once per frame
@@ -21,33 +20,33 @@ public class PlayerController2D : MonoBehaviour
     {
         if (Mathf.Abs(Input.GetAxis(PC2D.Input.HORIZONTAL)) > PC2D.Globals.INPUT_THRESHOLD)
         {
-            motor.normalizedXMovement = Input.GetAxis(PC2D.Input.HORIZONTAL);
+            _motor.normalizedXMovement = Input.GetAxis(PC2D.Input.HORIZONTAL);
         }
         else
         {
-            motor.normalizedXMovement = 0;
+            _motor.normalizedXMovement = 0;
         }
 
         // Jump?
         if (Input.GetButtonDown(PC2D.Input.JUMP))
         {
-            motor.Jump();
+            _motor.Jump();
         }
 
-        motor.jumpingHeld = Input.GetButton(PC2D.Input.JUMP);
+        _motor.jumpingHeld = Input.GetButton(PC2D.Input.JUMP);
 
         if (Input.GetAxis(PC2D.Input.VERTICAL) < -PC2D.Globals.FAST_FALL_THRESHOLD)
         {
-            motor.fallFast = true;
+            _motor.fallFast = true;
         }
         else
         {
-            motor.fallFast = false;
+            _motor.fallFast = false;
         }
 
         if (Input.GetButtonDown(PC2D.Input.DASH))
         {
-            motor.Dash();
+            _motor.Dash();
         }
     }
 }

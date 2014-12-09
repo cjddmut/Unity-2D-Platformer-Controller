@@ -1,6 +1,6 @@
-﻿using UnityEngine;
-using System.Collections;
+﻿using System;
 using PC2D;
+using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody2D))]
 public class PlatformerMotor2D : MonoBehaviour
@@ -164,17 +164,17 @@ public class PlatformerMotor2D : MonoBehaviour
     /// <summary>
     /// Delegate to attach to when the motor dashes.
     /// </summary>
-    public System.Action onDash;
+    public Action onDash;
 
     /// <summary>
     /// Delegate to attach to when the motor's dash ends.
     /// </summary>
-    public System.Action onDashEnd;
+    public Action onDashEnd;
 
     /// <summary>
     /// Delegate to attach to when the motor jumps.
     /// </summary>
-    public System.Action onJump;
+    public Action onJump;
 
     /// <summary>
     /// How far out the motor will check for the environment mask. This value can be tweaked if jump checks are not firing when wanted.
@@ -238,7 +238,7 @@ public class PlatformerMotor2D : MonoBehaviour
             // Since we set held to true on pressed, we only set to false here. This prevent held from being set after a release.
             if (!value)
             {
-                _jumping.held = value;
+                _jumping.held = false;
             }
 
         }
@@ -402,7 +402,7 @@ public class PlatformerMotor2D : MonoBehaviour
     private Vector2 _upLeft;
     private float _originalDrag;
     private float _originalGravity;
-    private float _ignoreMovementUntil = 0;
+    private float _ignoreMovementUntil;
     private Vector2 _velocityBeforeTick;
     private bool _frozen;
     private float _frozenTime;
@@ -428,25 +428,26 @@ public class PlatformerMotor2D : MonoBehaviour
     // Contains the various jump variables, this is for organization.
     private class JumpState
     {
-        public bool isJumping = false;
-        public bool pressed = false;
-        public bool held = false;
-        public bool doubleJumped = false;
+        public bool isJumping;
+        public bool pressed;
+        public bool held;
+        public bool doubleJumped;
 
-        public float timePressed = 0;
-        public float timeBuffer = 0.2f; // Amount of time that a jump can be triggered, same as the default unity controller script.
+        public float timePressed;
         public float allowExtraDuration;
 
-        public bool force = false;
+        public bool force;
         public float extraSpeed;
+
+        public const float TIME_BUFFER = 0.2f; // Amount of time that a jump can be triggered, same as the default unity controller script.
     }
     private JumpState _jumping = new JumpState();
 
     // Contains the various dash variables.
     private class DashState
     {
-        public bool isDashing = false;
-        public bool pressed = false;
+        public bool isDashing;
+        public bool pressed;
         public float canDashAgain;
         public float timeDashed;
         public bool dashWithDirection;
@@ -459,13 +460,13 @@ public class PlatformerMotor2D : MonoBehaviour
     // Contains information for wall clings, slides, and corner grabs.
     private class WallState
     {
-        public bool onCorner = false;
-        public float cornerHangTime = 0;
+        public bool onCorner;
+        public float cornerHangTime;
 
-        public bool sliding = false;
+        public bool sliding;
 
-        public bool clinging = false;
-        public float clingTime = 0;
+        public bool clinging;
+        public float clingTime;
 
         public bool canHangAgain = true;
     }
@@ -478,7 +479,7 @@ public class PlatformerMotor2D : MonoBehaviour
     // When jumping off of a wall, this is the amount of time that movement input is ignored.
     private const float IGNORE_INPUT_TIME = 0.2f;
 
-    void Start()
+    private void Start()
     {
         _upRight = Vector2.up + Vector2.right;
         _upRight.Normalize();
@@ -490,20 +491,20 @@ public class PlatformerMotor2D : MonoBehaviour
         SetDashFunctions();
     }
 
-    void OnDestroy()
+    private void OnDestroy()
     {
         onDash = null;
         onDashEnd = null;
         onJump = null;
     }
 
-    void OnEnable()
+    private void OnEnable()
     {
         // The motor does not use drag.
         rigidbody2D.drag = 0;
     }
 
-    void OnDisable()
+    private void OnDisable()
     {
         rigidbody2D.gravityScale = _originalGravity;
         rigidbody2D.drag = _originalDrag;
@@ -511,7 +512,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
     void OnCollisionEnter2D(Collision2D other)
     {
-        if (preserveHorizontalMomentumOnLanding && false)
+        if (preserveHorizontalMomentumOnLanding)
         {
             if (other.contacts[0].point.y < transform.position.y)
             {
@@ -522,7 +523,7 @@ public class PlatformerMotor2D : MonoBehaviour
         }
     }
 
-    void FixedUpdate()
+    private void FixedUpdate()
     {
         // Frozen?
         if (frozen)
@@ -621,7 +622,7 @@ public class PlatformerMotor2D : MonoBehaviour
         // This is something that the default Unity Controller script does, allows the player to press jump button
         // earlier than would normally be allowed. They say it leads to a more pleasant experience for the
         // user. I'll assume they're on to something.
-        if (Time.time > _jumping.timePressed + _jumping.timeBuffer)
+        if (Time.time > _jumping.timePressed + JumpState.TIME_BUFFER)
         {
             _jumping.pressed = false;
         }
@@ -819,8 +820,6 @@ public class PlatformerMotor2D : MonoBehaviour
                     motorState = MotorState.Sliding;
 
                     _wallInfo.sliding = true;
-
-                    return;
                 }
             }
         }

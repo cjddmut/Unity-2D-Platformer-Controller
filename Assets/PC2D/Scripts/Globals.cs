@@ -1,7 +1,4 @@
-﻿using UnityEngine;
-using System.Collections;
-
-namespace PC2D
+﻿namespace PC2D
 {
     public class Input
     {

@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using System.Collections.Generic;
 
 /*
  * TERMS OF USE - EASING EQUATIONS
@@ -301,7 +300,7 @@ namespace PC2D
 
             float d = 1f;
             float p = d * .3f;
-            float s = 0;
+            float s;
             float a = 0;
 
             if (value == 0) return start;
@@ -327,7 +326,7 @@ namespace PC2D
 
             float d = 1f;
             float p = d * .3f;
-            float s = 0;
+            float s;
             float a = 0;
 
             if (value == 0) return start;
@@ -353,7 +352,7 @@ namespace PC2D
 
             float d = 1f;
             float p = d * .3f;
-            float s = 0;
+            float s;
             float a = 0;
 
             if (value == 0) return start;
@@ -653,7 +652,7 @@ namespace PC2D
 
             float d = 1f;
             float p = d * .3f;
-            float s = 0;
+            float s;
             float a = 0;
 
             if (a == 0f || a < Mathf.Abs(end))
@@ -680,7 +679,7 @@ namespace PC2D
 
             float d = 1f;
             float p = d * .3f;
-            float s = 0;
+            float s;
             float a = 0;
 
             if (a == 0f || a < Mathf.Abs(end))
@@ -704,7 +703,7 @@ namespace PC2D
 
             float d = 1f;
             float p = d * .3f;
-            float s = 0;
+            float s;
             float a = 0;
 
             if (a == 0f || a < Mathf.Abs(end))
