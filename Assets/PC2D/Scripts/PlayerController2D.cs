@@ -23,6 +23,10 @@ public class PlayerController2D : MonoBehaviour
         {
             motor.normalizedXMovement = Input.GetAxis(PC2D.Input.HORIZONTAL);
         }
+        else
+        {
+            motor.normalizedXMovement = 0;
+        }
 
         // Jump?
         if (Input.GetButtonDown(PC2D.Input.JUMP))
