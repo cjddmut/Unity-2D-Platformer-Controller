@@ -378,7 +378,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
             Vector2 vel = rigidbody2D.velocity;
 
-            vel.x = _dashDerivativeFunction(_dashing.start.x, _dashing.end.x, normalizedTime);
+            vel.x = _dashDerivativeFunction(_dashing.start.x, _dashing.end.x, normalizedTime) / dashDuration;
 
             if (_dashing.dashWithDirection)
             {
