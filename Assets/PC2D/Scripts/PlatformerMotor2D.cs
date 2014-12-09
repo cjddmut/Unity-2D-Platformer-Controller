@@ -380,10 +380,31 @@ public class PlatformerMotor2D : MonoBehaviour
 
             vel.x = _dashDerivativeFunction(_dashing.start.x, _dashing.end.x, normalizedTime) / dashDuration;
 
+            // Some of the easing function may result in infinity, we'll uh, lower our expectations and make it maxfloat.
+            // This will almost certainly be clamped.
+            if (float.IsNegativeInfinity(vel.x))
+            {
+                vel.x = float.MinValue;
+            }
+            else if (float.IsPositiveInfinity(vel.x))
+            {
+                vel.x = float.MaxValue;
+            }
+
             if (_dashing.dashWithDirection)
             {
                 vel.y = _dashDerivativeFunction(_dashing.start.y, _dashing.end.y, normalizedTime);
+
+                if (float.IsNegativeInfinity(vel.y))
+                {
+                    vel.y = float.MinValue;
+                }
+                else if (float.IsPositiveInfinity(vel.y))
+                {
+                    vel.y = float.MaxValue;
+                }
             }
+
 
             rigidbody2D.velocity = vel;
 
@@ -577,9 +598,6 @@ public class PlatformerMotor2D : MonoBehaviour
             // Finally, any wall interactions.
             HandleWallInteraction();
 
-            // Check speeds.
-            ClampVelocity();
-
             // If we are falling fast then multiply the gravityScale.
             if (motorState == MotorState.InAir)
             {
@@ -600,6 +618,9 @@ public class PlatformerMotor2D : MonoBehaviour
             // The rigidbody might go to sleep if clinged onto a wall.
             rigidbody2D.WakeUp();
         }
+
+        // Check speeds.
+        ClampVelocity();
 
         _velocityBeforeTick = rigidbody2D.velocity;
     }
@@ -831,11 +852,23 @@ public class PlatformerMotor2D : MonoBehaviour
         {
             if (_stuckTo == Surface.Ground)
             {
-                // On ground movement.
                 if (timeToMaxGroundSpeed > 0)
                 {
-                     rigidbody2D.velocity += Vector2.right * normalizedXMovement * (maxGroundSpeed / timeToMaxGroundSpeed) * 
-                         Time.fixedDeltaTime;
+                    // If we're moving faster than our normalizedXMovement * maxGroundSpeed then decelerate rather than accelerate.
+
+                    if (rigidbody2D.velocity.x > 0 &&
+                        normalizedXMovement > 0 &&
+                        rigidbody2D.velocity.x > normalizedXMovement * maxGroundSpeed ||
+                        rigidbody2D.velocity.x < 0 &&
+                        normalizedXMovement < 0 &&
+                        rigidbody2D.velocity.x  < normalizedXMovement * maxGroundSpeed)
+                    {
+                        Decelerate((maxGroundSpeed * maxGroundSpeed) / (2 * groundStopDistance), normalizedXMovement * maxGroundSpeed);
+                    }
+                    else
+                    {
+                        Accelerate(normalizedXMovement * (maxGroundSpeed / timeToMaxGroundSpeed), normalizedXMovement * maxGroundSpeed);
+                    }
                 }
                 else
                 {
@@ -852,8 +885,19 @@ public class PlatformerMotor2D : MonoBehaviour
                 {
                     if (timeToMaxAirSpeed > 0)
                     {
-                        rigidbody2D.velocity += Vector2.right * normalizedXMovement * (maxAirSpeed / timeToMaxAirSpeed) * 
-                            Time.fixedDeltaTime;
+                        if (rigidbody2D.velocity.x > 0 &&
+                            normalizedXMovement > 0 &&
+                            rigidbody2D.velocity.x > normalizedXMovement * maxAirSpeed ||
+                            rigidbody2D.velocity.x < 0 &&
+                            normalizedXMovement < 0 &&
+                            rigidbody2D.velocity.x < normalizedXMovement * maxAirSpeed)
+                        {
+                            Decelerate((maxAirSpeed * maxAirSpeed) / (2 * airStopDistance), normalizedXMovement * maxAirSpeed);
+                        }
+                        else
+                        {
+                            Accelerate(normalizedXMovement * (maxAirSpeed / timeToMaxAirSpeed), normalizedXMovement * maxAirSpeed);
+                        }
                     }
                     else
                     {
@@ -870,7 +914,7 @@ public class PlatformerMotor2D : MonoBehaviour
             {
                 if (groundStopDistance > 0)
                 {
-                    Decelerate((maxGroundSpeed * maxGroundSpeed) / (2 * groundStopDistance));
+                    Decelerate((maxGroundSpeed * maxGroundSpeed) / (2 * groundStopDistance), 0);
                 }
                 else
                 {
@@ -881,7 +925,7 @@ public class PlatformerMotor2D : MonoBehaviour
             {
                 if (airStopDistance > 0)
                 {
-                    Decelerate((maxAirSpeed * maxAirSpeed) / (2 * airStopDistance));
+                    Decelerate((maxAirSpeed * maxAirSpeed) / (2 * airStopDistance), 0);
                 }
                 else
                 {
@@ -893,27 +937,52 @@ public class PlatformerMotor2D : MonoBehaviour
         }
     }
 
-    private void Decelerate(float deceleration)
+    private void Accelerate(float acceleration, float limit)
     {
-        // Decelerate, do not pass 0.
+        // acceleration can be negative or positive to note acceleration in that direction.
+        Vector3 vel = rigidbody2D.velocity;
+
+        vel.x += acceleration * Time.fixedDeltaTime;
+
+        if (acceleration > 0)
+        {
+            if (vel.x > limit)
+            {
+                vel.x = limit;
+            }
+        }
+        else
+        {
+            if (vel.x < limit)
+            {
+                vel.x = limit;
+            }
+        }
+
+        rigidbody2D.velocity = vel;
+    }
+    
+    private void Decelerate(float deceleration, float limit)
+    {
+        // deceleration is always positive but assumed to take the velocity backwards.
         Vector3 vel = rigidbody2D.velocity;
 
         if (vel.x < 0)
         {
             vel.x += deceleration * Time.fixedDeltaTime;
 
-            if (vel.x > 0)
+            if (vel.x > limit)
             {
-                vel.x = 0;
+                vel.x = limit;
             }
         }
         else if (vel.x > 0)
         {
             vel.x -= deceleration * Time.fixedDeltaTime;
 
-            if (vel.x < 0)
+            if (vel.x < limit)
             {
-                vel.x = 0;
+                vel.x = limit;
             }
         }
 
