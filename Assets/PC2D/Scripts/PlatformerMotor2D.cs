@@ -219,6 +219,22 @@ public class PlatformerMotor2D : MonoBehaviour
     public bool facingLeft { get; private set; }
 
     /// <summary>
+    /// Returns the direction of the current dash. If not dashing then returns Vector2.zero.
+    /// </summary>
+    public Vector2 dashDirection
+    {
+        get
+        {
+            if (motorState == MotorState.Dashing)
+            {
+                return _dashing.dashDir;
+            }
+
+            return Vector2.zero;
+        }
+    }
+
+    /// <summary>
     /// Set this true to have the motor fall faster. Set to false to fall at normal speeds.
     /// </summary>
     public bool fallFast { get; set; }
@@ -246,7 +262,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
     /// <summary>
     /// Setting frozen to true will put the motor in a 'frozen' state. All information will be saved and set once unfrozen (the motor also
-    /// reduce gravity to 0).
+    /// reduces gravity to 0).
     /// 
     /// Note: This isn't a way to turn off the motor. To turn off the motor, simply set the script to disabled.
     /// </summary>
@@ -375,38 +391,20 @@ public class PlatformerMotor2D : MonoBehaviour
             rigidbody2D.gravityScale = _originalGravity;
 
             float normalizedTime = _dashing.timeDashed / dashDuration;
+            float speed = _dashDerivativeFunction(0, dashDistance, normalizedTime) / dashDuration;
 
-            Vector2 vel = rigidbody2D.velocity;
-
-            vel.x = _dashDerivativeFunction(_dashing.start.x, _dashing.end.x, normalizedTime) / dashDuration;
-
-            // Some of the easing function may result in infinity, we'll uh, lower our expectations and make it maxfloat.
+            // Some of the easing functions may result in infinity, we'll uh, lower our expectations and make it maxfloat.
             // This will almost certainly be clamped.
-            if (float.IsNegativeInfinity(vel.x))
+            if (float.IsNegativeInfinity(speed))
             {
-                vel.x = float.MinValue;
+                speed = float.MinValue;
             }
-            else if (float.IsPositiveInfinity(vel.x))
+            else if (float.IsPositiveInfinity(speed))
             {
-                vel.x = float.MaxValue;
-            }
-
-            if (_dashing.dashWithDirection)
-            {
-                vel.y = _dashDerivativeFunction(_dashing.start.y, _dashing.end.y, normalizedTime);
-
-                if (float.IsNegativeInfinity(vel.y))
-                {
-                    vel.y = float.MinValue;
-                }
-                else if (float.IsPositiveInfinity(vel.y))
-                {
-                    vel.y = float.MaxValue;
-                }
+                speed = float.MaxValue;
             }
 
-
-            rigidbody2D.velocity = vel;
+            rigidbody2D.velocity = _dashing.dashDir * speed;
 
             if (onDashEnd != null)
             {
@@ -474,7 +472,6 @@ public class PlatformerMotor2D : MonoBehaviour
         public bool dashWithDirection;
         public Vector2 dashDir = Vector2.zero;
         public Vector2 start = Vector2.zero;
-        public Vector2 end = Vector2.zero;
     }
     private DashState _dashing = new DashState();
 
@@ -1003,7 +1000,6 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         _dashing.start = transform.position;
-        _dashing.end = _dashing.start + _dashing.dashDir * dashDistance;
 
         // This will begin the dash this frame.
         _dashing.timeDashed = Time.fixedDeltaTime;
@@ -1020,9 +1016,6 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private void HandleDash()
     {
-        // Move to the appropriate position.
-        Vector2 newPos = transform.position;
-
         _dashing.timeDashed = Mathf.Clamp(_dashing.timeDashed + Time.fixedDeltaTime, 0f, dashDuration);
         float normalizedTime = _dashing.timeDashed / dashDuration;
 
@@ -1032,15 +1025,8 @@ public class PlatformerMotor2D : MonoBehaviour
             SetDashFunctions();
         }
 
-        newPos.x = _dashFunction(_dashing.start.x, _dashing.end.x, normalizedTime);
-
-        if (_dashing.dashWithDirection)
-        {
-            // We only set the y if we are dashing with direction.
-            newPos.y = _dashFunction(_dashing.start.y, _dashing.end.y, normalizedTime);
-        }
-
-        rigidbody2D.MovePosition(newPos);
+        float distance = _dashFunction(0, dashDistance, normalizedTime);
+        rigidbody2D.MovePosition(_dashing.start + _dashing.dashDir * distance);
 
         if (_dashing.timeDashed >= dashDuration)
         {
