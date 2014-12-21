@@ -1,58 +1,60 @@
-# Unity 2D PlayerController
+# Unity 2D Platformer Controller
 =======================
 
 <!---%=description%-->
 
-A customizable player controller asset that can be dropped into any scene for immediate 2D motion support. Includes platformer mechanics such as double jump, wall jumps, and corner grabs!
+A customizable 2D platformer motor that interacts with Unity's physics engine to do mechanics such as double jumps, wall jumps, and corner grabs. Includes a player controlled prefab that can be dropped into any scene for immediate support.
 
 <!---%=obtain%-->
 
 ####Obtain!####
-[Releases](https://github.com/cjddmut/Unity-2D-Player-Controller/releases)
+[Releases](https://github.com/cjddmut/Unity-2D-Platformer-Controller/releases)
 
-If you'd like the most up to date version (which is the most cool), then pull the repo or download it [here](https://github.com/cjddmut/Unity-2D-Player-Controller/archive/develop.zip) and copy the files in Assets to your project's Assets folder.
+If you'd like the most up to date version (which is the most cool), then pull the repo or download it [here](https://github.com/cjddmut/Unity-2D-Platformer-Controller/archive/develop.zip) and copy the files in Assets to your project's Assets folder.
 
 <!---%=docrest%-->
 
 ## Setup
 
-Simply drag either the PlatformContoller2D or the TopdownController2D script on an object for immediate control support. 
+For immediate player support, drop the PlatformerPlayer2D prefab into the scene. For more complicated interaction, interface with PlatformerMotor2D's members and methods.
 
-## Overview of Public Properties of Motor
+## PlatformerMotor2D Inspector Properties
 
 ### General ###
 
-**Always On Ground** - Should the motor always consider the player on the ground? Turn this on for top down motor control. Note, don't tell the motor to jump if this is true.
-
-**Environment Check Mask** - Note: **This has to be set if 'Always On Ground' is false.** This tells the motor what layer collisions to consider the environment (to determine if on the ground, wall, or corner).
+**Environment Check Mask** - This tells the motor what layer collisions to consider the environment (to determine if on the ground, wall, or corner).
 
 **Environment Check Distance** - This is how far out the motor will check for the environment.  
 
 ### Movement ###
 
-**Acceleration** - If the motor will accelerate the game object or immediately set it to the maximum speed.
+**Ground Speed** - Maximum ground speed.
 
-**Ground Acceleration** - The acceleration of the Motor in Unity units when considered on the ground. This value is applied by the movement dir set by the Controller.
+**Time to Ground Speed** - The time, in seconds, it will take to reach ground speed. This is used to calculate acceleration.
 
-**Air Acceleration** - The acceleration of the Motor when considered in the air in Unity units.
+**Ground Stop Distance** - If at full speed, how far will the motor skid to a stop.
 
-**Max Ground Speed** - Clamped maximum ground speed.
+**Horizontal Air Speed** - Maximum speed the motor will move horizontally while in the air.
 
-**Max Air Speed** - Clamped maximum air speed, only considers x axis.
+**Time to Air Speed** - The time, in seconds, it will take to reach air speed. This is used to calculate acceleration.
 
-**Max Fall Speed** - Clamped fall speed (only y axis when negative).
+**Air Stop Distance** - If at full air speed, how far will the motor 'skid' to a stop.
 
-**Max Fast Fall Speed** - Clamped fall speed when falling fast.
+**Max Fall Speed** - Maximum fall speed (only y axis when negative).
 
-**Horizontal Air Drag** - The drag on the x axis while in the air. Only applies if there isn't movement supplied to the motor is zero.
+**Max Fast Fall Speed** - Maximum fall speed when falling fast.
+
+**Fast Fall Gravity Multiplier** - Gravity multiplier when falling fast. A value of 1 means no different, higher values mean faster fall acceleration.
+
+**Preserve Momentum When Landing** - Unity's physics engine will reduce horizontal speed when the motor lands. This means movement speed will have to be accelerated again and can cause a slight pause. Check this one to keep horizontal speed intact.
 
 ### Jumping ###
 
-**Base Jump** - The height, in Unity units, that the Motor will jump to.
+**Base Jump Height** - The height, in Unity units, that the motor will jump to.
 
-**Extra Jump Height** - If the Motor is informed that the jump button is pressed down then this is the additional height the character will jump.
+**Held Extra Jump Height** - If the motor is informed that the jump is held then this is the additional height the character will jump.
 
-**Allow Double Jump** - If the Motor should allow double jump. A double jump is considered when the Motor is in the air and a double jump has not occurred. 
+**Allow Double Jump** - If the motor should allow double jump. A double jump is considered when the motor is in the air and a double jump has not occurred. 
 
 **Allow Wall Jump** - If jumping off the wall is allowed.
 
@@ -66,7 +68,7 @@ Simply drag either the PlatformContoller2D or the TopdownController2D script on 
 
 ### Wall Slide ###
 
-**Allow Wall Slide** - If the Motor should consider any wall sliding calculations. Wall sliding is when the character would slow down while 'sliding' down the wall.
+**Allow Wall Slide** - If the motor should consider any wall sliding calculations. Wall sliding is when the character would slow down while 'sliding' down the wall.
 
 **Wall Slide Speed** - The speed that the character will slide down the wall.
 
@@ -80,6 +82,10 @@ Simply drag either the PlatformContoller2D or the TopdownController2D script on 
 
 **Corner Distance Check** - A corner is considered grabbed if the upper corners of the collider do not intersect with the environment but the sides do. The value changes the consideration for box checks dimensions.
 
+### General Wall Interactions ###
+
+**Wall Interaction Threshold** - The input threshold for wall clings, corner grabs, and slides. Could be set to higher to prevent unwanted sticking to walls.
+
 ### Dashing ###
 
 **Allow Dashing** - Is dashing allowed?
@@ -88,25 +94,17 @@ Simply drag either the PlatformContoller2D or the TopdownController2D script on 
 
 **Dash Duration** - The duration of the dash.
 
-**Dash Cooldown** - How long, in seconds, before the Motor will allow dash again?
+**Dash Cooldown** - How long, in seconds, before the motor will allow dash again?
 
-**Change Layer During Dash** - If the layer of the Motor should change when dashing. This is useful if the character wants to ignore certain colliders when dashing.
+**Dash Easing Function** - The easing function of the dash. For a dash that movement with a consistent speed pick linear.
 
-**Dash Layer** - If the layer changes then this is the layer that the Motor will change the Game Object to.
-
-### Input ###
-
-**Input Threshold** - The input threshold that has to be overcome for the motor to consider motion.
-
-**Heavy Input Theshold** - The input threshold for wall clings, corner grabs, and slides. Could be set to higher to prevent unwanted sticking to walls.
-
-### PlayerMotor2D Members ###
+### PlatformerMotor2D Members ###
 
 ```csharp
-Vector2 movementDir
+float normalizedXMovement
 ```
 
-The direction that the motor should move the GameObject. The magnitude of this vector should be between 0 and 1 (can be taken directly from Input.GetAxis()) and will be multiplied by the acceleration or ground speed.
+Set the x movement direction. This is multiplied by the max speed. -1 is full left, 1 is full right. Higher numbers will result in faster acceleration.
 
 ```csharp
 MotorState motorState // Readonly
@@ -115,6 +113,7 @@ enum MotorState
 {
     OnGround,
     InAir,
+    FallingFast,
     Sliding,
     OnCorner,
     Clinging,
@@ -123,25 +122,25 @@ enum MotorState
 }
 ```
 
-The state that the motor is in.
+Call this to get state information about the motor. This will be information such as if the object is in the air or on the ground. This can be used to set the appropriate animations.
 
 ```csharp
-bool facingLeft
+bool facingLeft // Readonly
 ```
 
-If the motor is considering itself to be facing left.
+Since the motor needs to know the facing of the object, this information is made available to anyone else who might need it.
 
 ```csharp
 bool fallFast
 ```
 
-If the motor shoudl allow the GameObject to move faster. This can be set to true if the player is holding down and false otherwise.
+Set this true to have the motor fall faster. Set to false to fall at normal speeds.
 
 ```csharp
 bool jumpingHeld
 ```
 
-If the extra jump height should be used in the jump calculation. Could be set to true if the jump button is held and false otherwise.
+If jumpingHeld is set to true then the motor will jump further. Set to false if jumping isn't 'held'.
 
 ```csharp
 bool frozen
@@ -150,20 +149,6 @@ bool frozen
 Setting frozen to true will put the motor in a 'frozen' state. All information will be saved and set once unfrozen (the motor also reduce gravity to 0).
 
 Note: This isn't a way to turn off the motor. To turn off the motor, simply set the script to disabled.
-
-```csharp
-bool clampVelocity
-```
-
-Should the motor clamp the velocity of the GameObject? Set to true by default.
-
-```csharp
-bool changeDrag
-```
-
-Should the motor change drag of the rigidbody2D. The motor commonly changes the drag depending on the situation, if this conflicts with your own manipulation of rigidbody2D's drag then set this to false.
-
-If this is false then the horizontal air drag is also ignored.
 
 ```csharp
 Collider2D colliderToUse
@@ -180,25 +165,31 @@ Notification onJump
 
 Attach to these delegates to receive notifications for dash, dash end, and jump events.
 
-### PlayerMotor2D Methods ###
+### PlatformerMotor2D Methods ###
 
 ```csharp
 void Jump(float extraSpeed = 0)
 ```
 
-Call this to have the GameObject try to jump, once called it will be handled in the FixedUpdate tick. The y axis is considered jump. The parameter extraSpeed adds additional speed to the jump.
+Call this to have the GameObject try to jump, once called it will be handled in the FixedUpdate tick. The y axis is considered jump.
 
 ```csharp
 void ForceJump(float extraSpeed = 0)
 ```
 
-This works similar to Jump() except it will jump even if the motor doesn't detect a valid jump scenario. Note, this is ignore while the motor is dashing.
+This will force a jump to occur even if the motor doesn't think a jump is valid. This function will not work if the motor is dashing.
+
+```csharp
+void EndJump()
+```
+
+Call to end a jump. Causes the motor to stop calculated held speed for a jump.
 
 ```csharp
 void ResetDoubleJump()
 ```
 
-Resets the motor's double jump state. If the motor has already double jumped and this is called then the motor will allow an additional jump. This method has no use if double jumps aren't allowed.
+Resets the state for the a double jump allowing another jump. This doesn't do anything if double jumps aren't allowed.
 
 ```csharp
 void Dash()
@@ -210,20 +201,33 @@ Call this to have the GameObject try to dash, once called it will be handled in 
 void Dash(Vector2 dir)
 ```
 
-Send a direction vector to dash allow dashing in a specific direction. 
+Send a direction vector to dash allow dashing in a specific direction.
 
 ```csharp
 void EndDash()
 ```
 
-Ends dash early.
+Call to end dash immediately.
 
-## Overview of Public Properties of Controller
+## PlayerController2D
 
-Most likely this file will need to be modified to suit the needs of the game.
+The PlayerController2D script is a simple script that connects player input to the motor. This is set up as an example and it is encourage to write your own script that interacts with the motor.
 
-**Can Control** - If input should be given to the Motor. If false then the character will not respond to input (will react to gravity and other forces).
+## FAQs
 
-<!---%title=Unity 2D Player Controller%-->
-<!---%download=https://github.com/cjddmut/Unity-2D-Player-Controller/releases/download/v0.2.0/PC2D_v0.2.0b.unitypackage%-->
-<!---%github=https://github.com/cjddmut/Unity-2D-Player-Controller%-->
+**PlatformerMotor2D is messing with values in my rigidbody2D!**
+PlatformerMotor2D reduces drag on the rigidbody2D to 0 and handles deceleration on the ground and in the air on its own. The motor will also manipulate the gravity to suit its needs for fast falls and wall interactions.
+
+If your game has moments where it needs to leverage gravity or drag then disable the motor during these moments.
+
+**Can I use PlatformerMotor2D for controlling AI movements?**
+Sure can. PlatformerMotor2D doesn't know anything about inputs, it just acts on information passed to it. An AI script can interface with the motor similarly how a player controller script could.
+
+**I let go of the joystick and my GameObject isn't sliding the distance it is supposed to!**
+If you're using the supplied PlayerController2D script or one of your own in which you use Input.GetAxis() then there's a built in deceleration in what Input.GetAxis() returns. This can definitely be impacting the distance the GameObject skids to a stop! To see a true skid to stop, set normalizedXMovement to zero.
+
+**Something isn't working right!**
+Well, this happens. Please open up an [issue](https://github.com/cjddmut/Unity-2D-Platformer-Controller/issues)!
+<!---%title=Unity 2D Platformer Controller%-->
+<!---%download=https://github.com/cjddmut/Unity-2D-Platformer-Controller/releases/download/v0.2.0/PC2D_v0.2.0b.unitypackage%-->
+<!---%github=https://github.com/cjddmut/Unity-2D-Platformer-Controller%-->
