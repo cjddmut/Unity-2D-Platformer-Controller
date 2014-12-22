@@ -137,6 +137,12 @@ bool fallFast
 Set this true to have the motor fall faster. Set to false to fall at normal speeds.
 
 ```csharp
+Vector2 dashDirection
+```
+
+Returns the direction of the current dash. If not dashing then returns Vector2.zero.
+
+```csharp
 bool jumpingHeld
 ```
 
