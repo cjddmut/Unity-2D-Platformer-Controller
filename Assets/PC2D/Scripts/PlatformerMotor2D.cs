@@ -388,7 +388,6 @@ public class PlatformerMotor2D : MonoBehaviour
         {
             _dashing.isDashing = false;
             _dashing.canDashAgain = Time.time + dashCooldown;
-            rigidbody2D.gravityScale = _originalGravity;
 
             float normalizedTime = _dashing.timeDashed / dashDuration;
             float speed = _dashDerivativeFunction(0, dashDistance, normalizedTime) / dashDuration;
