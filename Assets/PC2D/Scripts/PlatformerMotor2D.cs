@@ -287,11 +287,11 @@ public class PlatformerMotor2D : MonoBehaviour
                 if (_frozen)
                 {
                     _frozenTime = Time.time;
-                    _frozenVelocity = rigidbody2D.velocity;
-                    _frozenGravity = rigidbody2D.gravityScale;
+                    _frozenVelocity = GetComponent<Rigidbody2D>().velocity;
+                    _frozenGravity = GetComponent<Rigidbody2D>().gravityScale;
 
-                    rigidbody2D.velocity = Vector2.zero;
-                    rigidbody2D.gravityScale = 0;
+                    GetComponent<Rigidbody2D>().velocity = Vector2.zero;
+                    GetComponent<Rigidbody2D>().gravityScale = 0;
                     motorState = MotorState.Frozen;
                 }
                 else
@@ -300,8 +300,8 @@ public class PlatformerMotor2D : MonoBehaviour
                     float delta = Time.time - _frozenTime;
                     _dashing.canDashAgain += delta;
 
-                    rigidbody2D.velocity = _frozenVelocity;
-                    rigidbody2D.gravityScale = _frozenGravity;
+                    GetComponent<Rigidbody2D>().velocity = _frozenVelocity;
+                    GetComponent<Rigidbody2D>().gravityScale = _frozenGravity;
                 }
             }
         }
@@ -403,7 +403,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 speed = float.MaxValue;
             }
 
-            rigidbody2D.velocity = _dashing.dashDir * speed;
+            GetComponent<Rigidbody2D>().velocity = _dashing.dashDir * speed;
 
             if (onDashEnd != null)
             {
@@ -502,8 +502,8 @@ public class PlatformerMotor2D : MonoBehaviour
         _upRight.Normalize();
         _upLeft = new Vector2(-_upRight.x, _upRight.y);
 
-        _originalDrag = rigidbody2D.drag;
-        _originalGravity = rigidbody2D.gravityScale;
+        _originalDrag = GetComponent<Rigidbody2D>().drag;
+        _originalGravity = GetComponent<Rigidbody2D>().gravityScale;
 
         SetDashFunctions();
     }
@@ -518,13 +518,13 @@ public class PlatformerMotor2D : MonoBehaviour
     private void OnEnable()
     {
         // The motor does not use drag.
-        rigidbody2D.drag = 0;
+        GetComponent<Rigidbody2D>().drag = 0;
     }
 
     private void OnDisable()
     {
-        rigidbody2D.gravityScale = _originalGravity;
-        rigidbody2D.drag = _originalDrag;
+        GetComponent<Rigidbody2D>().gravityScale = _originalGravity;
+        GetComponent<Rigidbody2D>().drag = _originalDrag;
     }
 
     void OnCollisionEnter2D(Collision2D other)
@@ -533,9 +533,9 @@ public class PlatformerMotor2D : MonoBehaviour
         {
             if (other.contacts[0].point.y < transform.position.y)
             {
-                Vector2 vel = rigidbody2D.velocity;
+                Vector2 vel = GetComponent<Rigidbody2D>().velocity;
                 vel.x = _velocityBeforeTick.x;
-                rigidbody2D.velocity = vel;
+                GetComponent<Rigidbody2D>().velocity = vel;
             }
         }
     }
@@ -574,12 +574,12 @@ public class PlatformerMotor2D : MonoBehaviour
                 motorState = MotorState.OnGround;
 
                 // Turn off gravity, this prevents losing some velocity on every tick.
-                rigidbody2D.gravityScale = 0;
+                GetComponent<Rigidbody2D>().gravityScale = 0;
             }
             else
             {
                 motorState = MotorState.InAir;
-                rigidbody2D.gravityScale = _originalGravity;
+                GetComponent<Rigidbody2D>().gravityScale = _originalGravity;
             }
 
             // Apply movement if we're not ignoring it.
@@ -599,26 +599,26 @@ public class PlatformerMotor2D : MonoBehaviour
             {
                 if (fallFast)
                 {
-                    rigidbody2D.gravityScale = _originalGravity * fastFallGravityMultiplier;
+                    GetComponent<Rigidbody2D>().gravityScale = _originalGravity * fastFallGravityMultiplier;
                     motorState = MotorState.FallingFast;
                 }
                 else
                 {
-                    rigidbody2D.gravityScale = _originalGravity;
+                    GetComponent<Rigidbody2D>().gravityScale = _originalGravity;
                 }
             }
         }
 
-        if (Physics2D.gravity != Vector2.zero && rigidbody2D.gravityScale != 0 && motorState == MotorState.InAir)
+        if (Physics2D.gravity != Vector2.zero && GetComponent<Rigidbody2D>().gravityScale != 0 && motorState == MotorState.InAir)
         {
             // The rigidbody might go to sleep if clinged onto a wall.
-            rigidbody2D.WakeUp();
+            GetComponent<Rigidbody2D>().WakeUp();
         }
 
         // Check speeds.
         ClampVelocity();
 
-        _velocityBeforeTick = rigidbody2D.velocity;
+        _velocityBeforeTick = GetComponent<Rigidbody2D>().velocity;
     }
 
     private void SetDashFunctions()
@@ -630,7 +630,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private void HandleJumping()
     {
-        if (_stuckTo != Surface.None && rigidbody2D.velocity.y < 0)
+        if (_stuckTo != Surface.None && GetComponent<Rigidbody2D>().velocity.y < 0)
         {
             // If we're grounded then we are not jumping.
             _jumping.isJumping = false;
@@ -654,7 +654,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
                 // TODO: This might want to be based off of the jump direction (in case of wall jumps) which might give a better
                 //       feel.
-                rigidbody2D.velocity += new Vector2(0, -1 * _originalGravity * Physics2D.gravity.y * gravityIgnoredTime);
+                GetComponent<Rigidbody2D>().velocity += new Vector2(0, -1 * _originalGravity * Physics2D.gravity.y * gravityIgnoredTime);
             }
         }
 
@@ -674,18 +674,18 @@ public class PlatformerMotor2D : MonoBehaviour
             if (_stuckTo == Surface.Ground || _jumping.force)
             {
                 // Normal jump.
-                rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, CalculateJumpSpeed() + _jumping.extraSpeed);
+                GetComponent<Rigidbody2D>().velocity = new Vector2(GetComponent<Rigidbody2D>().velocity.x, CalculateJumpSpeed() + _jumping.extraSpeed);
             }
             else if (_wallInfo.onCorner)
             {
                 // If we are on a corner then jump up.
-                rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, CalculateJumpSpeed() * cornerJumpMultiplier);
+                GetComponent<Rigidbody2D>().velocity = new Vector2(GetComponent<Rigidbody2D>().velocity.x, CalculateJumpSpeed() * cornerJumpMultiplier);
                 _ignoreMovementUntil = Time.time + IGNORE_INPUT_TIME;
             }
             else if (allowWallJump && _stuckTo == Surface.LeftWall)
             {
                 // If jump was pressed as we or before we entered the wall then just jump away.
-                rigidbody2D.velocity = _upRight * CalculateJumpSpeed() * wallJumpMultiplier;
+                GetComponent<Rigidbody2D>().velocity = _upRight * CalculateJumpSpeed() * wallJumpMultiplier;
 
                 // It's likely the player is still pressing into the wall, ignore movement for a little amount of time.
                 // TODO: Only ignore left movement?
@@ -696,13 +696,13 @@ public class PlatformerMotor2D : MonoBehaviour
             }
             else if (allowWallJump && _stuckTo == Surface.RightWall)
             {
-                rigidbody2D.velocity = _upLeft * CalculateJumpSpeed() * wallJumpMultiplier;
+                GetComponent<Rigidbody2D>().velocity = _upLeft * CalculateJumpSpeed() * wallJumpMultiplier;
                 _ignoreMovementUntil = Time.time + IGNORE_INPUT_TIME;
                 _jumping.doubleJumped = false;
             }
             else if (allowDoubleJump && _stuckTo == Surface.None && !_jumping.doubleJumped)
             {
-                rigidbody2D.velocity = new Vector2(rigidbody2D.velocity.x, CalculateJumpSpeed());
+                GetComponent<Rigidbody2D>().velocity = new Vector2(GetComponent<Rigidbody2D>().velocity.x, CalculateJumpSpeed());
                 _jumping.doubleJumped = true;
             }
             else
@@ -720,7 +720,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 _wallInfo.clinging = false;
                 _jumping.force = false;
                 _jumping.allowExtraDuration = extraJumpHeight / CalculateJumpSpeed();
-                rigidbody2D.gravityScale = _originalGravity;
+                GetComponent<Rigidbody2D>().gravityScale = _originalGravity;
 
                 if (onJump != null)
                 {
@@ -747,7 +747,7 @@ public class PlatformerMotor2D : MonoBehaviour
         // Corner grab?
         if (allowCornerGrab)
         {
-            if (rigidbody2D.velocity.y < 0 || _wallInfo.onCorner)
+            if (GetComponent<Rigidbody2D>().velocity.y < 0 || _wallInfo.onCorner)
             {
                 if ((_stuckTo == Surface.LeftWall && normalizedXMovement < -wallInteractionThreshold ||
                     _stuckTo == Surface.RightWall && normalizedXMovement > wallInteractionThreshold) &&
@@ -768,8 +768,8 @@ public class PlatformerMotor2D : MonoBehaviour
                     if (_wallInfo.onCorner)
                     {
                         // We're stuck!
-                        rigidbody2D.gravityScale = 0;
-                        rigidbody2D.velocity = Vector2.zero;
+                        GetComponent<Rigidbody2D>().gravityScale = 0;
+                        GetComponent<Rigidbody2D>().velocity = Vector2.zero;
 
                         motorState = MotorState.OnCorner;
 
@@ -786,7 +786,7 @@ public class PlatformerMotor2D : MonoBehaviour
         // Wall Cling
         if (allowWallCling)
         {
-            if (rigidbody2D.velocity.y < 0 || _wallInfo.clinging)
+            if (GetComponent<Rigidbody2D>().velocity.y < 0 || _wallInfo.clinging)
             {
                 if (_stuckTo == Surface.LeftWall && normalizedXMovement < -wallInteractionThreshold ||
                 _stuckTo == Surface.RightWall && normalizedXMovement > wallInteractionThreshold)
@@ -806,8 +806,8 @@ public class PlatformerMotor2D : MonoBehaviour
                     if (_wallInfo.clinging)
                     {
                         // Sticky!
-                        rigidbody2D.gravityScale = 0;
-                        rigidbody2D.velocity = Vector2.zero;
+                        GetComponent<Rigidbody2D>().gravityScale = 0;
+                        GetComponent<Rigidbody2D>().velocity = Vector2.zero;
 
                         motorState = MotorState.Clinging;
 
@@ -824,7 +824,7 @@ public class PlatformerMotor2D : MonoBehaviour
         // Wall slide?
         if (allowWallSlide)
         {
-            if (rigidbody2D.velocity.y < 0 || _wallInfo.sliding)
+            if (GetComponent<Rigidbody2D>().velocity.y < 0 || _wallInfo.sliding)
             {
                 _wallInfo.sliding = false;
 
@@ -832,8 +832,8 @@ public class PlatformerMotor2D : MonoBehaviour
                 if (_stuckTo == Surface.LeftWall && normalizedXMovement < -wallInteractionThreshold ||
                     _stuckTo == Surface.RightWall && normalizedXMovement > wallInteractionThreshold)
                 {
-                    rigidbody2D.gravityScale = 0;
-                    rigidbody2D.velocity = -Vector2.up  * wallSlideSpeed;
+                    GetComponent<Rigidbody2D>().gravityScale = 0;
+                    GetComponent<Rigidbody2D>().velocity = -Vector2.up  * wallSlideSpeed;
                     motorState = MotorState.Sliding;
 
                     _wallInfo.sliding = true;
@@ -852,12 +852,12 @@ public class PlatformerMotor2D : MonoBehaviour
                 {
                     // If we're moving faster than our normalizedXMovement * maxGroundSpeed then decelerate rather than accelerate.
 
-                    if (rigidbody2D.velocity.x > 0 &&
+                    if (GetComponent<Rigidbody2D>().velocity.x > 0 &&
                         normalizedXMovement > 0 &&
-                        rigidbody2D.velocity.x > normalizedXMovement * maxGroundSpeed ||
-                        rigidbody2D.velocity.x < 0 &&
+                        GetComponent<Rigidbody2D>().velocity.x > normalizedXMovement * maxGroundSpeed ||
+                        GetComponent<Rigidbody2D>().velocity.x < 0 &&
                         normalizedXMovement < 0 &&
-                        rigidbody2D.velocity.x  < normalizedXMovement * maxGroundSpeed)
+                        GetComponent<Rigidbody2D>().velocity.x  < normalizedXMovement * maxGroundSpeed)
                     {
                         Decelerate((maxGroundSpeed * maxGroundSpeed) / (2 * groundStopDistance), normalizedXMovement * maxGroundSpeed);
                     }
@@ -869,7 +869,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 else
                 {
                     // We can overwrite y if we're on the ground, it's fine.
-                    rigidbody2D.velocity = Vector2.right * normalizedXMovement * maxGroundSpeed;
+                    GetComponent<Rigidbody2D>().velocity = Vector2.right * normalizedXMovement * maxGroundSpeed;
                 }
             }
             else
@@ -881,12 +881,12 @@ public class PlatformerMotor2D : MonoBehaviour
                 {
                     if (timeToMaxAirSpeed > 0)
                     {
-                        if (rigidbody2D.velocity.x > 0 &&
+                        if (GetComponent<Rigidbody2D>().velocity.x > 0 &&
                             normalizedXMovement > 0 &&
-                            rigidbody2D.velocity.x > normalizedXMovement * maxAirSpeed ||
-                            rigidbody2D.velocity.x < 0 &&
+                            GetComponent<Rigidbody2D>().velocity.x > normalizedXMovement * maxAirSpeed ||
+                            GetComponent<Rigidbody2D>().velocity.x < 0 &&
                             normalizedXMovement < 0 &&
-                            rigidbody2D.velocity.x < normalizedXMovement * maxAirSpeed)
+                            GetComponent<Rigidbody2D>().velocity.x < normalizedXMovement * maxAirSpeed)
                         {
                             Decelerate((maxAirSpeed * maxAirSpeed) / (2 * airStopDistance), normalizedXMovement * maxAirSpeed);
                         }
@@ -897,14 +897,14 @@ public class PlatformerMotor2D : MonoBehaviour
                     }
                     else
                     {
-                        Vector2 vel = rigidbody2D.velocity;
+                        Vector2 vel = GetComponent<Rigidbody2D>().velocity;
                         vel.x = normalizedXMovement * maxAirSpeed;
-                        rigidbody2D.velocity = vel;
+                        GetComponent<Rigidbody2D>().velocity = vel;
                     }
                 }
             }
         }
-        else if (rigidbody2D.velocity.x != 0)
+        else if (GetComponent<Rigidbody2D>().velocity.x != 0)
         {
             if (_stuckTo == Surface.Ground)
             {
@@ -914,7 +914,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 }
                 else
                 {
-                    rigidbody2D.velocity = Vector2.zero;
+                    GetComponent<Rigidbody2D>().velocity = Vector2.zero;
                 }
             }
             else
@@ -925,9 +925,9 @@ public class PlatformerMotor2D : MonoBehaviour
                 }
                 else
                 {
-                    Vector2 vel = rigidbody2D.velocity;
+                    Vector2 vel = GetComponent<Rigidbody2D>().velocity;
                     vel.x = 0;
-                    rigidbody2D.velocity = vel;
+                    GetComponent<Rigidbody2D>().velocity = vel;
                 }
             }
         }
@@ -936,7 +936,7 @@ public class PlatformerMotor2D : MonoBehaviour
     private void Accelerate(float acceleration, float limit)
     {
         // acceleration can be negative or positive to note acceleration in that direction.
-        Vector3 vel = rigidbody2D.velocity;
+        Vector3 vel = GetComponent<Rigidbody2D>().velocity;
 
         vel.x += acceleration * Time.fixedDeltaTime;
 
@@ -955,13 +955,13 @@ public class PlatformerMotor2D : MonoBehaviour
             }
         }
 
-        rigidbody2D.velocity = vel;
+        GetComponent<Rigidbody2D>().velocity = vel;
     }
     
     private void Decelerate(float deceleration, float limit)
     {
         // deceleration is always positive but assumed to take the velocity backwards.
-        Vector3 vel = rigidbody2D.velocity;
+        Vector3 vel = GetComponent<Rigidbody2D>().velocity;
 
         if (vel.x < 0)
         {
@@ -982,7 +982,7 @@ public class PlatformerMotor2D : MonoBehaviour
             }
         }
 
-        rigidbody2D.velocity = vel;
+        GetComponent<Rigidbody2D>().velocity = vel;
     }
 
     private void StartDash()
@@ -1003,8 +1003,8 @@ public class PlatformerMotor2D : MonoBehaviour
         // This will begin the dash this frame.
         _dashing.timeDashed = Time.fixedDeltaTime;
 
-        rigidbody2D.gravityScale = 0;
-        rigidbody2D.velocity = Vector2.zero;
+        GetComponent<Rigidbody2D>().gravityScale = 0;
+        GetComponent<Rigidbody2D>().velocity = Vector2.zero;
         motorState = MotorState.Dashing;
 
         if (onDash != null)
@@ -1025,7 +1025,7 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         float distance = _dashFunction(0, dashDistance, normalizedTime);
-        rigidbody2D.MovePosition(_dashing.start + _dashing.dashDir * distance);
+        GetComponent<Rigidbody2D>().MovePosition(_dashing.start + _dashing.dashDir * distance);
 
         if (_dashing.timeDashed >= dashDuration)
         {
@@ -1055,7 +1055,7 @@ public class PlatformerMotor2D : MonoBehaviour
         }
         else
         {
-            box = collider2D.bounds;
+            box = GetComponent<Collider2D>().bounds;
         }
 
         Vector2 min = box.min;
@@ -1083,7 +1083,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private void ClampVelocity()
     {
-        Vector2 checkedSpeed = rigidbody2D.velocity;
+        Vector2 checkedSpeed = GetComponent<Rigidbody2D>().velocity;
 
         if (_stuckTo == Surface.Ground)
         {
@@ -1099,7 +1099,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
             if (fallFast)
             {
-                cappedFallSpeed = -maxFastFallSpeed + -Physics2D.gravity.y * rigidbody2D.gravityScale * Time.fixedDeltaTime;
+                cappedFallSpeed = -maxFastFallSpeed + -Physics2D.gravity.y * GetComponent<Rigidbody2D>().gravityScale * Time.fixedDeltaTime;
 
                 if (checkedSpeed.y < cappedFallSpeed)
                 {
@@ -1108,7 +1108,7 @@ public class PlatformerMotor2D : MonoBehaviour
             }
             else
             {
-                cappedFallSpeed = -maxFallSpeed + -Physics2D.gravity.y * rigidbody2D.gravityScale * Time.fixedDeltaTime;
+                cappedFallSpeed = -maxFallSpeed + -Physics2D.gravity.y * GetComponent<Rigidbody2D>().gravityScale * Time.fixedDeltaTime;
 
                 if (checkedSpeed.y < cappedFallSpeed)
                 {
@@ -1117,7 +1117,7 @@ public class PlatformerMotor2D : MonoBehaviour
             }
         }
 
-        rigidbody2D.velocity = checkedSpeed;
+        GetComponent<Rigidbody2D>().velocity = checkedSpeed;
     }
 
     private void SetStuckTo()
@@ -1130,7 +1130,7 @@ public class PlatformerMotor2D : MonoBehaviour
         }
         else
         {
-            box = collider2D.bounds;
+            box = GetComponent<Collider2D>().bounds;
         }
 
         Vector2 min = box.min;
@@ -1211,7 +1211,7 @@ public class PlatformerMotor2D : MonoBehaviour
         }
         else
         {
-            box = collider2D.bounds;
+            box = GetComponent<Collider2D>().bounds;
         }
 
         // Ground check box
