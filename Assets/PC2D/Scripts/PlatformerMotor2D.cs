@@ -208,9 +208,24 @@ public class PlatformerMotor2D : MonoBehaviour
     public float normalizedXMovement { get; set; }
 
     /// <summary>
-    /// Set the time scale for the motor. This is independent of the global time scale.
+    /// Set the time scale for the motor. This is independent of the global time scale. Negative values are not supported.
     /// </summary>
-    public float timeScale { get; set; }
+    public float timeScale
+    {
+        get
+        {
+            return _timeScale;
+        }
+        set
+        {
+            _timeScale = value;
+
+            if (_timeScale < 0)
+            {
+                _timeScale = 0;
+            }
+        }
+    }
 
     /// <summary>
     /// The velocity of the motor. This should be queried instead of the rigidbody's velocity. Setting this during a dash doesn't
@@ -298,13 +313,13 @@ public class PlatformerMotor2D : MonoBehaviour
     {
         get
         {
-            return _frozen;
+            return motorState == MotorState.Frozen;
         }
         set
         {
             if (!enabled)
             {
-                Debug.LogWarning("PlatformerMotor2D.frozen set to true when motor is disabled, ignoring.");
+                Debug.LogWarning("PlatformerMotor2D.frozen set when motor is disabled, ignoring.");
                 return;
             }
 
@@ -438,6 +453,7 @@ public class PlatformerMotor2D : MonoBehaviour
     private bool _frozen;
     private Rigidbody2D _rigidbody2D;
     private Vector2 _velocity;
+    private float _timeScale = 1;
 
     private CollidedSurface _collidingAgainst = CollidedSurface.None;
     private enum CollidedSurface
@@ -520,8 +536,6 @@ public class PlatformerMotor2D : MonoBehaviour
         _rigidbody2D = GetComponent<Rigidbody2D>();
         _originalDrag = _rigidbody2D.drag;
         _originalGravity = _rigidbody2D.gravityScale;
-
-        timeScale = 1f;
 
         SetDashFunctions();
     }
