@@ -58,12 +58,6 @@ public class PlatformerMotor2D : MonoBehaviour
     public float fastFallGravityMultiplier = 1f;
 
     /// <summary>
-    /// On a collision with the ground the physics engine will slow down any horizontal momentum. If this is set to true
-    /// then that horizontal speed is maintained.
-    /// </summary>
-    public bool preserveHorizontalMomentumOnLanding = true;
-    
-    /// <summary>
     /// The height the motor will jump when a jump command is issued.
     /// </summary>
     public float baseJumpHeight = 0.5f;
@@ -177,7 +171,8 @@ public class PlatformerMotor2D : MonoBehaviour
     public Action onJump;
 
     /// <summary>
-    /// How far out the motor will check for the environment mask. This value can be tweaked if jump checks are not firing when wanted.
+    /// How far out the motor will check for the environment mask. This value can be tweaked if jump checks are not firing when 
+    /// wanted.
     /// </summary>
     public float checkDistance = 0.025f;
 
@@ -202,8 +197,8 @@ public class PlatformerMotor2D : MonoBehaviour
     }
 
     /// <summary>
-    /// Set the x movement direction. This is multiplied by the max speed. -1 is full left, 1 is full right. Higher numbers will result in
-    /// faster speed.
+    /// Set the x movement direction. This is multiplied by the max speed. -1 is full left, 1 is full right. Higher numbers will 
+    /// result in faster speed.
     /// </summary>
     public float normalizedXMovement { get; set; }
 
@@ -251,13 +246,14 @@ public class PlatformerMotor2D : MonoBehaviour
     }
 
     /// <summary>
-    /// Call this to get state information about the motor. This will be information such as if the object is in the air or on the 
+    /// Call this to get state information about the motor. This will be information such as if the object is in the air or on the
     /// ground. This can be used to set the appropriate animations.
     /// </summary>
     public MotorState motorState { get; private set; }
 
     /// <summary>
-    /// Since the motor needs to know the facing of the object, this information is made available to anyone else who might need it.
+    /// Since the motor needs to know the facing of the object, this information is made available to anyone else who might need 
+    /// it.
     /// </summary>
     public bool facingLeft { get; private set; }
 
@@ -304,8 +300,8 @@ public class PlatformerMotor2D : MonoBehaviour
     }
 
     /// <summary>
-    /// Setting frozen to true will put the motor in a 'frozen' state. All information will be saved and set once unfrozen (the motor also
-    /// reduces gravity to 0).
+    /// Setting frozen to true will put the motor in a 'frozen' state. All information will be saved and set once unfrozen 
+    /// (the motor also reduces gravity to 0).
     /// 
     /// Note: This isn't a way to turn off the motor. To turn off the motor, simply set the script to disabled.
     /// </summary>
@@ -319,7 +315,7 @@ public class PlatformerMotor2D : MonoBehaviour
         {
             if (!enabled)
             {
-                Debug.LogWarning("PlatformerMotor2D.frozen set when motor is disabled, ignoring.");
+                Debug.LogWarning(FROZEN_SET_WHILE_DISABLED);
                 return;
             }
 
@@ -341,7 +337,8 @@ public class PlatformerMotor2D : MonoBehaviour
     public Collider2D colliderToUse { get; set; }
 
     /// <summary>
-    /// Call this to have the GameObject try to jump, once called it will be handled in the FixedUpdate tick. The y axis is considered jump.
+    /// Call this to have the GameObject try to jump, once called it will be handled in the FixedUpdate tick. The y axis is 
+    /// considered jump.
     /// </summary>
     /// <param name="extraHeight">Extra height added to the jump.</param>
     public void Jump(float extraHeight = 0)
@@ -488,7 +485,8 @@ public class PlatformerMotor2D : MonoBehaviour
 
         public bool ignoreGravity;
 
-        public const float TIME_BUFFER = 0.2f; // Amount of time that a jump can be triggered, same as the default unity controller script.
+        // Amount of time that a jump can be triggered, same as the default unity controller script.
+        public const float TIME_BUFFER = 0.2f;
     }
     private JumpState _jumping = new JumpState();
 
@@ -527,6 +525,11 @@ public class PlatformerMotor2D : MonoBehaviour
     // When jumping off of a wall, this is the amount of time that movement input is ignored.
     private const float IGNORE_INPUT_TIME = 0.2f;
 
+    private const string CHECK_MASK_NOT_SET = 
+        "PC2D: Environment Check Mask not set! This is needed to know what to collide against!";
+
+    private const string FROZEN_SET_WHILE_DISABLED = "PC2D: PlatformerMotor2D.frozen set when motor is disabled, ignoring.";
+
     private void Awake()
     {
         _upRight = Vector2.up + Vector2.right;
@@ -538,6 +541,14 @@ public class PlatformerMotor2D : MonoBehaviour
         _originalGravity = _rigidbody2D.gravityScale;
 
         SetDashFunctions();
+    }
+
+    private void Start()
+    {
+        if (checkMask == 0)
+        {
+            Debug.LogError(CHECK_MASK_NOT_SET);
+        }
     }
 
     private void OnDestroy()
@@ -684,7 +695,8 @@ public class PlatformerMotor2D : MonoBehaviour
 
         _jumping.ignoreGravity = false;
 
-        // If we're currently jumping and the jump button is still held down ignore gravity to allow us to acheive the extra height.
+        // If we're currently jumping and the jump button is still held down ignore gravity to allow us to achieve the extra 
+        // height.
         if (_jumping.isJumping && _jumping.held)
         {
             if (_jumping.allowExtraDuration > 0)
@@ -877,8 +889,8 @@ public class PlatformerMotor2D : MonoBehaviour
             {
                 if (timeToMaxGroundSpeed > 0)
                 {
-                    // If we're moving faster than our normalizedXMovement * maxGroundSpeed then decelerate rather than accelerate.
-
+                    // If we're moving faster than our normalizedXMovement * maxGroundSpeed then decelerate rather than 
+                    // accelerate.
                     if (_velocity.x > 0 &&
                         normalizedXMovement > 0 &&
                         _velocity.x > normalizedXMovement * maxGroundSpeed ||

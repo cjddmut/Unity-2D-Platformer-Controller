@@ -24,7 +24,6 @@ public class PlatformerMotor2DEditor : Editor
     SerializedProperty _maxFallSpeedProp;
     SerializedProperty _maxFastFallSpeedProp;
     SerializedProperty _fastFallGravityMultiplierProp;
-    SerializedProperty _preserveHorizontalMomentumOnLandingProp;
 
     SerializedProperty _baseJumpHeightProp;
     SerializedProperty _extraJumpHeightProp;
@@ -67,7 +66,6 @@ public class PlatformerMotor2DEditor : Editor
         _maxFallSpeedProp = serializedObject.FindProperty("maxFallSpeed");
         _maxFastFallSpeedProp = serializedObject.FindProperty("maxFastFallSpeed");
         _fastFallGravityMultiplierProp = serializedObject.FindProperty("fastFallGravityMultiplier");
-        _preserveHorizontalMomentumOnLandingProp = serializedObject.FindProperty("preserveHorizontalMomentumOnLanding");
 
         _baseJumpHeightProp = serializedObject.FindProperty("baseJumpHeight");
         _extraJumpHeightProp = serializedObject.FindProperty("extraJumpHeight");
@@ -123,7 +121,6 @@ public class PlatformerMotor2DEditor : Editor
         EditorGUILayout.PropertyField(_maxFallSpeedProp, new GUIContent("Max Fall Speed"));
         EditorGUILayout.PropertyField(_maxFastFallSpeedProp, new GUIContent("Max Fast Fall Speed"));
         EditorGUILayout.PropertyField(_fastFallGravityMultiplierProp, new GUIContent("Fast Fall Gravity Multiplier"));
-        EditorGUILayout.PropertyField(_preserveHorizontalMomentumOnLandingProp, new GUIContent("Preserve Momentum When Landing"));
 
         EditorGUILayout.Separator();
 
