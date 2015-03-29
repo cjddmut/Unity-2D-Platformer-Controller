@@ -187,7 +187,8 @@ public class PlatformerMotor2D : MonoBehaviour
     public enum MotorState
     {
         OnGround,
-        InAir,
+        Jumping,
+        Falling,
         FallingFast,
         Sliding,
         OnCorner,
@@ -274,6 +275,22 @@ public class PlatformerMotor2D : MonoBehaviour
     }
 
     /// <summary>
+    /// Returns the amount of distance dashed. If not dashing then returns 0.
+    /// </summary>
+    public float distanceDashed
+    {
+        get
+        {
+            if (motorState == MotorState.Dashing)
+            {
+                return _dashing.distanceDashed;
+            }
+
+            return 0;
+        }
+    }
+
+    /// <summary>
     /// Set this true to have the motor fall faster. Set to false to fall at normal speeds.
     /// </summary>
     public bool fallFast { get; set; }
@@ -309,7 +326,7 @@ public class PlatformerMotor2D : MonoBehaviour
     {
         get
         {
-            return motorState == MotorState.Frozen;
+            return _frozen;
         }
         set
         {
@@ -451,6 +468,7 @@ public class PlatformerMotor2D : MonoBehaviour
     private Rigidbody2D _rigidbody2D;
     private Vector2 _velocity;
     private float _timeScale = 1;
+    private Collider2D _collider2D;
 
     private CollidedSurface _collidingAgainst = CollidedSurface.None;
     private enum CollidedSurface
@@ -458,8 +476,7 @@ public class PlatformerMotor2D : MonoBehaviour
         None,
         Ground,
         LeftWall,
-        RightWall,
-        Ceiling
+        RightWall
     }
 
     // The function is cached to avoid unnecessary memory allocation.
@@ -520,7 +537,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
     // This seems to be the magic number where you won't collide with the "ground" by being on the wall and not be able to sit on a corner
     // without colliding with the ground.
-    private const float TRIM_STUCKTO_NUM = 0.01f;
+    private const float TRIM_STUCKTO_NUM = 0.01425f;
 
     // When jumping off of a wall, this is the amount of time that movement input is ignored.
     private const float IGNORE_INPUT_TIME = 0.2f;
@@ -537,6 +554,7 @@ public class PlatformerMotor2D : MonoBehaviour
         _upLeft = new Vector2(-_upRight.x, _upRight.y);
 
         _rigidbody2D = GetComponent<Rigidbody2D>();
+        _collider2D = GetComponent<Collider2D>();
         _originalDrag = _rigidbody2D.drag;
         _originalGravity = _rigidbody2D.gravityScale;
 
@@ -616,14 +634,9 @@ public class PlatformerMotor2D : MonoBehaviour
                 // Turn off gravity, this prevents losing some velocity on every tick.
                 _velocity.y = 0;
             }
-            else
+            else if (_velocity.y <= 0)
             {
-                motorState = MotorState.InAir;
-            }
-
-            if (_collidingAgainst == CollidedSurface.Ceiling)
-            {
-                _velocity.y = 0;
+                motorState = MotorState.Falling;
             }
 
             // Apply movement if we're not ignoring it.
@@ -639,7 +652,7 @@ public class PlatformerMotor2D : MonoBehaviour
             HandleWallInteraction();
 
             // If we are falling fast then multiply the gravityScale.
-            if (motorState == MotorState.InAir && !_jumping.ignoreGravity)
+            if (IsInAir() && !_jumping.ignoreGravity)
             {
                 if (fallFast)
                 {
@@ -658,12 +671,52 @@ public class PlatformerMotor2D : MonoBehaviour
                 }
             }
 
+            if (_velocity.y > 0 && IsTouchingCeiling())
+            {
+                _velocity.y = 0;
+                Bounds b = _collider2D.bounds;
+                Debug.DrawLine(b.min, new Vector3(b.min.x, b.max.y), Color.red, 34234, false);
+            }
+
             _rigidbody2D.MovePosition(_rigidbody2D.position + _velocity * GetDeltaTime());
 
             // Check speeds.
             ClampVelocity();
         }
     }
+
+    private bool IsTouchingCeiling()
+    {
+        Bounds box;
+
+        if (colliderToUse != null)
+        {
+            box = colliderToUse.bounds;
+        }
+        else
+        {
+            box = _collider2D.bounds;
+        }
+
+        Vector2 min = box.min;
+        Vector2 max = box.max;
+
+        min.x += TRIM_STUCKTO_NUM;
+        max.x -= TRIM_STUCKTO_NUM;
+
+        max.y += checkDistance;
+        min.y = transform.position.y;
+
+        return Physics2D.OverlapArea(min, max, checkMask) != null;
+    }
+
+    private bool IsInAir()
+    {
+        return motorState == MotorState.Jumping || 
+            motorState == MotorState.Falling ||
+               motorState == MotorState.FallingFast;
+    }
+
 
     private float GetDeltaTime()
     {
@@ -708,7 +761,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
         // If our state is not in the air then open up the possibility of double jump (we need to be able to double jump if
         // we walk off an edge so it can't be based of when a jump occurred).
-        if (motorState != MotorState.InAir)
+        if (!IsInAir())
         {
             _jumping.doubleJumped = false;
         }
@@ -768,6 +821,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 _wallInfo.clinging = false;
                 _jumping.force = false;
                 _jumping.allowExtraDuration = extraJumpHeight / CalculateSpeedNeeded(_jumping.height);
+                motorState = MotorState.Jumping;
 
                 if (onJump != null)
                 {
@@ -1159,7 +1213,7 @@ public class PlatformerMotor2D : MonoBehaviour
         }
         else
         {
-            box = GetComponent<Collider2D>().bounds;
+            box = _collider2D.bounds;
         }
 
         Vector2 min = box.min;
@@ -1178,20 +1232,7 @@ public class PlatformerMotor2D : MonoBehaviour
             min.y -= checkDistance;
             max.y = transform.position.y; // Go ahead and bring the maximum y down.
 
-            if (Physics2D.OverlapArea(min, max, checkMask))
-            {
-                _collidingAgainst = CollidedSurface.Ground;
-            }
-        }
-        else
-        {
-            min.x += TRIM_STUCKTO_NUM;
-            max.x -= TRIM_STUCKTO_NUM;
-
-            max.y += checkDistance;
-            min.y = transform.position.y; // Go ahead and bring the maximum y down.
-
-            if (Physics2D.OverlapArea(min, max, checkMask))
+            if (Physics2D.OverlapArea(min, max, checkMask) != null)
             {
                 _collidingAgainst = CollidedSurface.Ground;
             }
@@ -1211,7 +1252,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 min.x -= checkDistance;
                 max.x = transform.position.x;
 
-                if (Physics2D.OverlapArea(min, max, checkMask))
+                if (Physics2D.OverlapArea(min, max, checkMask) != null)
                 {
                     _collidingAgainst = CollidedSurface.LeftWall;
                 }
@@ -1227,7 +1268,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 min.x = transform.position.x;
                 max.x += checkDistance;
 
-                if (Physics2D.OverlapArea(min, max, checkMask))
+                if (Physics2D.OverlapArea(min, max, checkMask) != null)
                 {
                     _collidingAgainst = CollidedSurface.RightWall;
                 }
