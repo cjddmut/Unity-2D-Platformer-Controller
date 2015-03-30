@@ -54,7 +54,7 @@ For immediate player support, drop the PlatformerPlayer2D prefab into the scene.
 
 **Held Extra Jump Height** - If the motor is informed that the jump is held then this is the additional height the character will jump.
 
-**Allow Double Jump** - If the motor should allow double jump. A double jump is considered when the motor is in the air and a double jump has not occurred. 
+**Air Jumps Allowed** - This sets the number of air jumps the character is allowed to perform. Setting it to 0 will disable air jumping altogether.
 
 **Allow Wall Jump** - If jumping off the wall is allowed.
 
