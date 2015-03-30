@@ -5,7 +5,6 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody2D))]
 public class PlatformerMotor2D : MonoBehaviour
 {
-
     #region Public
 
     /// <summary>
@@ -68,9 +67,9 @@ public class PlatformerMotor2D : MonoBehaviour
     public float extraJumpHeight = 0.5f;
 
     /// <summary>
-    /// If double jumps are allowed.
+    /// Number of air jumps allowed.
     /// </summary>
-    public bool allowDoubleJump = false;
+	public int numAirJumps = 0;
 
     /// <summary>
     /// If wall jumps are allowed.
@@ -389,14 +388,15 @@ public class PlatformerMotor2D : MonoBehaviour
         _jumping.pressed = false;
         _jumping.isJumping = false;
         _jumping.timePressed = 0;
+		_jumping.numAirJumps = 0;
     }
 
     /// <summary>
-    /// Resets the state for the a double jump allowing another jump. This doesn't do anything if double jumps aren't allowed.
+    /// Resets the state for air jumps by setting the counter to 0.
     /// </summary>
-    public void ResetDoubleJump()
+    public void ResetAirJump()
     {
-        _jumping.doubleJumped = false;
+		_jumping.numAirJumps = 0;
     }
 
     /// <summary>
@@ -492,7 +492,7 @@ public class PlatformerMotor2D : MonoBehaviour
         public bool isJumping;
         public bool pressed;
         public bool held;
-        public bool doubleJumped;
+		public int numAirJumps;
 
         public float timePressed;
         public float allowExtraDuration;
@@ -763,7 +763,7 @@ public class PlatformerMotor2D : MonoBehaviour
         // we walk off an edge so it can't be based of when a jump occurred).
         if (!IsInAir())
         {
-            _jumping.doubleJumped = false;
+			_jumping.numAirJumps = 0;
         }
 
         // Jump?
@@ -793,19 +793,19 @@ public class PlatformerMotor2D : MonoBehaviour
                 _ignoreMovementUntil = Time.time + IGNORE_INPUT_TIME;
 
                 // If wall jump is allowed but not wall slide then double jump will not be allowed earlier, allow it now.
-                _jumping.doubleJumped = false;
+				_jumping.numAirJumps = 0;
             }
             else if (allowWallJump && _collidingAgainst == CollidedSurface.RightWall)
             {
                 _velocity = _upLeft * CalculateSpeedNeeded(_jumping.height) * wallJumpMultiplier;
                 _ignoreMovementUntil = Time.time + IGNORE_INPUT_TIME;
-                _jumping.doubleJumped = false;
+				_jumping.numAirJumps = 0;
             }
-            else if (allowDoubleJump && _collidingAgainst == CollidedSurface.None && !_jumping.doubleJumped)
-            {
-                _velocity.y = CalculateSpeedNeeded(_jumping.height);
-                _jumping.doubleJumped = true;
-            }
+			else if(_jumping.numAirJumps < numAirJumps && _collidingAgainst == CollidedSurface.None)
+			{
+				_velocity.y = CalculateSpeedNeeded(_jumping.height);
+				_jumping.numAirJumps++;
+			}
             else
             {
                 // Guess we aren't jumping!
