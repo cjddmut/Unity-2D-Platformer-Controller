@@ -20,14 +20,15 @@ public class PlatformerMotor2DEditor : Editor
     SerializedProperty _maxAirSpeedProp;
     SerializedProperty _timeToMaxAirSpeedProp;
     SerializedProperty _airStopDistanceProp;
-    
+    SerializedProperty _canChangeDirInAirProp;
+
     SerializedProperty _maxFallSpeedProp;
     SerializedProperty _maxFastFallSpeedProp;
     SerializedProperty _fastFallGravityMultiplierProp;
 
     SerializedProperty _baseJumpHeightProp;
     SerializedProperty _extraJumpHeightProp;
-    SerializedProperty _allowDoubleJumpProp;
+    SerializedProperty _numAirJumpsProp;
 
     SerializedProperty _allowWallJumpProp;
     SerializedProperty _wallJumpMultiplierProp;
@@ -69,7 +70,8 @@ public class PlatformerMotor2DEditor : Editor
 
         _baseJumpHeightProp = serializedObject.FindProperty("baseJumpHeight");
         _extraJumpHeightProp = serializedObject.FindProperty("extraJumpHeight");
-        _allowDoubleJumpProp = serializedObject.FindProperty("allowDoubleJump");
+        _numAirJumpsProp = serializedObject.FindProperty("numAirJumps");
+        _canChangeDirInAirProp = serializedObject.FindProperty("changeDirectionInAir");
 
         _allowWallJumpProp = serializedObject.FindProperty("allowWallJump");
         _wallJumpMultiplierProp = serializedObject.FindProperty("wallJumpMultiplier");
@@ -113,8 +115,13 @@ public class PlatformerMotor2DEditor : Editor
         EditorGUILayout.Separator();
 
         EditorGUILayout.PropertyField(_maxAirSpeedProp, new GUIContent("Horizontal Air Speed"));
-        EditorGUILayout.PropertyField(_timeToMaxAirSpeedProp, new GUIContent("Time To Air Speed"));
-        EditorGUILayout.PropertyField(_airStopDistanceProp, new GUIContent("Air Stop Distance"));
+        EditorGUILayout.PropertyField(_canChangeDirInAirProp, new GUIContent("Allow Direction Change In Air"));
+
+        if (_canChangeDirInAirProp.boolValue)
+        {
+            EditorGUILayout.PropertyField(_timeToMaxAirSpeedProp, new GUIContent("Time To Air Speed"));
+            EditorGUILayout.PropertyField(_airStopDistanceProp, new GUIContent("Air Stop Distance"));
+        }
 
         EditorGUILayout.Separator();
 
@@ -126,7 +133,7 @@ public class PlatformerMotor2DEditor : Editor
 
         EditorGUILayout.PropertyField(_baseJumpHeightProp, new GUIContent("Base Jump Height"));
         EditorGUILayout.PropertyField(_extraJumpHeightProp, new GUIContent("Held Extra Jump Height"));
-        EditorGUILayout.PropertyField(_allowDoubleJumpProp, new GUIContent("Allow Double Jump"));
+        EditorGUILayout.PropertyField(_numAirJumpsProp, new GUIContent("Air Jumps Allowed"));
 
         EditorGUILayout.Separator();
 

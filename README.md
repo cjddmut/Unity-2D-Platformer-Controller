@@ -40,6 +40,10 @@ For immediate player support, drop the PlatformerPlayer2D prefab into the scene.
 
 **Air Stop Distance** - If at full air speed, how far will the motor 'skid' to a stop.
 
+**Change Direction In Air** - If true, then the motor's x velocity can be changed while in air. If false, then the motor's x velocity cannot be changed when in the air.
+
+**On Side Hit, Velocity.x = 0** - Only available when **Change Direction In Air** = true. If true, and the controller hits something on its left or right, the x velocity will be set to 0.
+
 **Max Fall Speed** - Maximum fall speed (only y axis when negative).
 
 **Max Fast Fall Speed** - Maximum fall speed when falling fast.
@@ -54,7 +58,7 @@ For immediate player support, drop the PlatformerPlayer2D prefab into the scene.
 
 **Held Extra Jump Height** - If the motor is informed that the jump is held then this is the additional height the character will jump.
 
-**Allow Double Jump** - If the motor should allow double jump. A double jump is considered when the motor is in the air and a double jump has not occurred. 
+**Air Jumps Allowed** - This sets the number of air jumps the character is allowed to perform. Setting it to 0 will disable air jumping altogether.
 
 **Allow Wall Jump** - If jumping off the wall is allowed.
 
@@ -171,6 +175,12 @@ Notification onJump
 
 Attach to these delegates to receive notifications for dash, dash end, and jump events.
 
+```csharp
+delegate void onFallFinished(float distanceFell)
+```
+
+Attach to this delegate to be notified when a fall has finished and be given the distance fallen in world coordinates. Note this is not called unless the ending y coordinate is less than the previous stable Y position - EPSILON.
+
 ### PlatformerMotor2D Methods ###
 
 ```csharp
@@ -192,10 +202,10 @@ void EndJump()
 Call to end a jump. Causes the motor to stop calculated held speed for a jump.
 
 ```csharp
-void ResetDoubleJump()
+void ResetAirJump()
 ```
 
-Resets the state for the a double jump allowing another jump. This doesn't do anything if double jumps aren't allowed.
+Resets the state for the jump counter to 0. This doesn't do anything if air jumps is set to 0.
 
 ```csharp
 void Dash()

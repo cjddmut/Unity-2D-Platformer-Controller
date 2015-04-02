@@ -5,14 +5,13 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody2D))]
 public class PlatformerMotor2D : MonoBehaviour
 {
-
     #region Public
 
     /// <summary>
     /// The maximum speed the motor will move on the ground, only effects horizontal speed.
     /// </summary>
     public float maxGroundSpeed = 3f;
-    
+
     /// <summary>
     /// How much time does it take for the motor to get from zero speed to max speed. This value
     /// is used to calculate the acceleration.
@@ -42,6 +41,12 @@ public class PlatformerMotor2D : MonoBehaviour
     public float airStopDistance;
 
     /// <summary>
+    /// If true, then the player can change x direction while jumping. If false, then
+    /// the x velocity when leaving the ground will be held while in the air 
+    /// </summary>
+    public bool changeDirectionInAir = true;
+
+    /// <summary>
     /// The maximum speed that the motor will fall. Only effects vertical speed when falling.
     /// </summary>
     public float maxFallSpeed = 5f;
@@ -68,9 +73,9 @@ public class PlatformerMotor2D : MonoBehaviour
     public float extraJumpHeight = 0.5f;
 
     /// <summary>
-    /// If double jumps are allowed.
+    /// Number of air jumps allowed.
     /// </summary>
-    public bool allowDoubleJump = false;
+    public int numAirJumps = 0;
 
     /// <summary>
     /// If wall jumps are allowed.
@@ -169,6 +174,13 @@ public class PlatformerMotor2D : MonoBehaviour
     /// Delegate to attach to when the motor jumps.
     /// </summary>
     public Action onJump;
+
+    /// <summary>
+    /// Delegate that notifies when a fall has finished. It gives
+    /// the distance fallen in world coordinates. Note this is not called unless
+    /// the ending y coordinate is less than the previous stable Y position - EPSILON.
+    /// </summary>
+    public Action<float> onFallFinished;
 
     /// <summary>
     /// How far out the motor will check for the environment mask. This value can be tweaked if jump checks are not firing when 
@@ -389,14 +401,15 @@ public class PlatformerMotor2D : MonoBehaviour
         _jumping.pressed = false;
         _jumping.isJumping = false;
         _jumping.timePressed = 0;
+        _jumping.numAirJumps = 0;
     }
 
     /// <summary>
-    /// Resets the state for the a double jump allowing another jump. This doesn't do anything if double jumps aren't allowed.
+    /// Resets the state for air jumps by setting the counter to 0.
     /// </summary>
-    public void ResetDoubleJump()
+    public void ResetAirJump()
     {
-        _jumping.doubleJumped = false;
+        _jumping.numAirJumps = 0;
     }
 
     /// <summary>
@@ -470,13 +483,21 @@ public class PlatformerMotor2D : MonoBehaviour
     private float _timeScale = 1;
     private Collider2D _collider2D;
 
+    /// <summary>
+    /// Holds the last stable y position before a fall or jump occurs
+    /// </summary>
+    private float _lastStableY;
+
     private CollidedSurface _collidingAgainst = CollidedSurface.None;
+
+    [Flags]
     private enum CollidedSurface
     {
-        None,
-        Ground,
-        LeftWall,
-        RightWall
+        None = 0x0,
+        Ground = 0x1,
+        LeftWall = 0x2,
+        RightWall = 0x4,
+        Ceiling = 0x8
     }
 
     // The function is cached to avoid unnecessary memory allocation.
@@ -492,7 +513,7 @@ public class PlatformerMotor2D : MonoBehaviour
         public bool isJumping;
         public bool pressed;
         public bool held;
-        public bool doubleJumped;
+        public int numAirJumps;
 
         public float timePressed;
         public float allowExtraDuration;
@@ -542,7 +563,12 @@ public class PlatformerMotor2D : MonoBehaviour
     // When jumping off of a wall, this is the amount of time that movement input is ignored.
     private const float IGNORE_INPUT_TIME = 0.2f;
 
-    private const string CHECK_MASK_NOT_SET = 
+    /// <summary>
+    /// Minimum fall distance that will be sent via the onFallFinished delegate
+    /// </summary>
+    private const float FALL_EPSILON = 0.1f;
+
+    private const string CHECK_MASK_NOT_SET =
         "PC2D: Environment Check Mask not set! This is needed to know what to collide against!";
 
     private const string FROZEN_SET_WHILE_DISABLED = "PC2D: PlatformerMotor2D.frozen set when motor is disabled, ignoring.";
@@ -557,6 +583,7 @@ public class PlatformerMotor2D : MonoBehaviour
         _collider2D = GetComponent<Collider2D>();
         _originalDrag = _rigidbody2D.drag;
         _originalGravity = _rigidbody2D.gravityScale;
+        _lastStableY = transform.position.y;
 
         SetDashFunctions();
     }
@@ -604,8 +631,8 @@ public class PlatformerMotor2D : MonoBehaviour
         _dashing.cooldownTimer -= GetDeltaTime();
 
         // First, are we trying to dash?
-        if (allowDash && 
-            _dashing.pressed && 
+        if (allowDash &&
+            _dashing.pressed &&
             _dashing.cooldownTimer <= 0 &&
             !_dashing.isDashing)
         {
@@ -627,12 +654,21 @@ public class PlatformerMotor2D : MonoBehaviour
             // Are we grounded?
             CheckSurroundings();
 
-            if (_collidingAgainst == CollidedSurface.Ground)
+            if (IsGrounded())
             {
+                if ((motorState == MotorState.Falling || 
+                    motorState == MotorState.FallingFast) &&
+                    _lastStableY > transform.position.y + FALL_EPSILON && 
+                    onFallFinished != null)
+                {
+                    onFallFinished(_lastStableY - transform.position.y);
+                }
+                    
                 motorState = MotorState.OnGround;
-
-                // Turn off gravity, this prevents losing some velocity on every tick.
                 _velocity.y = 0;
+
+                // Record this Y position so we can use it later to determine fall height
+                _lastStableY = transform.position.y;
             }
             else if (_velocity.y <= 0)
             {
@@ -671,11 +707,9 @@ public class PlatformerMotor2D : MonoBehaviour
                 }
             }
 
-            if (_velocity.y > 0 && IsTouchingCeiling())
+            if (_velocity.y > 0 && HasFlag(CollidedSurface.Ceiling))
             {
                 _velocity.y = 0;
-                Bounds b = _collider2D.bounds;
-                Debug.DrawLine(b.min, new Vector3(b.min.x, b.max.y), Color.red, 34234, false);
             }
 
             _rigidbody2D.MovePosition(_rigidbody2D.position + _velocity * GetDeltaTime());
@@ -685,38 +719,17 @@ public class PlatformerMotor2D : MonoBehaviour
         }
     }
 
-    private bool IsTouchingCeiling()
+    private bool HasFlag(CollidedSurface cs)
     {
-        Bounds box;
-
-        if (colliderToUse != null)
-        {
-            box = colliderToUse.bounds;
-        }
-        else
-        {
-            box = _collider2D.bounds;
-        }
-
-        Vector2 min = box.min;
-        Vector2 max = box.max;
-
-        min.x += TRIM_STUCKTO_NUM;
-        max.x -= TRIM_STUCKTO_NUM;
-
-        max.y += checkDistance;
-        min.y = transform.position.y;
-
-        return Physics2D.OverlapArea(min, max, checkMask) != null;
+        return (_collidingAgainst & cs) != CollidedSurface.None;
     }
 
     private bool IsInAir()
     {
-        return motorState == MotorState.Jumping || 
-            motorState == MotorState.Falling ||
+        return motorState == MotorState.Jumping ||
+               motorState == MotorState.Falling ||
                motorState == MotorState.FallingFast;
     }
-
 
     private float GetDeltaTime()
     {
@@ -732,9 +745,8 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private void HandleJumping()
     {
-        if (_collidingAgainst != CollidedSurface.None && _velocity.y <= 0)
+        if (_velocity.y <= 0)
         {
-            // If we're grounded then we are not jumping.
             _jumping.isJumping = false;
         }
 
@@ -759,11 +771,11 @@ public class PlatformerMotor2D : MonoBehaviour
             }
         }
 
-        // If our state is not in the air then open up the possibility of double jump (we need to be able to double jump if
+        // If our state is not in the air then open up the possibility of air jumps (we need to be able to air jump if
         // we walk off an edge so it can't be based of when a jump occurred).
         if (!IsInAir())
         {
-            _jumping.doubleJumped = false;
+            _jumping.numAirJumps = 0;
         }
 
         // Jump?
@@ -772,7 +784,7 @@ public class PlatformerMotor2D : MonoBehaviour
             bool jumped = true;
 
             // Jump might mean different things depending on the state.
-            if (_collidingAgainst == CollidedSurface.Ground || _jumping.force)
+            if (IsGrounded() || _jumping.force)
             {
                 // Normal jump.
                 _velocity.y = CalculateSpeedNeeded(_jumping.height);
@@ -783,7 +795,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 _velocity = Vector2.up * CalculateSpeedNeeded(_jumping.height) * cornerJumpMultiplier;
                 _ignoreMovementUntil = Time.time + IGNORE_INPUT_TIME;
             }
-            else if (allowWallJump && _collidingAgainst == CollidedSurface.LeftWall)
+            else if (allowWallJump && PressingIntoLeftWall())
             {
                 // If jump was pressed as we or before we entered the wall then just jump away.
                 _velocity = _upRight * CalculateSpeedNeeded(_jumping.height) * wallJumpMultiplier;
@@ -793,18 +805,18 @@ public class PlatformerMotor2D : MonoBehaviour
                 _ignoreMovementUntil = Time.time + IGNORE_INPUT_TIME;
 
                 // If wall jump is allowed but not wall slide then double jump will not be allowed earlier, allow it now.
-                _jumping.doubleJumped = false;
+                _jumping.numAirJumps = 0;
             }
-            else if (allowWallJump && _collidingAgainst == CollidedSurface.RightWall)
+            else if (allowWallJump && PressingIntoRightWall())
             {
                 _velocity = _upLeft * CalculateSpeedNeeded(_jumping.height) * wallJumpMultiplier;
                 _ignoreMovementUntil = Time.time + IGNORE_INPUT_TIME;
-                _jumping.doubleJumped = false;
+                _jumping.numAirJumps = 0;
             }
-            else if (allowDoubleJump && _collidingAgainst == CollidedSurface.None && !_jumping.doubleJumped)
+            else if (_jumping.numAirJumps < numAirJumps)
             {
                 _velocity.y = CalculateSpeedNeeded(_jumping.height);
-                _jumping.doubleJumped = true;
+                _jumping.numAirJumps++;
             }
             else
             {
@@ -831,12 +843,29 @@ public class PlatformerMotor2D : MonoBehaviour
         }
     }
 
+    private bool PressingIntoLeftWall()
+    {
+        return HasFlag(CollidedSurface.LeftWall) && normalizedXMovement < -wallInteractionThreshold;
+    }
+
+    private bool PressingIntoRightWall()
+    {
+        return HasFlag(CollidedSurface.RightWall) && normalizedXMovement > wallInteractionThreshold;
+    }
+
     private void HandleWallInteraction()
     {
         // We can grab corners or walls again.
-        if (_collidingAgainst != CollidedSurface.RightWall && _collidingAgainst != CollidedSurface.LeftWall)
+        if (!PressingIntoLeftWall() && !PressingIntoRightWall())
         {
             _wallInfo.canHangAgain = true;
+        }
+
+        // Kill off horizontal velocity if we are by a wall.
+        if (HasFlag(CollidedSurface.LeftWall) && _velocity.x < 0 ||
+            HasFlag(CollidedSurface.RightWall) && _velocity.x > 0)
+        {
+            _velocity.x = 0;
         }
 
         if (fallFast || _jumping.isJumping)
@@ -850,9 +879,7 @@ public class PlatformerMotor2D : MonoBehaviour
         {
             if (_velocity.y < 0 || _wallInfo.onCorner)
             {
-                if ((_collidingAgainst == CollidedSurface.LeftWall && normalizedXMovement < -wallInteractionThreshold ||
-                    _collidingAgainst == CollidedSurface.RightWall && normalizedXMovement > wallInteractionThreshold) &&
-                    CheckIfAtCorner())
+                if ((PressingIntoLeftWall() || PressingIntoRightWall()) && CheckIfAtCorner())
                 {
                     if (!_wallInfo.onCorner && _wallInfo.canHangAgain)
                     {
@@ -870,6 +897,7 @@ public class PlatformerMotor2D : MonoBehaviour
                     {
                         // We're stuck!
                         _velocity = Vector2.zero;
+                        _lastStableY = transform.position.y;
                         motorState = MotorState.OnCorner;
                         return;
                     }
@@ -886,8 +914,7 @@ public class PlatformerMotor2D : MonoBehaviour
         {
             if (_velocity.y < 0 || _wallInfo.clinging)
             {
-                if (_collidingAgainst == CollidedSurface.LeftWall && normalizedXMovement < -wallInteractionThreshold ||
-                _collidingAgainst == CollidedSurface.RightWall && normalizedXMovement > wallInteractionThreshold)
+                if (PressingIntoLeftWall() || PressingIntoRightWall())
                 {
                     if (!_wallInfo.clinging && _wallInfo.canHangAgain)
                     {
@@ -906,6 +933,7 @@ public class PlatformerMotor2D : MonoBehaviour
                         // Sticky!
                         _velocity = Vector2.zero;
                         motorState = MotorState.Clinging;
+                        _lastStableY = transform.position.y;
                         return;
                     }
                 }
@@ -924,10 +952,10 @@ public class PlatformerMotor2D : MonoBehaviour
                 _wallInfo.sliding = false;
 
                 // Only if we're currently falling.
-                if (_collidingAgainst == CollidedSurface.LeftWall && normalizedXMovement < -wallInteractionThreshold ||
-                    _collidingAgainst == CollidedSurface.RightWall && normalizedXMovement > wallInteractionThreshold)
+                if (PressingIntoLeftWall() || PressingIntoRightWall())
                 {
                     _velocity = -Vector2.up * wallSlideSpeed;
+                    _lastStableY = transform.position.y;
                     motorState = MotorState.Sliding;
                     _wallInfo.sliding = true;
                 }
@@ -939,7 +967,7 @@ public class PlatformerMotor2D : MonoBehaviour
     {
         if (Mathf.Abs(normalizedXMovement) > 0)
         {
-            if (_collidingAgainst == CollidedSurface.Ground)
+            if (IsGrounded())
             {
                 if (timeToMaxGroundSpeed > 0)
                 {
@@ -953,13 +981,13 @@ public class PlatformerMotor2D : MonoBehaviour
                         _velocity.x < normalizedXMovement * maxGroundSpeed)
                     {
                         Decelerate(
-                            (maxGroundSpeed * maxGroundSpeed) / (2 * groundStopDistance), 
+                            (maxGroundSpeed * maxGroundSpeed) / (2 * groundStopDistance),
                             normalizedXMovement * maxGroundSpeed);
                     }
                     else
                     {
                         Accelerate(
-                            normalizedXMovement * (maxGroundSpeed / timeToMaxGroundSpeed), 
+                            normalizedXMovement * (maxGroundSpeed / timeToMaxGroundSpeed),
                             normalizedXMovement * maxGroundSpeed);
                     }
                 }
@@ -969,43 +997,38 @@ public class PlatformerMotor2D : MonoBehaviour
                     _velocity = Vector2.right * normalizedXMovement * maxGroundSpeed;
                 }
             }
-            else
+            else if (changeDirectionInAir)
             {
                 // Don't apply the force if we're already on the wall.
-                if (normalizedXMovement > 0 && _collidingAgainst == CollidedSurface.LeftWall ||
-                    normalizedXMovement < 0 && _collidingAgainst == CollidedSurface.RightWall ||
-                    _collidingAgainst == CollidedSurface.None)
+                if (timeToMaxAirSpeed > 0)
                 {
-                    if (timeToMaxAirSpeed > 0)
+                    if (_velocity.x > 0 &&
+                        normalizedXMovement > 0 &&
+                        _velocity.x > normalizedXMovement * maxAirSpeed ||
+                        _velocity.x < 0 &&
+                        normalizedXMovement < 0 &&
+                        _velocity.x < normalizedXMovement * maxAirSpeed)
                     {
-                        if (_velocity.x > 0 &&
-                            normalizedXMovement > 0 &&
-                            _velocity.x > normalizedXMovement * maxAirSpeed ||
-                            _velocity.x < 0 &&
-                            normalizedXMovement < 0 &&
-                            _velocity.x < normalizedXMovement * maxAirSpeed)
-                        {
-                            Decelerate(
-                                (maxAirSpeed * maxAirSpeed) / (2 * airStopDistance), 
-                                normalizedXMovement * maxAirSpeed);
-                        }
-                        else
-                        {
-                            Accelerate(
-                                normalizedXMovement * (maxAirSpeed / timeToMaxAirSpeed), 
-                                normalizedXMovement * maxAirSpeed);
-                        }
+                        Decelerate(
+                            (maxAirSpeed * maxAirSpeed) / (2 * airStopDistance),
+                            normalizedXMovement * maxAirSpeed);
                     }
                     else
                     {
-                        _velocity.x = normalizedXMovement * maxAirSpeed;
+                        Accelerate(
+                            normalizedXMovement * (maxAirSpeed / timeToMaxAirSpeed),
+                            normalizedXMovement * maxAirSpeed);
                     }
+                }
+                else
+                {
+                    _velocity.x = normalizedXMovement * maxAirSpeed;
                 }
             }
         }
         else if (_velocity.x != 0)
         {
-            if (_collidingAgainst == CollidedSurface.Ground)
+            if (IsGrounded())
             {
                 if (groundStopDistance > 0)
                 {
@@ -1050,7 +1073,7 @@ public class PlatformerMotor2D : MonoBehaviour
             }
         }
     }
-    
+
     private void Decelerate(float deceleration, float limit)
     {
         // deceleration is always positive but assumed to take the velocity backwards.
@@ -1153,12 +1176,12 @@ public class PlatformerMotor2D : MonoBehaviour
         min.y = max.y;
         max.y += cornerDistanceCheck;
 
-        if (_collidingAgainst == CollidedSurface.LeftWall)
+        if (PressingIntoLeftWall())
         {
             max.x = min.x;
             min.x -= cornerDistanceCheck;
         }
-        else if (_collidingAgainst == CollidedSurface.RightWall)
+        else if (PressingIntoRightWall())
         {
             min.x = max.x;
             max.x += cornerDistanceCheck;
@@ -1171,7 +1194,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private void ClampVelocity()
     {
-        if (_collidingAgainst == CollidedSurface.Ground)
+        if (IsGrounded())
         {
             _velocity.x = Mathf.Clamp(_velocity.x, -maxGroundSpeed, maxGroundSpeed);
         }
@@ -1203,6 +1226,11 @@ public class PlatformerMotor2D : MonoBehaviour
         }
     }
 
+    private bool IsGrounded()
+    {
+        return HasFlag(CollidedSurface.Ground) && _velocity.y <= 0;
+    }
+
     private void CheckSurroundings()
     {
         Bounds box;
@@ -1224,55 +1252,57 @@ public class PlatformerMotor2D : MonoBehaviour
 
         _collidingAgainst = CollidedSurface.None;
 
-        if (_velocity.y <= 0)
+        min.x += TRIM_STUCKTO_NUM;
+        max.x -= TRIM_STUCKTO_NUM;
+
+        min.y -= checkDistance;
+        max.y = transform.position.y; // Go ahead and bring the maximum y down.
+
+        if (Physics2D.OverlapArea(min, max, checkMask) != null)
         {
-            min.x += TRIM_STUCKTO_NUM;
-            max.x -= TRIM_STUCKTO_NUM;
-
-            min.y -= checkDistance;
-            max.y = transform.position.y; // Go ahead and bring the maximum y down.
-
-            if (Physics2D.OverlapArea(min, max, checkMask) != null)
-            {
-                _collidingAgainst = CollidedSurface.Ground;
-            }
+            _collidingAgainst |= CollidedSurface.Ground;
         }
-        
-        if (_collidingAgainst == CollidedSurface.None)
+
+        min = box.min;
+        max = box.max;
+
+        min.x += TRIM_STUCKTO_NUM;
+        max.x -= TRIM_STUCKTO_NUM;
+
+        max.y += checkDistance;
+        min.y = transform.position.y;
+
+        if (Physics2D.OverlapArea(min, max, checkMask) != null)
         {
-            // Only consider the walls if we're pressing into them.
-            if (normalizedXMovement < 0)
-            {
-                min = box.min;
-                max = box.max;
+            _collidingAgainst |= CollidedSurface.Ceiling;
+        }
 
-                min.y += TRIM_STUCKTO_NUM;
-                max.y -= TRIM_STUCKTO_NUM;
+        min = box.min;
+        max = box.max;
 
-                min.x -= checkDistance;
-                max.x = transform.position.x;
+        min.y += TRIM_STUCKTO_NUM;
+        max.y -= TRIM_STUCKTO_NUM;
 
-                if (Physics2D.OverlapArea(min, max, checkMask) != null)
-                {
-                    _collidingAgainst = CollidedSurface.LeftWall;
-                }
-            }
-            else if (normalizedXMovement > 0)
-            {
-                min = box.min;
-                max = box.max;
+        min.x -= checkDistance;
+        max.x = transform.position.x;
 
-                min.y += TRIM_STUCKTO_NUM;
-                max.y -= TRIM_STUCKTO_NUM;
+        if (Physics2D.OverlapArea(min, max, checkMask) != null)
+        {
+            _collidingAgainst |= CollidedSurface.LeftWall;
+        }
 
-                min.x = transform.position.x;
-                max.x += checkDistance;
+        min = box.min;
+        max = box.max;
 
-                if (Physics2D.OverlapArea(min, max, checkMask) != null)
-                {
-                    _collidingAgainst = CollidedSurface.RightWall;
-                }
-            }
+        min.y += TRIM_STUCKTO_NUM;
+        max.y -= TRIM_STUCKTO_NUM;
+
+        min.x = transform.position.x;
+        max.x += checkDistance;
+
+        if (Physics2D.OverlapArea(min, max, checkMask) != null)
+        {
+            _collidingAgainst |= CollidedSurface.RightWall;
         }
     }
 
