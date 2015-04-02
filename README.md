@@ -40,9 +40,7 @@ For immediate player support, drop the PlatformerPlayer2D prefab into the scene.
 
 **Air Stop Distance** - If at full air speed, how far will the motor 'skid' to a stop.
 
-**Change Direction In Air** - If true, then the motor's x velocity can be changed while in air. If false, then the motor's x velocity cannot be changed when in the air.
-
-**On Side Hit, Velocity.x = 0** - Only available when **Change Direction In Air** = true. If true, and the controller hits something on its left or right, the x velocity will be set to 0.
+**Allow Direction Change In Air** - If true, then the motor's x velocity can be changed while in air. If false, then the motor's x velocity cannot be changed when in the air.
 
 **Max Fall Speed** - Maximum fall speed (only y axis when negative).
 
@@ -116,7 +114,8 @@ MotorState motorState // Readonly
 enum MotorState
 {
     OnGround,
-    InAir,
+    Jumping,
+    Falling,
     FallingFast,
     Sliding,
     OnCorner,
@@ -166,17 +165,15 @@ Collider2D colliderToUse
 Set this to use a specific collider for checks instead of grabbing the collider from gameObject.collider2D.
 
 ```csharp
-delegate void Notification()
-
-Notification onDash
-Notification onDashEnd
-Notification onJump
+Action onDash
+Action onDashEnd
+Action onJump
 ```
 
 Attach to these delegates to receive notifications for dash, dash end, and jump events.
 
 ```csharp
-delegate void onFallFinished(float distanceFell)
+Action<float> onFallFinished
 ```
 
 Attach to this delegate to be notified when a fall has finished and be given the distance fallen in world coordinates. Note this is not called unless the ending y coordinate is less than the previous stable Y position - EPSILON.
@@ -184,13 +181,13 @@ Attach to this delegate to be notified when a fall has finished and be given the
 ### PlatformerMotor2D Methods ###
 
 ```csharp
-void Jump(float extraSpeed = 0)
+void Jump(float extraHeight = 0)
 ```
 
 Call this to have the GameObject try to jump, once called it will be handled in the FixedUpdate tick. The y axis is considered jump.
 
 ```csharp
-void ForceJump(float extraSpeed = 0)
+void ForceJump(float extraHeight = 0)
 ```
 
 This will force a jump to occur even if the motor doesn't think a jump is valid. This function will not work if the motor is dashing.
