@@ -1,6 +1,5 @@
 ﻿
 using UnityEngine;
-using UnityEngine.UI;
 
 /// <summary>
 /// This class is a simple example of how to build a controller that interacts with PlatformerMotor2D.
@@ -8,15 +7,13 @@ using UnityEngine.UI;
 [RequireComponent(typeof(PlatformerMotor2D))]
 public class PlayerController2D : MonoBehaviour
 {
-	public Text fallDistText;
-
     private PlatformerMotor2D _motor;
 
     // Use this for initialization
     void Start()
     {
         _motor = GetComponent<PlatformerMotor2D>();
-	}
+    }
 
     // Update is called once per frame
     void Update()
