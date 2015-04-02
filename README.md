@@ -173,11 +173,13 @@ Notification onDashEnd
 Notification onJump
 ```
 
+Attach to these delegates to receive notifications for dash, dash end, and jump events.
+
 ```csharp
 delegate void onFallFinished(float distanceFell)
 ```
 
-Attach to these delegates to receive notifications for dash, dash end, and jump events.
+Attach to this delegate to be notified when a fall has finished and be given the distance fallen in world coordinates. Note this is not called unless the ending y coordinate is less than the previous stable Y position - EPSILON.
 
 ### PlatformerMotor2D Methods ###
 
