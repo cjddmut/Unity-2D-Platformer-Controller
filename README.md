@@ -325,7 +325,7 @@ PlatformerMotor2D reduces drag on the rigidbody2D to 0 and handles deceleration 
 If your game has moments where it needs to leverage gravity or drag then disable the motor during these moments.
 
 **My character seems to puch into walls when dashing or falling!**
-This appeared somewhere around 5.0.1. Turn on continous detection on the rigidbody2d attached with the motor to fix.
+This appeared somewhere around 5.0.1. Turn on continuous detection on the rigidbody2d attached with the motor to fix.
 
 **Can I use PlatformerMotor2D for controlling AI movements?**
 Sure can. PlatformerMotor2D doesn't know anything about inputs, it just acts on information passed to it. An AI script can interface with the motor similarly how a player controller script could. A very simple example is included in the SimpleAI scene.
