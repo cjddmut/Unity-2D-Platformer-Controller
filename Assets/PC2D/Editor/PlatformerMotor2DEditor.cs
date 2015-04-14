@@ -49,6 +49,8 @@ public class PlatformerMotor2DEditor : Editor
     SerializedProperty _dashDistanceProp;
     SerializedProperty _dashDurationProp;
     SerializedProperty _dashEasingFunctionProp;
+    SerializedProperty _endDashDelay;
+
     SerializedProperty _checkMaskProp;
     SerializedProperty _checkDistanceProp;
 
@@ -92,6 +94,7 @@ public class PlatformerMotor2DEditor : Editor
         _dashDistanceProp = serializedObject.FindProperty("dashDistance");
         _dashDurationProp = serializedObject.FindProperty("dashDuration");
         _dashEasingFunctionProp = serializedObject.FindProperty("dashEasingFunction");
+        _endDashDelay = serializedObject.FindProperty("endDashDelay");
 
         _checkMaskProp = serializedObject.FindProperty("checkMask");
         _checkDistanceProp = serializedObject.FindProperty("checkDistance");
@@ -192,6 +195,7 @@ public class PlatformerMotor2DEditor : Editor
             EditorGUILayout.PropertyField(_dashDurationProp, new GUIContent("Dash Duration"));
             EditorGUILayout.PropertyField(_dashCooldownProp, new GUIContent("Dash Cooldown"));
             EditorGUILayout.PropertyField(_dashEasingFunctionProp, new GUIContent("Dash Easing Function"));
+            EditorGUILayout.PropertyField(_endDashDelay, new GUIContent("Gravity Delay After Dash"));
         }
 
         serializedObject.ApplyModifiedProperties();

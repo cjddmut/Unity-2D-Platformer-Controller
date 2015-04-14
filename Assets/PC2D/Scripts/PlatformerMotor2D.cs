@@ -154,6 +154,11 @@ public class PlatformerMotor2D : MonoBehaviour
     public EasingFunctions.Functions dashEasingFunction = EasingFunctions.Functions.EaseOutQuad;
 
     /// <summary>
+    /// Delay (in seconds) before gravity is turned back on after a dash.
+    /// </summary>
+    public float endDashDelay;
+
+    /// <summary>
     /// The threshold that normalizedXMovement will have to be higher than to consider wall clings, wall slides, wall jumps,
     /// and corner grabs.
     /// </summary>
@@ -171,16 +176,29 @@ public class PlatformerMotor2D : MonoBehaviour
     public Action onDashEnd;
 
     /// <summary>
-    /// Delegate to attach to when the motor jumps.
+    /// Delegate to attach to when the motor jumps (ALL JUMPS!).
     /// </summary>
     public Action onJump;
 
     /// <summary>
-    /// Delegate that notifies when a fall has finished. It gives
-    /// the distance fallen in world coordinates. Note this is not called unless
-    /// the ending y coordinate is less than the previous stable Y position - EPSILON.
+    /// Delegate to attach to when the motor air jumps (called before onJump).
     /// </summary>
-    public Action<float> onFallFinished;
+    public Action onAirJump;
+
+    /// <summary>
+    /// Delegate to attach to when the motor walls jumps (called before onJump). The vector passed is the normal of the wall.
+    /// </summary>
+    public Action<Vector2> onWallJump;
+
+    /// <summary>
+    /// Delegate to attach to when the motor corner jumps (called before onJump).
+    /// </summary>
+    public Action onCornerJump;
+
+    /// <summary>
+    /// Delegate that notifies that the motor has landed. amountFallen can be queried for distance fallen.
+    /// </summary>
+    public Action onLanded;
 
     /// <summary>
     /// How far out the motor will check for the environment mask. This value can be tweaked if jump checks are not firing when 
@@ -207,6 +225,19 @@ public class PlatformerMotor2D : MonoBehaviour
         Clinging,
         Dashing,
         Frozen
+    }
+
+    /// <summary>
+    /// The surfaces the motor may be colliding against.
+    /// </summary>
+    [Flags]
+    public enum CollidedSurface
+    {
+        None = 0x0,
+        Ground = 0x1,
+        LeftWall = 0x2,
+        RightWall = 0x4,
+        Ceiling = 0x8
     }
 
     /// <summary>
@@ -265,6 +296,11 @@ public class PlatformerMotor2D : MonoBehaviour
     public MotorState motorState { get; private set; }
 
     /// <summary>
+    /// The surfaces the motor is currently colliding against.
+    /// </summary>
+    public CollidedSurface collidingAgainst { get; private set; }
+
+    /// <summary>
     /// Since the motor needs to know the facing of the object, this information is made available to anyone else who might need 
     /// it.
     /// </summary>
@@ -301,6 +337,29 @@ public class PlatformerMotor2D : MonoBehaviour
             return 0;
         }
     }
+
+    /// <summary>
+    /// If the motor is currently able to dash.
+    /// </summary>
+    public bool canDash
+    {
+        get { return _dashing.cooldownTimer <= 0; }
+    }
+
+    /// <summary>
+    /// Returns the amount of distance the motor has fallen fast.
+    /// </summary>
+    public float amountFastFallen { get; private set; }
+
+    /// <summary>
+    /// Returns the amount of distance the motor has fallen. Includes fallen fast distance.
+    /// </summary>
+    public float amountFallen { get; private set; }
+
+    /// <summary>
+    /// Returns the amount the motor has jumped. This ceases to keep calculating after the motor starts to come down.
+    /// </summary>
+    public float amountJumpedFor { get; private set; }
 
     /// <summary>
     /// Set this true to have the motor fall faster. Set to false to fall at normal speeds.
@@ -369,13 +428,12 @@ public class PlatformerMotor2D : MonoBehaviour
     /// Call this to have the GameObject try to jump, once called it will be handled in the FixedUpdate tick. The y axis is 
     /// considered jump.
     /// </summary>
-    /// <param name="extraHeight">Extra height added to the jump.</param>
-    public void Jump(float extraHeight = 0)
+    public void Jump()
     {
         _jumping.pressed = true;
         _jumping.timePressed = Time.time;
         _jumping.isJumping = false;
-        _jumping.height = baseJumpHeight + extraHeight;
+        _jumping.height = baseJumpHeight;
 
         // Consider jumping held in case there are multiple fixed ticks before the next update tick.
         // This is useful as jumpingHeld may not be set to true with a GetButton() call.
@@ -383,14 +441,33 @@ public class PlatformerMotor2D : MonoBehaviour
     }
 
     /// <summary>
+    /// Jump that allows a custom height.
+    /// </summary>
+    /// <param name="customHeight">The height the motor should jump to. The extraJumpHeight is still applicable.</param>
+    public void Jump(float customHeight)
+    {
+        Jump();
+        _jumping.height = customHeight;
+    }
+
+    /// <summary>
     /// This will force a jump to occur even if the motor doesn't think a jump is valid. This function will not work if the motor
     /// is dashing.
     /// </summary>
-    /// <param name="extraHeight">Extra height added to the jump.</param>
-    public void ForceJump(float extraHeight = 0)
+    public void ForceJump()
     {
-        Jump(extraHeight);
+        Jump();
         _jumping.force = true;
+    }
+
+    /// <summary>
+    /// Force a jump with a custom height.
+    /// </summary>
+    /// <param name="customHeight">The height the motor should jump to. The extraJumpHeight is still applicable.</param>
+    public void ForceJump(float customHeight)
+    {
+        ForceJump();
+        _jumping.height = customHeight;
     }
 
     /// <summary>
@@ -413,13 +490,22 @@ public class PlatformerMotor2D : MonoBehaviour
     }
 
     /// <summary>
-    /// Call this to have the GameObject try to dash, once called it will be handled in the FixedUpdate tick.
+    /// Call this to have the motor try to dash, once called it will be handled in the FixedUpdate tick.
     /// This causes the object to dash along their facing (if left or right for side scrollers).
     /// </summary>
     public void Dash()
     {
         _dashing.pressed = true;
         _dashing.dashWithDirection = false;
+    }
+
+    /// <summary>
+    /// Forces the motor to dash regardless if the motor thinks it is valid or not.
+    /// </summary>
+    public void ForceDash()
+    {
+        Dash();
+        _dashing.force = true;
     }
 
     /// <summary>
@@ -434,6 +520,16 @@ public class PlatformerMotor2D : MonoBehaviour
     }
 
     /// <summary>
+    /// Forces a dash along a specified direction.
+    /// </summary>
+    /// <param name="dir">The normalized direction of the dash.</param>
+    public void ForceDash(Vector2 dir)
+    {
+        Dash(dir);
+        _dashing.force = true;
+    }
+
+    /// <summary>
     /// Call to end dash immediately.
     /// </summary>
     public void EndDash()
@@ -444,6 +540,7 @@ public class PlatformerMotor2D : MonoBehaviour
             _dashing.isDashing = false;
             _dashing.cooldownTimer = dashCooldown;
             _dashing.pressed = false;
+            _dashing.gravityEnabledTimer = endDashDelay;
 
             float normalizedTime = _dashing.timeDashed / dashDuration;
             float speed = _dashDerivativeFunction(0, dashDistance, normalizedTime) / dashDuration;
@@ -483,23 +580,6 @@ public class PlatformerMotor2D : MonoBehaviour
     private float _timeScale = 1;
     private Collider2D _collider2D;
 
-    /// <summary>
-    /// Holds the last stable y position before a fall or jump occurs
-    /// </summary>
-    private float _lastStableY;
-
-    private CollidedSurface _collidingAgainst = CollidedSurface.None;
-
-    [Flags]
-    private enum CollidedSurface
-    {
-        None = 0x0,
-        Ground = 0x1,
-        LeftWall = 0x2,
-        RightWall = 0x4,
-        Ceiling = 0x8
-    }
-
     // The function is cached to avoid unnecessary memory allocation.
     private EasingFunctions.EasingFunc _dashFunction;
     private EasingFunctions.EasingFunc _dashDerivativeFunction;
@@ -537,7 +617,11 @@ public class PlatformerMotor2D : MonoBehaviour
         public float timeDashed;
         public bool dashWithDirection;
         public Vector2 dashDir = Vector2.zero;
+        public float distanceCalculated;
         public float distanceDashed;
+        public bool force;
+        public float gravityEnabledTimer;
+        public Vector2 previousLoc;
     }
     private DashState _dashing = new DashState();
 
@@ -563,11 +647,6 @@ public class PlatformerMotor2D : MonoBehaviour
     // When jumping off of a wall, this is the amount of time that movement input is ignored.
     private const float IGNORE_INPUT_TIME = 0.2f;
 
-    /// <summary>
-    /// Minimum fall distance that will be sent via the onFallFinished delegate
-    /// </summary>
-    private const float FALL_EPSILON = 0.1f;
-
     private const string CHECK_MASK_NOT_SET =
         "PC2D: Environment Check Mask not set! This is needed to know what to collide against!";
 
@@ -583,7 +662,6 @@ public class PlatformerMotor2D : MonoBehaviour
         _collider2D = GetComponent<Collider2D>();
         _originalDrag = _rigidbody2D.drag;
         _originalGravity = _rigidbody2D.gravityScale;
-        _lastStableY = transform.position.y;
 
         SetDashFunctions();
     }
@@ -594,13 +672,6 @@ public class PlatformerMotor2D : MonoBehaviour
         {
             Debug.LogError(CHECK_MASK_NOT_SET);
         }
-    }
-
-    private void OnDestroy()
-    {
-        onDash = null;
-        onDashEnd = null;
-        onJump = null;
     }
 
     private void OnEnable()
@@ -619,6 +690,18 @@ public class PlatformerMotor2D : MonoBehaviour
         _rigidbody2D.velocity = _velocity;
     }
 
+    private void Update()
+    {
+        // Update allows the motor to update information based on what actually happened in the update tick. If you want up to
+        // date information before render then it is safest to query in LateUpdate.
+
+        if (motorState == MotorState.Dashing)
+        {
+            _dashing.distanceDashed += (_rigidbody2D.position - _dashing.previousLoc).magnitude;
+            _dashing.previousLoc = _rigidbody2D.position;
+        }
+    }
+
     private void FixedUpdate()
     {
         // Frozen?
@@ -629,17 +712,23 @@ public class PlatformerMotor2D : MonoBehaviour
 
         // Timers
         _dashing.cooldownTimer -= GetDeltaTime();
+        _dashing.gravityEnabledTimer -= GetDeltaTime();
 
         // First, are we trying to dash?
         if (allowDash &&
             _dashing.pressed &&
-            _dashing.cooldownTimer <= 0 &&
+            (_dashing.cooldownTimer <= 0 || _dashing.force) &&
             !_dashing.isDashing)
         {
             StartDash();
         }
 
         _dashing.pressed = false;
+
+        if (_dashing.isDashing && _dashing.timeDashed >= dashDuration)
+        {
+            EndDash();
+        }
 
         if (_dashing.isDashing)
         {
@@ -658,19 +747,17 @@ public class PlatformerMotor2D : MonoBehaviour
             {
                 if ((motorState == MotorState.Falling || 
                     motorState == MotorState.FallingFast) &&
-                    _lastStableY > transform.position.y + FALL_EPSILON && 
-                    onFallFinished != null)
+                    onLanded != null)
                 {
-                    onFallFinished(_lastStableY - transform.position.y);
+                    onLanded();
                 }
                     
                 motorState = MotorState.OnGround;
                 _velocity.y = 0;
 
                 // Record this Y position so we can use it later to determine fall height
-                _lastStableY = transform.position.y;
             }
-            else if (_velocity.y <= 0)
+            else if (motorState != MotorState.Jumping)
             {
                 motorState = MotorState.Falling;
             }
@@ -701,9 +788,12 @@ public class PlatformerMotor2D : MonoBehaviour
                 }
                 else
                 {
-                    _velocity.y += _originalGravity *
-                                   GetDeltaTime() *
-                                   Physics2D.gravity.y;
+                    if (_dashing.gravityEnabledTimer <= 0)
+                    {
+                        _velocity.y += _originalGravity *
+                                       GetDeltaTime() *
+                                       Physics2D.gravity.y;
+                    }
                 }
             }
 
@@ -712,16 +802,41 @@ public class PlatformerMotor2D : MonoBehaviour
                 _velocity.y = 0;
             }
 
-            _rigidbody2D.MovePosition(_rigidbody2D.position + _velocity * GetDeltaTime());
-
             // Check speeds.
             ClampVelocity();
+
+            if (motorState == MotorState.Falling ||
+                motorState == MotorState.FallingFast)
+            {
+                amountFallen += Mathf.Abs(_velocity.y * GetDeltaTime());
+
+                if (motorState == MotorState.FallingFast && _velocity.y <= -maxFallSpeed)
+                {
+                    amountFastFallen += Mathf.Abs(_velocity.y * GetDeltaTime());
+                }
+                else
+                {
+                    amountFastFallen = 0;
+                }
+            }
+            else
+            {
+                amountFallen = 0;
+            }
+
+
+            if (_jumping.isJumping && _velocity.y > 0)
+            {
+                amountJumpedFor += _velocity.y * GetDeltaTime();
+            }
+
+            _rigidbody2D.MovePosition(_rigidbody2D.position + _velocity * GetDeltaTime());
         }
     }
 
     private bool HasFlag(CollidedSurface cs)
     {
-        return (_collidingAgainst & cs) != CollidedSurface.None;
+        return (collidingAgainst & cs) != CollidedSurface.None;
     }
 
     private bool IsInAir()
@@ -748,6 +863,11 @@ public class PlatformerMotor2D : MonoBehaviour
         if (_velocity.y <= 0)
         {
             _jumping.isJumping = false;
+
+            if (motorState == MotorState.Jumping)
+            {
+                motorState = MotorState.Falling;
+            }
         }
 
         // This is something that the default Unity Controller script does, allows the player to press jump button
@@ -794,11 +914,22 @@ public class PlatformerMotor2D : MonoBehaviour
                 // If we are on a corner then jump up.
                 _velocity = Vector2.up * CalculateSpeedNeeded(_jumping.height) * cornerJumpMultiplier;
                 _ignoreMovementUntil = Time.time + IGNORE_INPUT_TIME;
+
+                if (onCornerJump != null)
+                {
+                    onCornerJump();
+                }
             }
             else if (allowWallJump && PressingIntoLeftWall())
             {
                 // If jump was pressed as we or before we entered the wall then just jump away.
                 _velocity = _upRight * CalculateSpeedNeeded(_jumping.height) * wallJumpMultiplier;
+
+                if (Mathf.Abs(_velocity.x) >= maxAirSpeed)
+                {
+                    // We'll limit our x to the maxAirSpeed.
+                    _velocity.x = Mathf.Sign(_velocity.x) * maxAirSpeed;
+                }
 
                 // It's likely the player is still pressing into the wall, ignore movement for a little amount of time.
                 // TODO: Only ignore left movement?
@@ -806,17 +937,39 @@ public class PlatformerMotor2D : MonoBehaviour
 
                 // If wall jump is allowed but not wall slide then double jump will not be allowed earlier, allow it now.
                 _jumping.numAirJumps = 0;
+
+                if (onWallJump != null)
+                {
+                    onWallJump(Vector2.right);
+                }
             }
             else if (allowWallJump && PressingIntoRightWall())
             {
                 _velocity = _upLeft * CalculateSpeedNeeded(_jumping.height) * wallJumpMultiplier;
+
+                if (Mathf.Abs(_velocity.x) >= maxAirSpeed)
+                {
+                    // We'll limit our x to the maxAirSpeed.
+                    _velocity.x = Mathf.Sign(_velocity.x) * maxAirSpeed;
+                }
+
                 _ignoreMovementUntil = Time.time + IGNORE_INPUT_TIME;
                 _jumping.numAirJumps = 0;
+
+                if (onWallJump != null)
+                {
+                    onWallJump(-Vector2.right);
+                }
             }
             else if (_jumping.numAirJumps < numAirJumps)
             {
                 _velocity.y = CalculateSpeedNeeded(_jumping.height);
                 _jumping.numAirJumps++;
+
+                if (onAirJump != null)
+                {
+                    onAirJump();
+                }
             }
             else
             {
@@ -833,6 +986,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 _wallInfo.clinging = false;
                 _jumping.force = false;
                 _jumping.allowExtraDuration = extraJumpHeight / CalculateSpeedNeeded(_jumping.height);
+                amountJumpedFor = 0;
                 motorState = MotorState.Jumping;
 
                 if (onJump != null)
@@ -897,7 +1051,6 @@ public class PlatformerMotor2D : MonoBehaviour
                     {
                         // We're stuck!
                         _velocity = Vector2.zero;
-                        _lastStableY = transform.position.y;
                         motorState = MotorState.OnCorner;
                         return;
                     }
@@ -933,7 +1086,6 @@ public class PlatformerMotor2D : MonoBehaviour
                         // Sticky!
                         _velocity = Vector2.zero;
                         motorState = MotorState.Clinging;
-                        _lastStableY = transform.position.y;
                         return;
                     }
                 }
@@ -955,7 +1107,6 @@ public class PlatformerMotor2D : MonoBehaviour
                 if (PressingIntoLeftWall() || PressingIntoRightWall())
                 {
                     _velocity = -Vector2.up * wallSlideSpeed;
-                    _lastStableY = transform.position.y;
                     motorState = MotorState.Sliding;
                     _wallInfo.sliding = true;
                 }
@@ -973,12 +1124,18 @@ public class PlatformerMotor2D : MonoBehaviour
                 {
                     // If we're moving faster than our normalizedXMovement * maxGroundSpeed then decelerate rather than 
                     // accelerate.
+                    //
+                    // Or if we are trying to move in the direction opposite of where we are facing.
                     if (_velocity.x > 0 &&
                         normalizedXMovement > 0 &&
                         _velocity.x > normalizedXMovement * maxGroundSpeed ||
                         _velocity.x < 0 &&
                         normalizedXMovement < 0 &&
-                        _velocity.x < normalizedXMovement * maxGroundSpeed)
+                        _velocity.x < normalizedXMovement * maxGroundSpeed ||
+                        _velocity.x < 0 &&
+                        normalizedXMovement > 0 ||
+                        _velocity.x > 0 &&
+                        normalizedXMovement < 0)
                     {
                         Decelerate(
                             (maxGroundSpeed * maxGroundSpeed) / (2 * groundStopDistance),
@@ -1110,9 +1267,12 @@ public class PlatformerMotor2D : MonoBehaviour
             _dashing.dashDir = facingLeft ? -Vector2.right : Vector2.right;
         }
 
+        _dashing.distanceDashed = 0;
+        _dashing.distanceCalculated = 0;
+        _dashing.previousLoc = _rigidbody2D.position;
+
         // This will begin the dash this frame.
         _dashing.timeDashed = GetDeltaTime();
-        _dashing.distanceDashed = 0;
 
         motorState = MotorState.Dashing;
 
@@ -1134,14 +1294,10 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         float distance = _dashFunction(0, dashDistance, normalizedTime);
-        _rigidbody2D.MovePosition(_rigidbody2D.position + _dashing.dashDir * (distance - _dashing.distanceDashed));
 
-        _dashing.distanceDashed = distance;
+        _rigidbody2D.MovePosition(_rigidbody2D.position + _dashing.dashDir * (distance - _dashing.distanceCalculated));
 
-        if (_dashing.timeDashed >= dashDuration)
-        {
-            EndDash();
-        }
+        _dashing.distanceCalculated = distance;
     }
 
     private void SetFacing()
@@ -1194,15 +1350,8 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private void ClampVelocity()
     {
-        if (IsGrounded())
+        if (!IsGrounded())
         {
-            _velocity.x = Mathf.Clamp(_velocity.x, -maxGroundSpeed, maxGroundSpeed);
-        }
-        else
-        {
-            // Check both horizontal air speed and fall speed.
-            _velocity.x = Mathf.Clamp(_velocity.x, -maxAirSpeed, maxAirSpeed);
-
             float cappedFallSpeed;
 
             if (fallFast)
@@ -1250,7 +1399,7 @@ public class PlatformerMotor2D : MonoBehaviour
         // TODO: This requires that a ground layer is set up to work. Consider moving to a set up that will consider all
         //       collisions but ignore the player's collider.
 
-        _collidingAgainst = CollidedSurface.None;
+        collidingAgainst = CollidedSurface.None;
 
         min.x += TRIM_STUCKTO_NUM;
         max.x -= TRIM_STUCKTO_NUM;
@@ -1260,7 +1409,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
         if (Physics2D.OverlapArea(min, max, checkMask) != null)
         {
-            _collidingAgainst |= CollidedSurface.Ground;
+            collidingAgainst |= CollidedSurface.Ground;
         }
 
         min = box.min;
@@ -1274,7 +1423,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
         if (Physics2D.OverlapArea(min, max, checkMask) != null)
         {
-            _collidingAgainst |= CollidedSurface.Ceiling;
+            collidingAgainst |= CollidedSurface.Ceiling;
         }
 
         min = box.min;
@@ -1288,7 +1437,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
         if (Physics2D.OverlapArea(min, max, checkMask) != null)
         {
-            _collidingAgainst |= CollidedSurface.LeftWall;
+            collidingAgainst |= CollidedSurface.LeftWall;
         }
 
         min = box.min;
@@ -1302,7 +1451,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
         if (Physics2D.OverlapArea(min, max, checkMask) != null)
         {
-            _collidingAgainst |= CollidedSurface.RightWall;
+            collidingAgainst |= CollidedSurface.RightWall;
         }
     }
 

@@ -8,6 +8,7 @@ namespace PC2D
         public Text fallText;
         public Text motorStateText;
         public Text prevMotorStateText;
+        public Text collidingAgainst;
 
         public PlatformerMotor2D motorToWatch;
 
@@ -29,13 +30,13 @@ namespace PC2D
         // Use this for initialization
         void Start()
         {
-            motorToWatch.onFallFinished += OnFallFinished;
+            motorToWatch.onLanded += OnFallFinished;
             fallText.color = Color.white;
         }
 
-        public void OnFallFinished(float fallDist)
+        public void OnFallFinished()
         {
-            fallText.text = string.Format("Fall Distance: {0:F}", fallDist);
+            fallText.text = string.Format("Fall Distance: {0:F}", motorToWatch.amountFallen);
             fallText.color = Color.green;
             _justFellTimer = 0.5f;
         }
@@ -55,6 +56,7 @@ namespace PC2D
             }
 
             MotorState = motorToWatch.motorState;
+            collidingAgainst.text = string.Format("Colliding Against: {0}", motorToWatch.collidingAgainst);
         }
     }
 }

@@ -24,6 +24,13 @@ namespace  PC2D
             {
                 Physics2D.IgnoreCollision(GetComponent<Collider2D>(), ais[i].GetComponent<Collider2D>());
             }
+
+            _motor.onWallJump +=
+                dir =>
+                {
+                    // Since the motor needs to be pressing into the wall to wall jump, we switch direction after the jump.
+                    movement = Mathf.Sign(dir.x);
+                };
         }
 
         // Update is called once per frame
@@ -56,14 +63,6 @@ namespace  PC2D
             if (_motor.motorState == PlatformerMotor2D.MotorState.Clinging)
             {
                 _motor.Jump();
-
-                _motor.onJump +=
-                    () =>
-                    {
-                        // Since the motor needs to be pressing into the wall to wall jump, we switch direction after the jump.
-                        movement *= -1;
-                        _motor.onJump = null;
-                    };
             }
 
             if (_motor.motorState == PlatformerMotor2D.MotorState.Falling)
@@ -90,6 +89,7 @@ namespace  PC2D
                 if (hit.collider == null && hit2.collider == null)
                 {
                     _motor.fallFast = true;
+                    
                 }
             }
         }
