@@ -100,6 +100,8 @@ For immediate player support, drop the PlatformerPlayer2D prefab into the scene.
 
 **Dash Easing Function** - The easing function of the dash. For a dash that movement with a consistent speed pick linear.
 
+**Gravity Delay After Dash** - The delay, in seconds, before gravity is reenabled after a dash. This can allow a short pause after an air dash before falling.
+
 ### PlatformerMotor2D Members ###
 
 ```csharp
@@ -107,6 +109,21 @@ float normalizedXMovement
 ```
 
 Set the x movement direction. This is multiplied by the max speed. -1 is full left, 1 is full right. Higher numbers will result in faster acceleration.
+
+
+```csharp
+float timeScale
+```
+
+Set the time scale for the motor. This is independent of the global time scale. Negative values are not supported.
+
+
+```csharp
+Vector2 Velocity
+```
+
+The velocity of the motor. This should be queried instead of the rigidbody's velocity. Setting this during a dash doesn't have any meaning. NOTE: Setting rigidbody2D.velocity can have unexpected results. If you want to let Unity Physics take over then disable the motor first.
+
 
 ```csharp
 MotorState motorState // Readonly
@@ -128,6 +145,23 @@ enum MotorState
 Call this to get state information about the motor. This will be information such as if the object is in the air or on the ground. This can be used to set the appropriate animations.
 
 ```csharp
+CollidedSurface collidingAgainst // Readonly
+
+[Flags]
+public enum CollidedSurface
+{
+    None = 0x0,
+    Ground = 0x1,
+    LeftWall = 0x2,
+    RightWall = 0x4,
+    Ceiling = 0x8
+}
+
+```
+
+State information on what the motor believes itself to be colliding against. These are flags so any number may be turned on.
+
+```csharp
 bool facingLeft // Readonly
 ```
 
@@ -140,10 +174,40 @@ bool fallFast
 Set this true to have the motor fall faster. Set to false to fall at normal speeds.
 
 ```csharp
-Vector2 dashDirection
+float amountFallen // Readonly
+```
+
+Returns the amount of distance the motor has fallen. Includes fallen fast distance.
+
+```csharp
+float amountFastFallen // Readonly
+```
+
+Returns the amount of distance the motor has fallen fast.
+
+```csharp
+float amountJumpedFor // Readonly
+```
+
+Returns the amount the motor has jumped. This ceases to keep calculating after the motor starts to come down.
+
+```csharp
+Vector2 dashDirection // Readonly
 ```
 
 Returns the direction of the current dash. If not dashing then returns Vector2.zero.
+
+```csharp
+float distanceDashed // Readonly
+```
+
+Returns the amount of distance dashed. If not dashing then returns 0.
+
+```csharp
+bool canDash // Readonly
+```
+
+If the motor is currently able to dash.
 
 ```csharp
 bool jumpingHeld
@@ -168,12 +232,15 @@ Set this to use a specific collider for checks instead of grabbing the collider 
 Action onDash
 Action onDashEnd
 Action onJump
+Action onAirJump
+Action onWallJump
+Action onCornerJump
 ```
 
 Attach to these delegates to receive notifications for dash, dash end, and jump events.
 
 ```csharp
-Action<float> onFallFinished
+Action onLanded
 ```
 
 Attach to this delegate to be notified when a fall has finished and be given the distance fallen in world coordinates. Note this is not called unless the ending y coordinate is less than the previous stable Y position - EPSILON.
@@ -181,16 +248,28 @@ Attach to this delegate to be notified when a fall has finished and be given the
 ### PlatformerMotor2D Methods ###
 
 ```csharp
-void Jump(float extraHeight = 0)
+void Jump()
 ```
 
 Call this to have the GameObject try to jump, once called it will be handled in the FixedUpdate tick. The y axis is considered jump.
 
 ```csharp
-void ForceJump(float extraHeight = 0)
+void Jump(float customHeight)
+```
+
+Jump that allows a custom height. The extraJumpHeight is still applicable.
+
+```csharp
+void ForceJump()
 ```
 
 This will force a jump to occur even if the motor doesn't think a jump is valid. This function will not work if the motor is dashing.
+
+```csharp
+void ForceJump(float customHeight)
+```
+
+Force a jump with a custom height. The extraJumpHeight is still applicable.
 
 ```csharp
 void EndJump()
@@ -211,10 +290,22 @@ void Dash()
 Call this to have the GameObject try to dash, once called it will be handled in the FixedUpdate tick. This casues the object to dash along their facing (if left or right for side scrollers).
 
 ```csharp
+void ForceDash()
+```
+
+Forces the motor to dash even if dash isn't available yet.
+
+```csharp
 void Dash(Vector2 dir)
 ```
 
 Send a direction vector to dash allow dashing in a specific direction.
+
+```csharp
+void ForceDash(Vector2 dir)
+```
+
+forces the motor to dash along a specified direction.
 
 ```csharp
 void EndDash()
@@ -233,8 +324,11 @@ PlatformerMotor2D reduces drag on the rigidbody2D to 0 and handles deceleration 
 
 If your game has moments where it needs to leverage gravity or drag then disable the motor during these moments.
 
+**My character seems to puch into walls when dashing or falling!**
+This appeared somewhere around 5.0.1. Turn on continous detection on the rigidbody2d attached with the motor to fix.
+
 **Can I use PlatformerMotor2D for controlling AI movements?**
-Sure can. PlatformerMotor2D doesn't know anything about inputs, it just acts on information passed to it. An AI script can interface with the motor similarly how a player controller script could.
+Sure can. PlatformerMotor2D doesn't know anything about inputs, it just acts on information passed to it. An AI script can interface with the motor similarly how a player controller script could. A very simple example is included in the SimpleAI scene.
 
 **I let go of the joystick and my GameObject isn't sliding the distance it is supposed to!**
 If you're using the supplied PlayerController2D script or one of your own in which you use Input.GetAxis() then there's a built in deceleration in what Input.GetAxis() returns. This can definitely be impacting the distance the GameObject skids to a stop! To see a true skid to stop, set normalizedXMovement to zero.
