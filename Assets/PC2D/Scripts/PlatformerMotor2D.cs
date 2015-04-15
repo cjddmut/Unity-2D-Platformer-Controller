@@ -120,7 +120,7 @@ public class PlatformerMotor2D : MonoBehaviour
     public float cornerJumpMultiplier = 1f;
 
     /// <summary>
-    /// The duraction, in seconds, that the motor will stick to a corner.
+    /// The duration, in seconds, that the motor will stick to a corner.
     /// </summary>
     public float cornerGrabDuration = 0.5f;
 
@@ -210,7 +210,12 @@ public class PlatformerMotor2D : MonoBehaviour
     /// <summary>
     /// The environment check mask. The motor doesn't know what to consider is an environment so this mask tells it.
     /// </summary>
-    public LayerMask checkMask;
+    public LayerMask staticEnvironmentLayerMask;
+
+    /// <summary>
+    /// The layer that contains moving platforms.
+    /// </summary>
+    public LayerMask movingPlatformLayerMask;
 
     /// <summary>
     /// The states the motor can be in.
@@ -693,7 +698,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private void Start()
     {
-        if (checkMask == 0)
+        if (staticEnvironmentLayerMask == 0)
         {
             Debug.LogError(CHECK_MASK_NOT_SET);
         }
@@ -916,20 +921,25 @@ public class PlatformerMotor2D : MonoBehaviour
         _movingPlatformState.platform = null;
         _movingPlatformState.stuckToWall = CollidedSurface.None;
 
-        if (HasFlag(CollidedSurface.Ground))
+        if (HasFlag(CollidedSurface.Ground) && IsMovingPlatform(_collidersUpAgainst[DIRECTION_DOWN].gameObject))
         {
             _movingPlatformState.platform = _collidersUpAgainst[DIRECTION_DOWN].GetComponent<Rigidbody2D>();
         }
-        else if (PressingIntoLeftWall())
+        else if (PressingIntoLeftWall() && IsMovingPlatform(_collidersUpAgainst[DIRECTION_LEFT].gameObject))
         {
             _movingPlatformState.platform = _collidersUpAgainst[DIRECTION_LEFT].GetComponent<Rigidbody2D>();
             _movingPlatformState.stuckToWall = CollidedSurface.LeftWall;
         }
-        else if (PressingIntoRightWall())
+        else if (PressingIntoRightWall() && IsMovingPlatform(_collidersUpAgainst[DIRECTION_RIGHT].gameObject))
         {
             _movingPlatformState.platform = _collidersUpAgainst[DIRECTION_RIGHT].GetComponent<Rigidbody2D>();
             _movingPlatformState.stuckToWall = CollidedSurface.RightWall;
         }
+    }
+
+    private bool IsMovingPlatform(GameObject obj)
+    {
+        return ((0x1 << obj.layer) & movingPlatformLayerMask) != 0;
     }
 
     private void HandleJumping()
@@ -1428,7 +1438,7 @@ public class PlatformerMotor2D : MonoBehaviour
             max.x += cornerDistanceCheck;
         }
 
-        Collider2D col = Physics2D.OverlapArea(min, max, checkMask);
+        Collider2D col = Physics2D.OverlapArea(min, max, staticEnvironmentLayerMask);
 
         return col == null;
     }
@@ -1486,6 +1496,8 @@ public class PlatformerMotor2D : MonoBehaviour
         Vector2 min = box.min;
         Vector2 max = box.max;
 
+        int layerMask = staticEnvironmentLayerMask | movingPlatformLayerMask;
+
         // TODO: This requires that a ground layer is set up to work. Consider moving to a set up that will consider all
         //       collisions but ignore the player's collider.
 
@@ -1499,7 +1511,7 @@ public class PlatformerMotor2D : MonoBehaviour
             min.y -= checkDistance;
             max.y = transform.position.y; // Go ahead and bring the maximum y down.
 
-            _collidersUpAgainst[DIRECTION_DOWN] = Physics2D.OverlapArea(min, max, checkMask);
+            _collidersUpAgainst[DIRECTION_DOWN] = Physics2D.OverlapArea(min, max, layerMask);
 
             if (_collidersUpAgainst[DIRECTION_DOWN] != null)
             {
@@ -1518,7 +1530,8 @@ public class PlatformerMotor2D : MonoBehaviour
             max.y += checkDistance;
             min.y = transform.position.y;
 
-            _collidersUpAgainst[DIRECTION_UP] = Physics2D.OverlapArea(min, max, checkMask);
+            _collidersUpAgainst[DIRECTION_UP] = Physics2D.OverlapArea(min, max, layerMask);
+
 
             if (_collidersUpAgainst[DIRECTION_UP] != null)
             {
@@ -1537,7 +1550,7 @@ public class PlatformerMotor2D : MonoBehaviour
             min.x -= checkDistance;
             max.x = transform.position.x;
 
-            _collidersUpAgainst[DIRECTION_LEFT] = Physics2D.OverlapArea(min, max, checkMask);
+            _collidersUpAgainst[DIRECTION_LEFT] = Physics2D.OverlapArea(min, max, layerMask);
 
             if (_collidersUpAgainst[DIRECTION_LEFT] != null)
             {
@@ -1556,7 +1569,7 @@ public class PlatformerMotor2D : MonoBehaviour
             min.x = transform.position.x;
             max.x += checkDistance;
 
-            _collidersUpAgainst[DIRECTION_RIGHT] = Physics2D.OverlapArea(min, max, checkMask);
+            _collidersUpAgainst[DIRECTION_RIGHT] = Physics2D.OverlapArea(min, max, layerMask);
 
             if (_collidersUpAgainst[DIRECTION_RIGHT] != null)
             {
