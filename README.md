@@ -226,6 +226,13 @@ Setting frozen to true will put the motor in a 'frozen' state. All information w
 Note: This isn't a way to turn off the motor. To turn off the motor, simply set the script to disabled.
 
 ```csharp
+MovingPlatformMotor2D connectedPlatform
+
+```
+
+Returns the moving platform that the motor is coupled with. If null then no moving platform.
+
+```csharp
 Collider2D colliderToUse
 ```
 Set this to use a specific collider for checks instead of grabbing the collider from gameObject.collider2D.
@@ -315,15 +322,39 @@ void EndDash()
 
 Call to end dash immediately.
 
+```csharp
+void DisconnectFromPlatform()
+```
+
+Decouples the motor from the platform. This could be useful for a platform that throw the motor in the air. Call this when when the motor should disconnect then set the appropriate velocity.
+
 ## PlayerController2D
 
 The PlayerController2D script is a simple script that connects player input to the motor. This is set up as an example and it is encourage to write your own script that interacts with the motor.
 
 ## Moving Platforms
 
-Moving platforms are new and aren't quite working in all cases yet. There's a lot of edge cases around wall clings, corner grabs, wall slides, and wall jumps that can result in odd behavior. This is still being worked on.
+Given the complexity of the Unity 2D Physics engine, moving platforms have a few special rules in order to work. Each moving platform is required to have a MovingPlatformMotor2D attached to it and it is *IMPORTANT* that the MovingPlatformMotor2D script runs before the PlatformerMotor2D script in the Script Execution Order Settings (Edit -> Project Settings -> Script Execution Settings). The platform should update its position in FixedUpdate() and can leverage the velocity/position from MovingPlatformMotor2D.
 
-In the mean time if you would like to still leverage moving platforms then create a platform with a rigidbody2D that has no gravity, rotation, and isKinematic set to true. Make sure the script that drives the moving platform runs before the motor in the script execution order. In the script itself, directly change the rigidbody2D.position or transform.position in FixedUpdate. See the Moving Platforms scene for an exmaple.
+### MovingPlatformMotor2D Members ###
+
+```csharp
+Vector2 velocity
+```
+
+Set this to drive the platform by speed. This velocity is used to determine if the player should fall off the platform if the platform is falling too fast. Updates the transform position in FixedUpdate.
+
+```csharp
+Vector2 position
+```
+
+Quick access to transform position typed to Vector2.
+
+```csharp
+Action<PlatformerMotor2D> onMotorContact
+```
+
+Invoked when a motor makes contact with a moving platform and is considered 'attached' to it.
 
 ## FAQs
 
@@ -336,7 +367,7 @@ If your game has moments where it needs to leverage gravity or drag then disable
 This appeared somewhere around 5.0.1. Turn on continuous detection on the rigidbody2d attached with the motor to fix.
 
 **What's with all the required layers?**
-This is mostly an optimization. Rigidbody2D is required on moving platforms but querying on a regular environment that doesn't have one generates garbage. The more garbage generated then the more often the garbage collection will kick in. If the layers present a problem then it would be easy to change the check to tags instead in the motor.
+This is mostly an optimization. MovingPlatformMotor2D is required on moving platforms but querying on a regular environment that doesn't have one generates garbage. The more garbage generated then the more often the garbage collection will kick in. If the layers present a problem then it would be easy to change the check to tags instead in the motor.
 
 **Can I use PlatformerMotor2D for controlling AI movements?**
 Sure can. PlatformerMotor2D doesn't know anything about inputs, it just acts on information passed to it. An AI script can interface with the motor similarly how a player controller script could. A very simple example is included in the SimpleAI scene.
