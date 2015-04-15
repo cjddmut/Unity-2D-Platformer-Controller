@@ -503,7 +503,7 @@ public class PlatformerMotor2D : MonoBehaviour
     }
 
     /// <summary>
-    /// Decouples the motor from the platform. This could be useful for platform that throw the motor in the air. Call this
+    /// Decouples the motor from the platform. This could be useful for a platform that throw the motor in the air. Call this
     /// when when the motor should disconnect then set the appropriate velocity.
     /// </summary>
     public void DisconnectFromPlatform()
@@ -988,9 +988,9 @@ public class PlatformerMotor2D : MonoBehaviour
 
         if (_movingPlatformState.platform != null && _movingPlatformState.platform != previous)
         {
-            if (_movingPlatformState.platform.onPlayerContact != null)
+            if (_movingPlatformState.platform.onPlatformerMotorContact != null)
             {
-                _movingPlatformState.platform.onPlayerContact.Invoke(this);
+                _movingPlatformState.platform.onPlatformerMotorContact.Invoke(this);
             }
         }
     }

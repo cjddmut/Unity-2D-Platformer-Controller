@@ -33,7 +33,7 @@ namespace PC2D
         void Start()
         {
             _mpMotor = GetComponent<MovingPlatformMotor2D>();
-            _mpMotor.onPlayerContact += PlayerContact;
+            _mpMotor.onPlatformerMotorContact += PlayerContact;
             _originalY = transform.position.y;
 
             _moveUpFunc = EasingFunctions.GetEasingFunction(moveUpEase);

@@ -26,7 +26,7 @@ namespace PC2D
         void Start()
         {
             _mpMotor = GetComponent<MovingPlatformMotor2D>();
-            _mpMotor.onPlayerContact += PlayerContact;
+            _mpMotor.onPlatformerMotorContact += PlayerContact;
 
             _renderer = GetComponent<SpriteRenderer>();
             _originalColor = _renderer.color;
@@ -53,7 +53,7 @@ namespace PC2D
 
         private void PlayerContact(PlatformerMotor2D player)
         {
-            _mpMotor.onPlayerContact -= PlayerContact;
+            _mpMotor.onPlatformerMotorContact -= PlayerContact;
             _state = State.Darken;
         }
     }

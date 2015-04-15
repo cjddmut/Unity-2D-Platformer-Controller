@@ -3,7 +3,7 @@
 public class MovingPlatformMotor2D : MonoBehaviour
 {
     public Vector2 velocity { get; set; }
-    public System.Action<PlatformerMotor2D> onPlayerContact;
+    public System.Action<PlatformerMotor2D> onPlatformerMotorContact;
 
     public Vector2 position
     {
