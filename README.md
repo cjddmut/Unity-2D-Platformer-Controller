@@ -22,7 +22,9 @@ For immediate player support, drop the PlatformerPlayer2D prefab into the scene 
 
 ### General ###
 
-**Environment Check Mask** - This tells the motor what layer collisions to consider the environment (to determine if on the ground, wall, or corner).
+**Static Environment Layer Mask** - This tells the motor what layer collisions to consider the environment (to determine if on the ground, wall, or corner).
+
+**Moving Platform Layer Mask** - What layer contains moving platforms. The motor uses this knowledge to grab a rigidbody2D from the platforms.
 
 **Environment Check Distance** - This is how far out the motor will check for the environment.  
 
@@ -332,6 +334,9 @@ If your game has moments where it needs to leverage gravity or drag then disable
 
 **My character seems to puch into walls when dashing or falling!**
 This appeared somewhere around 5.0.1. Turn on continuous detection on the rigidbody2d attached with the motor to fix.
+
+**What's with all the required layers?**
+This is mostly an optimization. Rigidbody2D is required on moving platforms but querying on a regular environment that doesn't have one generates garbage. The more garbage generated then the more often the garbage collection will kick in. If the layers present a problem then it would be easy to change the check to tags instead in the motor.
 
 **Can I use PlatformerMotor2D for controlling AI movements?**
 Sure can. PlatformerMotor2D doesn't know anything about inputs, it just acts on information passed to it. An AI script can interface with the motor similarly how a player controller script could. A very simple example is included in the SimpleAI scene.
