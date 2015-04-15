@@ -16,7 +16,7 @@ If you'd like the most up to date version (which is the most cool), then pull th
 
 ## Setup
 
-For immediate player support, drop the PlatformerPlayer2D prefab into the scene. For more complicated interaction, interface with PlatformerMotor2D's members and methods.
+For immediate player support, drop the PlatformerPlayer2D prefab into the scene and update the field Environment Check Mask to the layer that contains your environment. For more complicated interaction, interface with PlatformerMotor2D's members and methods.
 
 ## PlatformerMotor2D Inspector Properties
 
