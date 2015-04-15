@@ -426,6 +426,14 @@ public class PlatformerMotor2D : MonoBehaviour
     }
 
     /// <summary>
+    /// Returns the moving platform that the motor is coupled with. If null then no moving platform.
+    /// </summary>
+    public MovingPlatformMotor2D connectedPlatform
+    {
+        get { return _movingPlatformState.platform; }
+    }
+
+    /// <summary>
     /// Set this to use a specific collider for checks instead of grabbing the collider from gameObject.collider2D.
     /// </summary>
     public Collider2D colliderToUse { get; set; }
@@ -492,6 +500,15 @@ public class PlatformerMotor2D : MonoBehaviour
     public void ResetAirJump()
     {
         _jumping.numAirJumps = 0;
+    }
+
+    /// <summary>
+    /// Decouples the motor from the platform. This could be useful for platform that throw the motor in the air. Call this
+    /// when when the motor should disconnect then set the appropriate velocity.
+    /// </summary>
+    public void DisconnectFromPlatform()
+    {
+        _movingPlatformState.platform = null;
     }
 
     /// <summary>
@@ -650,7 +667,8 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private class MovingPlatformState
     {
-        public Rigidbody2D platform;
+        public MovingPlatformMotor2D platform;
+
         public Vector2 previousPos;
         public CollidedSurface stuckToWall;
         public bool isOnPlatform { get { return platform != null; } }
@@ -934,22 +952,46 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private void AttachToMovingPlatforms()
     {
+        MovingPlatformMotor2D previous = _movingPlatformState.platform;
         _movingPlatformState.platform = null;
         _movingPlatformState.stuckToWall = CollidedSurface.None;
 
         if (HasFlag(CollidedSurface.Ground) && IsMovingPlatform(_collidersUpAgainst[DIRECTION_DOWN].gameObject))
         {
-            _movingPlatformState.platform = _collidersUpAgainst[DIRECTION_DOWN].GetComponent<Rigidbody2D>();
+            _movingPlatformState.platform = _collidersUpAgainst[DIRECTION_DOWN].GetComponent<MovingPlatformMotor2D>();
+
+            if (fallFast)
+            {
+                if (_movingPlatformState.platform.velocity.y < -maxFastFallSpeed)
+                {
+                    _movingPlatformState.platform = null;
+                }
+            }
+            else
+            {
+                if (_movingPlatformState.platform.velocity.y < -maxFallSpeed)
+                {
+                    _movingPlatformState.platform = null;
+                }
+            }
         }
         else if (PressingIntoLeftWall() && IsMovingPlatform(_collidersUpAgainst[DIRECTION_LEFT].gameObject))
         {
-            _movingPlatformState.platform = _collidersUpAgainst[DIRECTION_LEFT].GetComponent<Rigidbody2D>();
+            _movingPlatformState.platform = _collidersUpAgainst[DIRECTION_LEFT].GetComponent<MovingPlatformMotor2D>();
             _movingPlatformState.stuckToWall = CollidedSurface.LeftWall;
         }
         else if (PressingIntoRightWall() && IsMovingPlatform(_collidersUpAgainst[DIRECTION_RIGHT].gameObject))
         {
-            _movingPlatformState.platform = _collidersUpAgainst[DIRECTION_RIGHT].GetComponent<Rigidbody2D>();
+            _movingPlatformState.platform = _collidersUpAgainst[DIRECTION_RIGHT].GetComponent<MovingPlatformMotor2D>();
             _movingPlatformState.stuckToWall = CollidedSurface.RightWall;
+        }
+
+        if (_movingPlatformState.platform != null && _movingPlatformState.platform != previous)
+        {
+            if (_movingPlatformState.platform.onPlayerContact != null)
+            {
+                _movingPlatformState.platform.onPlayerContact.Invoke(this);
+            }
         }
     }
 
