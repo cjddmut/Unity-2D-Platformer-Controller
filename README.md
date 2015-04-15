@@ -244,15 +244,10 @@ Action onJump
 Action onAirJump
 Action onWallJump
 Action onCornerJump
-```
-
-Attach to these delegates to receive notifications for dash, dash end, and jump events.
-
-```csharp
 Action onLanded
 ```
 
-Attach to this delegate to be notified when a fall has finished and be given the distance fallen in world coordinates. Note this is not called unless the ending y coordinate is less than the previous stable Y position - EPSILON.
+Attach to these delegates to receive notifications for dash, dash end, jumping, and landing events.
 
 ### PlatformerMotor2D Methods ###
 
