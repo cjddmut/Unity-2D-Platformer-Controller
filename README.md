@@ -317,6 +317,12 @@ Call to end dash immediately.
 
 The PlayerController2D script is a simple script that connects player input to the motor. This is set up as an example and it is encourage to write your own script that interacts with the motor.
 
+## Moving Platforms
+
+Moving platforms are new and aren't quite working in all cases yet. There's a lot of edge cases around wall clings, corner grabs, wall slides, and wall jumps that can result in odd behavior. This is still being worked on.
+
+In the mean time if you would like to still leverage moving platforms then create a platform with a rigidbody2D that has no gravity, rotation, and isKinematic set to true. Make sure the script that drives the moving platform runs before the motor in the script execution order. In the script itself, directly change the rigidbody2D.position or transform.position in FixedUpdate. See the Moving Platforms scene for an exmaple.
+
 ## FAQs
 
 **PlatformerMotor2D is messing with values in my rigidbody2D!**
