@@ -679,6 +679,8 @@ public class PlatformerMotor2D : MonoBehaviour
     // without colliding with the ground.
     private const float TRIM_STUCKTO_NUM = 0.01425f;
 
+    private const float BUFFER_DURING_CHECK = 0.05f;
+
     // When jumping off of a wall, this is the amount of time that movement input is ignored.
     private const float IGNORE_INPUT_TIME = 0.2f;
 
@@ -1540,7 +1542,7 @@ public class PlatformerMotor2D : MonoBehaviour
             max.x -= TRIM_STUCKTO_NUM;
 
             min.y -= checkDistance;
-            max.y = transform.position.y; // Go ahead and bring the maximum y down.
+            max.y = box.min.y + BUFFER_DURING_CHECK;
 
             _collidersUpAgainst[DIRECTION_DOWN] = Physics2D.OverlapArea(min, max, layerMask);
 
@@ -1559,14 +1561,20 @@ public class PlatformerMotor2D : MonoBehaviour
             max.x -= TRIM_STUCKTO_NUM;
 
             max.y += checkDistance;
-            min.y = transform.position.y;
+            min.y = box.max.y - BUFFER_DURING_CHECK;
 
             _collidersUpAgainst[DIRECTION_UP] = Physics2D.OverlapArea(min, max, layerMask);
 
-
             if (_collidersUpAgainst[DIRECTION_UP] != null)
             {
-                surfaces |= CollidedSurface.Ceiling;
+                if (_collidersUpAgainst[DIRECTION_UP].usedByEffector)
+                {
+                    _collidersUpAgainst[DIRECTION_UP] = null;
+                }
+                else
+                {
+                    surfaces |= CollidedSurface.Ceiling;
+                }
             }
         }
 
@@ -1579,13 +1587,20 @@ public class PlatformerMotor2D : MonoBehaviour
             max.y -= TRIM_STUCKTO_NUM;
 
             min.x -= checkDistance;
-            max.x = transform.position.x;
+            max.x = box.min.x + BUFFER_DURING_CHECK;
 
             _collidersUpAgainst[DIRECTION_LEFT] = Physics2D.OverlapArea(min, max, layerMask);
 
             if (_collidersUpAgainst[DIRECTION_LEFT] != null)
             {
-                surfaces |= CollidedSurface.LeftWall;
+                if (_collidersUpAgainst[DIRECTION_LEFT].usedByEffector)
+                {
+                    _collidersUpAgainst[DIRECTION_LEFT] = null;
+                }
+                else
+                {
+                    surfaces |= CollidedSurface.LeftWall;
+                }
             }
         }
 
@@ -1597,14 +1612,21 @@ public class PlatformerMotor2D : MonoBehaviour
             min.y += TRIM_STUCKTO_NUM;
             max.y -= TRIM_STUCKTO_NUM;
 
-            min.x = transform.position.x;
+            min.x = box.max.x - BUFFER_DURING_CHECK;
             max.x += checkDistance;
 
             _collidersUpAgainst[DIRECTION_RIGHT] = Physics2D.OverlapArea(min, max, layerMask);
 
             if (_collidersUpAgainst[DIRECTION_RIGHT] != null)
             {
-                surfaces |= CollidedSurface.RightWall;
+                if (_collidersUpAgainst[DIRECTION_RIGHT].usedByEffector)
+                {
+                    _collidersUpAgainst[DIRECTION_RIGHT] = null;
+                }
+                else
+                {
+                    surfaces |= CollidedSurface.RightWall;
+                }
             }
         }
 
@@ -1638,29 +1660,26 @@ public class PlatformerMotor2D : MonoBehaviour
         min.x += TRIM_STUCKTO_NUM;
         max.x -= TRIM_STUCKTO_NUM;
         min.y -= checkDistance;
-        max.y = transform.position.y;
+        max.y = box.min.y;
         Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
 
-        if (allowCornerGrab || allowWallJump || allowWallSlide)
-        {
-            // Left check box
-            min = box.min;
-            max = box.max;
-            min.y += TRIM_STUCKTO_NUM;
-            max.y -= TRIM_STUCKTO_NUM;
-            min.x -= checkDistance;
-            max.x = transform.position.x;
-            Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
+        // Left check box
+        min = box.min;
+        max = box.max;
+        min.y += TRIM_STUCKTO_NUM;
+        max.y -= TRIM_STUCKTO_NUM;
+        min.x -= checkDistance;
+        max.x = box.min.x;
+        Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
 
-            // Right check box
-            min = box.min;
-            max = box.max;
-            min.y += TRIM_STUCKTO_NUM;
-            max.y -= TRIM_STUCKTO_NUM;
-            min.x = transform.position.x;
-            max.x += checkDistance;
-            Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
-        }
+        // Right check box
+        min = box.min;
+        max = box.max;
+        min.y += TRIM_STUCKTO_NUM;
+        max.y -= TRIM_STUCKTO_NUM;
+        min.x = box.max.x;
+        max.x += checkDistance;
+        Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
 
         if (allowCornerGrab)
         {
