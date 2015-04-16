@@ -760,7 +760,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 EndDash();
             }
 
-            if (HasFlag(CollidedSurface.Ground))
+            if (HasFlag(CollidedSurface.Ground) && _velocity.y <= 0)
             {
                 if ((motorState == MotorState.Falling ||
                     motorState == MotorState.FallingFast) &&
@@ -1172,7 +1172,7 @@ public class PlatformerMotor2D : MonoBehaviour
             }
         }
 
-        if (motorState == MotorState.Falling && allowWallSlide)
+        if (motorState == MotorState.Falling && allowWallSlide && _velocity.y <= 0)
         {
             motorState = MotorState.Sliding;
         }
