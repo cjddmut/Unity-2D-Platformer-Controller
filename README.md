@@ -331,6 +331,8 @@ The PlayerController2D script is a simple script that connects player input to t
 
 Given the complexity of the Unity 2D Physics engine, moving platforms have a few special rules in order to work. Each moving platform is required to have a MovingPlatformMotor2D attached to it and it is *IMPORTANT* that the MovingPlatformMotor2D script runs before the PlatformerMotor2D script in the Script Execution Order Settings (Edit -> Project Settings -> Script Execution Settings). The platform should update its position in FixedUpdate() and can leverage the velocity/position from MovingPlatformMotor2D.
 
+See the Moving Platform scene for examples.
+
 ### MovingPlatformMotor2D Members ###
 
 ```csharp
@@ -350,6 +352,14 @@ Action<PlatformerMotor2D> onMotorContact
 ```
 
 Invoked when a motor makes contact with a moving platform and is considered 'attached' to it.
+
+### One Way Platforms ###
+
+To acheive one way platforms with the motor. Have a environment piece with an edge collider at the top and a PlatformEffector2D component attached. Be sure to check Use One Way and to check Used By Effector on the edge collider.
+
+The motor will ignore all "Used By Effector" collisions except for the ground giving the desired effect. Note at this point no wall interaction mechanics are supported for one way platforms.
+
+See the Platformer scene for an example.
 
 ## FAQs
 
