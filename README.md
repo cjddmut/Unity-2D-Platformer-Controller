@@ -32,9 +32,11 @@ For immediate player support, drop the Basic Player Controller prefab into the s
 
 **Ground Speed** - Maximum ground speed.
 
-**Time to Ground Speed** - The time, in seconds, it will take to reach ground speed. This is used to calculate acceleration.
+**Time to Ground Speed** - The time, in seconds, it will take to reach ground speed. This is used to calculate acceleration. A value of 0 mean instantaneous movement.
 
 **Ground Stop Distance** - If at full speed, how far will the motor skid to a stop.
+
+**Allow Direction Change In Air** - If true, then the motor's x velocity can be changed while in air. If false, then the motor's x velocity cannot be changed when in the air.
 
 **Horizontal Air Speed** - Maximum speed the motor will move horizontally while in the air.
 
@@ -42,15 +44,11 @@ For immediate player support, drop the Basic Player Controller prefab into the s
 
 **Air Stop Distance** - If at full air speed, how far will the motor 'skid' to a stop.
 
-**Allow Direction Change In Air** - If true, then the motor's x velocity can be changed while in air. If false, then the motor's x velocity cannot be changed when in the air.
-
 **Max Fall Speed** - Maximum fall speed (only y axis when negative).
 
 **Max Fast Fall Speed** - Maximum fall speed when falling fast.
 
 **Fast Fall Gravity Multiplier** - Gravity multiplier when falling fast. A value of 1 means no different, higher values mean faster fall acceleration.
-
-**Preserve Momentum When Landing** - Unity's physics engine will reduce horizontal speed when the motor lands. This means movement speed will have to be accelerated again and can cause a slight pause. Check this one to keep horizontal speed intact.
 
 ### Jumping ###
 
@@ -70,7 +68,7 @@ For immediate player support, drop the Basic Player Controller prefab into the s
 
 **Allow Wall Cling** - If the motor should cling to the walls (sticking in place).
 
-**Wall Cling Duration** - The time, in seconds, that the motor will stick to walls.
+**Wall Cling Duration** - The time, in seconds, that the motor will stick to walls. A large value (say 1000000) is effectively infinite.
 
 ### Wall Slide ###
 
@@ -331,7 +329,7 @@ The PlayerController2D script is a simple script that connects player input to t
 
 ## Moving Platforms
 
-Given the complexity of the Unity 2D Physics engine, moving platforms have a few special rules in order to work. Each moving platform is required to have a MovingPlatformMotor2D attached to it and it is *IMPORTANT* that the MovingPlatformMotor2D script runs before the PlatformerMotor2D script in the Script Execution Order Settings (Edit -> Project Settings -> Script Execution Settings). The platform should update its position in FixedUpdate() and can leverage the velocity/position from MovingPlatformMotor2D.
+Given the complexity of the Unity 2D Physics engine, moving platforms have a few special rules in order to work. Each moving platform is required to have a MovingPlatformMotor2D attached to it and it is **IMPORTANT** that the MovingPlatformMotor2D script and any other script that moves the platforms is executed before the PlatformerMotor2D script in the Script Execution Order Settings (Edit -> Project Settings -> Script Execution Settings). The platform should update its position in FixedUpdate() and can leverage the velocity/position from MovingPlatformMotor2D.
 
 See the Moving Platform scene for examples.
 
