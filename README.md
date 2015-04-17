@@ -58,6 +58,8 @@ For immediate player support, drop the PlatformerPlayer2D prefab into the scene 
 
 **Held Extra Jump Height** - If the motor is informed that the jump is held then this is the additional height the character will jump.
 
+**Grace For Jump** - The time in seconds that a jump will be allowed after it become invalid. This would be like allowing a jump even though the player has technically walked off the edge. Setting this to a low value (such as 0.1) can feel like a better experience for the player. If undesired then just set to 0.
+
 **Air Jumps Allowed** - This sets the number of air jumps the character is allowed to perform. Setting it to 0 will disable air jumping altogether.
 
 **Allow Wall Jump** - If jumping off the wall is allowed.
