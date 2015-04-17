@@ -73,6 +73,8 @@ public class PlatformerMotor2D : MonoBehaviour
     /// </summary>
     public float extraJumpHeight = 0.5f;
 
+    public float jumpAllowedGrace;
+
     /// <summary>
     /// Number of air jumps allowed.
     /// </summary>
@@ -634,6 +636,38 @@ public class PlatformerMotor2D : MonoBehaviour
 
         public bool ignoreGravity;
 
+        public float jumpGraceTime;
+        public bool jumpTypeChanged;
+
+        public JumpType lastValidJump
+        {
+            get { return _lastValidJump; }
+            set
+            {
+                if (value != JumpType.None)
+                {
+                    jumpTypeChanged = true;
+                }
+                else
+                {
+                    jumpGraceTime = 0;
+                }
+
+                _lastValidJump = value;
+            }
+        }
+
+        public enum JumpType
+        {
+            None,
+            Normal,
+            RightWall,
+            LeftWall,
+            Corner
+        }
+
+        private JumpType _lastValidJump;
+
         // Amount of time that a jump can be triggered, same as the default unity controller script.
         public const float TIME_BUFFER = 0.2f;
     }
@@ -800,6 +834,8 @@ public class PlatformerMotor2D : MonoBehaviour
                 _movingPlatformState.previousPos = _movingPlatformState.platform.position;
             }
 
+            SetLastJumpType();
+
             yield return new WaitForFixedUpdate();
         }
     }
@@ -887,6 +923,31 @@ public class PlatformerMotor2D : MonoBehaviour
             _previousLoc = _rigidbody2D.position;
             _rigidbody2D.MovePosition(_rigidbody2D.position + _velocity * GetDeltaTime());
         }
+    }
+
+    private void SetLastJumpType()
+    {
+        if (motorState == MotorState.OnGround)
+        {
+            _jumping.lastValidJump = JumpState.JumpType.Normal;
+        }
+        else if (allowWallJump)
+        {
+            if (PressingIntoLeftWall())
+            {
+                _jumping.lastValidJump = JumpState.JumpType.LeftWall;
+            }
+            else if (PressingIntoRightWall())
+            {
+                _jumping.lastValidJump = JumpState.JumpType.RightWall;
+            }
+        }
+        else if (motorState == MotorState.OnCorner)
+        {
+            _jumping.lastValidJump = JumpState.JumpType.Corner;
+        }
+
+        // We don't track air jumps as they are always valid in the air.
     }
 
     private void UpdateDistancesAndJump()
@@ -1000,6 +1061,12 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private void HandlePreJumping()
     {
+        if (_jumping.jumpTypeChanged && _jumping.lastValidJump != JumpState.JumpType.None)
+        {
+            _jumping.jumpTypeChanged = false;
+            _jumping.jumpGraceTime = Time.time + jumpAllowedGrace;
+        }
+
         // This is something that the default Unity Controller script does, allows the player to press jump button
         // earlier than would normally be allowed. They say it leads to a more pleasant experience for the
         // user. I'll assume they're on to something.
@@ -1027,12 +1094,14 @@ public class PlatformerMotor2D : MonoBehaviour
             bool jumped = true;
 
             // Jump might mean different things depending on the state.
-            if (IsGrounded() || _jumping.force)
+            if ((_jumping.lastValidJump == JumpState.JumpType.Normal && Time.time <= _jumping.jumpGraceTime) ||
+                _jumping.force)
             {
                 // Normal jump.
                 _velocity.y = CalculateSpeedNeeded(_jumping.height);
             }
-            else if (motorState == MotorState.OnCorner)
+            else if (motorState  == MotorState.OnCorner ||
+                     _jumping.lastValidJump == JumpState.JumpType.Corner && Time.time <= _jumping.jumpGraceTime)
             {
                 // If we are on a corner then jump up.
                 _velocity = Vector2.up * CalculateSpeedNeeded(_jumping.height) * cornerJumpMultiplier;
@@ -1043,7 +1112,8 @@ public class PlatformerMotor2D : MonoBehaviour
                     onCornerJump();
                 }
             }
-            else if (allowWallJump && PressingIntoLeftWall())
+            else if (_jumping.lastValidJump == JumpState.JumpType.LeftWall && 
+                     Time.time <= _jumping.jumpGraceTime)
             {
                 // If jump was pressed as we or before we entered the wall then just jump away.
                 _velocity = _upRight * CalculateSpeedNeeded(_jumping.height) * wallJumpMultiplier;
@@ -1066,7 +1136,8 @@ public class PlatformerMotor2D : MonoBehaviour
                     onWallJump(Vector2.right);
                 }
             }
-            else if (allowWallJump && PressingIntoRightWall())
+            else if (_jumping.lastValidJump == JumpState.JumpType.RightWall &&
+                     Time.time <= _jumping.jumpGraceTime)
             {
                 _velocity = _upLeft * CalculateSpeedNeeded(_jumping.height) * wallJumpMultiplier;
 
@@ -1108,6 +1179,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 amountJumpedFor = 0;
                 motorState = MotorState.Jumping;
                 _movingPlatformState.platform = null;
+                _jumping.lastValidJump = JumpState.JumpType.None;
 
                 if (onJump != null)
                 {

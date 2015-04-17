@@ -13,49 +13,50 @@ public class PlatformerMotor2DEditor : Editor
     // Gah! This is so unwieldy! I wanted to use reflection but I suspect then serializedObject.Update() and
     // serializedObject.ApplyModifiedProperties() wouldn't work right. Though, I didn't verify.
 
-    SerializedProperty _maxGroundSpeedProp;
-    SerializedProperty _timeToMaxGroundSpeedProp;
-    SerializedProperty _groundStopDistanceProp;
+    private SerializedProperty _maxGroundSpeedProp;
+    private SerializedProperty _timeToMaxGroundSpeedProp;
+    private SerializedProperty _groundStopDistanceProp;
 
-    SerializedProperty _maxAirSpeedProp;
-    SerializedProperty _timeToMaxAirSpeedProp;
-    SerializedProperty _airStopDistanceProp;
-    SerializedProperty _canChangeDirInAirProp;
+    private SerializedProperty _maxAirSpeedProp;
+    private SerializedProperty _timeToMaxAirSpeedProp;
+    private SerializedProperty _airStopDistanceProp;
+    private SerializedProperty _canChangeDirInAirProp;
 
-    SerializedProperty _maxFallSpeedProp;
-    SerializedProperty _maxFastFallSpeedProp;
-    SerializedProperty _fastFallGravityMultiplierProp;
+    private SerializedProperty _maxFallSpeedProp;
+    private SerializedProperty _maxFastFallSpeedProp;
+    private SerializedProperty _fastFallGravityMultiplierProp;
 
-    SerializedProperty _baseJumpHeightProp;
-    SerializedProperty _extraJumpHeightProp;
-    SerializedProperty _numAirJumpsProp;
+    private SerializedProperty _baseJumpHeightProp;
+    private SerializedProperty _extraJumpHeightProp;
+    private SerializedProperty _jumpAllowedGraceProp;
+    private SerializedProperty _numAirJumpsProp;
 
-    SerializedProperty _allowWallJumpProp;
-    SerializedProperty _wallJumpMultiplierProp;
+    private SerializedProperty _allowWallJumpProp;
+    private SerializedProperty _wallJumpMultiplierProp;
 
-    SerializedProperty _allowWallClingProp;
-    SerializedProperty _wallClingDurationProp;
+    private SerializedProperty _allowWallClingProp;
+    private SerializedProperty _wallClingDurationProp;
 
-    SerializedProperty _allowWallSlideProp;
-    SerializedProperty _wallSlideSpeedProp;
+    private SerializedProperty _allowWallSlideProp;
+    private SerializedProperty _wallSlideSpeedProp;
 
-    SerializedProperty _allowCornerGrabProp;
-    SerializedProperty _cornerJumpMultiplierProp;
-    SerializedProperty _cornerGrabDurationProp;
-    SerializedProperty _cornerDistanceCheckProp;
+    private SerializedProperty _allowCornerGrabProp;
+    private SerializedProperty _cornerJumpMultiplierProp;
+    private SerializedProperty _cornerGrabDurationProp;
+    private SerializedProperty _cornerDistanceCheckProp;
 
-    SerializedProperty _allowDashProp;
-    SerializedProperty _dashCooldownProp;
-    SerializedProperty _dashDistanceProp;
-    SerializedProperty _dashDurationProp;
-    SerializedProperty _dashEasingFunctionProp;
-    SerializedProperty _endDashDelay;
+    private SerializedProperty _allowDashProp;
+    private SerializedProperty _dashCooldownProp;
+    private SerializedProperty _dashDistanceProp;
+    private SerializedProperty _dashDurationProp;
+    private SerializedProperty _dashEasingFunctionProp;
+    private SerializedProperty _endDashDelay;
 
-    SerializedProperty _checkMaskProp;
-    SerializedProperty _movingPlatformMaskProp;
-    SerializedProperty _checkDistanceProp;
+    private SerializedProperty _checkMaskProp;
+    private SerializedProperty _movingPlatformMaskProp;
+    private SerializedProperty _checkDistanceProp;
 
-    SerializedProperty _wallInteractionThresholdProp;
+    private SerializedProperty _wallInteractionThresholdProp;
 
     void OnEnable()
     {
@@ -73,6 +74,7 @@ public class PlatformerMotor2DEditor : Editor
 
         _baseJumpHeightProp = serializedObject.FindProperty("baseJumpHeight");
         _extraJumpHeightProp = serializedObject.FindProperty("extraJumpHeight");
+        _jumpAllowedGraceProp = serializedObject.FindProperty("jumpAllowedGrace");
         _numAirJumpsProp = serializedObject.FindProperty("numAirJumps");
         _canChangeDirInAirProp = serializedObject.FindProperty("changeDirectionInAir");
 
@@ -107,13 +109,19 @@ public class PlatformerMotor2DEditor : Editor
     public override void OnInspectorGUI()
     {
         serializedObject.Update();
+        GUIStyle boldStyle = new GUIStyle();
+        boldStyle.fontStyle = FontStyle.Bold;
 
+        EditorGUILayout.Separator();
+
+        EditorGUILayout.LabelField("General", boldStyle);
         EditorGUILayout.PropertyField(_checkMaskProp, new GUIContent("Static Environment Layer Mask"));
         EditorGUILayout.PropertyField(_movingPlatformMaskProp, new GUIContent("Moving Platform Layer Mask"));
         EditorGUILayout.PropertyField(_checkDistanceProp, new GUIContent("Environment Check Distance"));
 
         EditorGUILayout.Separator();
 
+        EditorGUILayout.LabelField("Movement", boldStyle);
         EditorGUILayout.PropertyField(_maxGroundSpeedProp, new GUIContent("Ground Speed"));
         EditorGUILayout.PropertyField(_timeToMaxGroundSpeedProp, new GUIContent("Time To Ground Speed"));
         EditorGUILayout.PropertyField(_groundStopDistanceProp, new GUIContent("Ground Stop Distance"));
@@ -137,12 +145,15 @@ public class PlatformerMotor2DEditor : Editor
 
         EditorGUILayout.Separator();
 
+        EditorGUILayout.LabelField("Jumping", boldStyle);
         EditorGUILayout.PropertyField(_baseJumpHeightProp, new GUIContent("Base Jump Height"));
         EditorGUILayout.PropertyField(_extraJumpHeightProp, new GUIContent("Held Extra Jump Height"));
+        EditorGUILayout.PropertyField(_jumpAllowedGraceProp, new GUIContent("Grace For Jump"));
         EditorGUILayout.PropertyField(_numAirJumpsProp, new GUIContent("Air Jumps Allowed"));
 
         EditorGUILayout.Separator();
 
+        EditorGUILayout.LabelField("Wall Interactions", boldStyle);
         EditorGUILayout.PropertyField(_allowWallJumpProp, new GUIContent("Allow Wall Jump"));
 
         if (_allowWallJumpProp.hasMultipleDifferentValues || _allowWallJumpProp.boolValue)
@@ -190,6 +201,7 @@ public class PlatformerMotor2DEditor : Editor
 
         EditorGUILayout.Separator();
 
+        EditorGUILayout.LabelField("Dashing", boldStyle);
         EditorGUILayout.PropertyField(_allowDashProp, new GUIContent("Allow Dashing"));
 
         if (_allowDashProp.hasMultipleDifferentValues || _allowDashProp.boolValue)
