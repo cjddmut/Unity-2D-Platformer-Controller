@@ -675,10 +675,6 @@ public class PlatformerMotor2D : MonoBehaviour
     }
     private MovingPlatformState _movingPlatformState = new MovingPlatformState();
 
-    // This seems to be the magic number where you won't collide with the "ground" by being on the wall and not be able to sit on a corner
-    // without colliding with the ground.
-    private const float TRIM_STUCKTO_NUM = 0.01425f;
-
     private const float BUFFER_DURING_CHECK = 0.05f;
 
     // When jumping off of a wall, this is the amount of time that movement input is ignored.
@@ -1538,9 +1534,6 @@ public class PlatformerMotor2D : MonoBehaviour
 
         if ((checkAgainst & CollidedSurface.Ground) != 0)
         {
-            min.x += TRIM_STUCKTO_NUM;
-            max.x -= TRIM_STUCKTO_NUM;
-
             min.y -= checkDistance;
             max.y = box.min.y + BUFFER_DURING_CHECK;
 
@@ -1556,9 +1549,6 @@ public class PlatformerMotor2D : MonoBehaviour
         {
             min = box.min;
             max = box.max;
-
-            min.x += TRIM_STUCKTO_NUM;
-            max.x -= TRIM_STUCKTO_NUM;
 
             max.y += checkDistance;
             min.y = box.max.y - BUFFER_DURING_CHECK;
@@ -1583,9 +1573,6 @@ public class PlatformerMotor2D : MonoBehaviour
             min = box.min;
             max = box.max;
 
-            min.y += TRIM_STUCKTO_NUM;
-            max.y -= TRIM_STUCKTO_NUM;
-
             min.x -= checkDistance;
             max.x = box.min.x + BUFFER_DURING_CHECK;
 
@@ -1608,9 +1595,6 @@ public class PlatformerMotor2D : MonoBehaviour
         {
             min = box.min;
             max = box.max;
-
-            min.y += TRIM_STUCKTO_NUM;
-            max.y -= TRIM_STUCKTO_NUM;
 
             min.x = box.max.x - BUFFER_DURING_CHECK;
             max.x += checkDistance;
@@ -1657,8 +1641,6 @@ public class PlatformerMotor2D : MonoBehaviour
         // Ground check box
         min = box.min;
         max = box.max;
-        min.x += TRIM_STUCKTO_NUM;
-        max.x -= TRIM_STUCKTO_NUM;
         min.y -= checkDistance;
         max.y = box.min.y;
         Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
@@ -1666,8 +1648,6 @@ public class PlatformerMotor2D : MonoBehaviour
         // Left check box
         min = box.min;
         max = box.max;
-        min.y += TRIM_STUCKTO_NUM;
-        max.y -= TRIM_STUCKTO_NUM;
         min.x -= checkDistance;
         max.x = box.min.x;
         Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
@@ -1675,8 +1655,6 @@ public class PlatformerMotor2D : MonoBehaviour
         // Right check box
         min = box.min;
         max = box.max;
-        min.y += TRIM_STUCKTO_NUM;
-        max.y -= TRIM_STUCKTO_NUM;
         min.x = box.max.x;
         max.x += checkDistance;
         Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
