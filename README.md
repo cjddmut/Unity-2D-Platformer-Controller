@@ -18,6 +18,22 @@ If you'd like the most up to date version (which is the most cool), then pull th
 
 For immediate player support, drop the Basic Player Controller prefab into the scene and update the field Environment Check Mask to the layer that contains your environment. For more complicated interaction, interface with PlatformerMotor2D's members and methods.
 
+## Requirements of PlatformerMotor2D
+
+### Rigidbody2D ###
+
+A Rigidbody2D is required for the motor as it uses rigidbody2D.MovePosition() to move the GameObject. The Rigidbody2D should have Fixed Angle checked and Is Kinematic needs to be unchecked. Mass has no impact on the motor.
+
+The motor sets the drag and gravity of the Rigidbody2D to 0 and handles deceleration and gravity on its own. If disabled then the motor will restore the original values of the Rigidbody2D. This is useful if you a player to lose control and allow Unity's physics to take over.
+
+Since the motor uses MovePosition, extrapolate will not have any effect.
+
+If the motor appears to punch through/into walls when dashing or falling then set Collision Detection to continuous.
+
+### Collider2D ###
+
+The motor requires that a Collider2D be present on the GameObject or that a Collider2D is specified to the motor through the colliderToUse property. The motor uses the bounds of the Collider2D to understand where to check for contact with surfaces.
+
 ## PlatformerMotor2D Inspector Properties
 
 ### General ###
@@ -362,14 +378,6 @@ The motor will ignore all "Used By Effector" collisions except for the ground gi
 See the Platformer scene for an example.
 
 ## FAQs
-
-**PlatformerMotor2D is messing with values in my rigidbody2D!**
-PlatformerMotor2D reduces drag on the rigidbody2D to 0 and handles deceleration on the ground and in the air on its own. The motor will also manipulate the gravity to suit its needs for fast falls and wall interactions.
-
-If your game has moments where it needs to leverage gravity or drag then disable the motor during these moments.
-
-**My character seems to puch into walls when dashing or falling!**
-This appeared somewhere around 5.0.1. Turn on continuous detection on the rigidbody2d attached with the motor to fix.
 
 **What's with all the required layers?**
 This is mostly an optimization. MovingPlatformMotor2D is required on moving platforms but querying on a regular environment that doesn't have one generates garbage. The more garbage generated then the more often the garbage collection will kick in. If the layers present a problem then it would be easy to change the check to tags instead in the motor.
