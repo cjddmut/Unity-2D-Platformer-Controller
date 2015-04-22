@@ -421,7 +421,12 @@ public class PlatformerMotor2D : MonoBehaviour
 
                 if (_frozen)
                 {
+                    _prevState = motorState;
                     motorState = MotorState.Frozen;
+                }
+                else
+                {
+                    motorState = _prevState;
                 }
             }
         }
@@ -490,10 +495,13 @@ public class PlatformerMotor2D : MonoBehaviour
     /// </summary>
     public void EndJump()
     {
-        _jumping.pressed = false;
-        motorState = MotorState.Falling;
-        _jumping.timePressed = 0;
-        _jumping.numAirJumps = 0;
+        if (motorState == MotorState.Jumping)
+        {
+            _jumping.pressed = false;
+            motorState = MotorState.Falling;
+            _jumping.timePressed = 0;
+            _jumping.numAirJumps = 0;
+        }
     }
 
     /// <summary>
@@ -613,6 +621,7 @@ public class PlatformerMotor2D : MonoBehaviour
     private Collider2D _collider2D;
     private Vector2 _previousLoc;
     private Collider2D[] _collidersUpAgainst = new Collider2D[DIRECTIONS_CHECKED];
+    private MotorState _prevState;
 
     // The function is cached to avoid unnecessary memory allocation.
     private EasingFunctions.EasingFunc _dashFunction;
@@ -767,27 +776,30 @@ public class PlatformerMotor2D : MonoBehaviour
         _rigidbody2D.velocity = _velocity;
     }
 
-    private void Update()
-    {
-        // Update allows the motor to update information based on what actually happened in the update tick. If you want up to
-        // date information before render then it is safest to query in LateUpdate.
-
-        if (motorState == MotorState.Dashing)
-        {
-            _dashing.distanceDashed += (_rigidbody2D.position - _dashing.previousLoc).magnitude;
-            _dashing.previousLoc = _rigidbody2D.position;
-        }
-    }
-
     private IEnumerator AfterPhysicsTick()
     {
         while (true)
         {
+            if (frozen)
+            {
+                yield return new WaitForFixedUpdate();
+                continue;
+            }
+
             collidingAgainst = CheckSurroundings();
 
             if (motorState == MotorState.Dashing && _dashing.timeDashed >= dashDuration)
             {
                 EndDash();
+            }
+
+            if (motorState == MotorState.Dashing)
+            {
+                // Still dashing, nothing else matters.
+                _dashing.distanceDashed += (_rigidbody2D.position - _dashing.previousLoc).magnitude;
+                _dashing.previousLoc = _rigidbody2D.position;
+                yield return new WaitForFixedUpdate();
+                continue;
             }
 
             if (HasFlag(CollidedSurface.Ground) && _velocity.y <= 0)
@@ -904,7 +916,10 @@ public class PlatformerMotor2D : MonoBehaviour
                                    GetDeltaTime() *
                                    Physics2D.gravity.y;
 
-                    motorState = MotorState.FallingFast;
+                    if (_velocity.y <= 0)
+                    {
+                        motorState = MotorState.FallingFast;
+                    }
                 }
                 else
                 {
@@ -913,6 +928,11 @@ public class PlatformerMotor2D : MonoBehaviour
                         _velocity.y += _originalGravity *
                                        GetDeltaTime() *
                                        Physics2D.gravity.y;
+                    }
+
+                    if (_velocity.y <= 0)
+                    {
+                        motorState = MotorState.Falling;
                     }
                 }
             }
@@ -1100,7 +1120,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 // Normal jump.
                 _velocity.y = CalculateSpeedNeeded(_jumping.height);
             }
-            else if (motorState  == MotorState.OnCorner ||
+            else if (motorState == MotorState.OnCorner ||
                      _jumping.lastValidJump == JumpState.JumpType.Corner && Time.time <= _jumping.jumpGraceTime)
             {
                 // If we are on a corner then jump up.
@@ -1112,7 +1132,7 @@ public class PlatformerMotor2D : MonoBehaviour
                     onCornerJump();
                 }
             }
-            else if (_jumping.lastValidJump == JumpState.JumpType.LeftWall && 
+            else if (_jumping.lastValidJump == JumpState.JumpType.LeftWall &&
                      Time.time <= _jumping.jumpGraceTime)
             {
                 // If jump was pressed as we or before we entered the wall then just jump away.
