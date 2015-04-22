@@ -16,7 +16,23 @@ If you'd like the most up to date version (which is the most cool), then pull th
 
 ## Setup
 
-For immediate player support, drop the PlatformerPlayer2D prefab into the scene and update the field Environment Check Mask to the layer that contains your environment. For more complicated interaction, interface with PlatformerMotor2D's members and methods.
+For immediate player support, drop the Basic Player Controller prefab into the scene and update the field Environment Check Mask to the layer that contains your environment. For more complicated interaction, interface with PlatformerMotor2D's members and methods.
+
+## Requirements of PlatformerMotor2D
+
+### Rigidbody2D ###
+
+A Rigidbody2D is required for the motor as it uses rigidbody2D.MovePosition() to move the GameObject. The Rigidbody2D should have Fixed Angle checked and Is Kinematic needs to be unchecked. Mass has no impact on the motor.
+
+The motor sets the drag and gravity of the Rigidbody2D to 0 and handles deceleration and gravity on its own. If disabled then the motor will restore the original values of the Rigidbody2D. This is useful if you a player to lose control and allow Unity's physics to take over.
+
+Since the motor uses MovePosition, extrapolate will not have any effect.
+
+If the motor appears to punch through/into walls when dashing or falling then set Collision Detection to continuous.
+
+### Collider2D ###
+
+The motor requires that a Collider2D be present on the GameObject or that a Collider2D is specified to the motor through the colliderToUse property. The motor uses the bounds of the Collider2D to understand where to check for contact with surfaces.
 
 ## PlatformerMotor2D Inspector Properties
 
@@ -32,9 +48,11 @@ For immediate player support, drop the PlatformerPlayer2D prefab into the scene 
 
 **Ground Speed** - Maximum ground speed.
 
-**Time to Ground Speed** - The time, in seconds, it will take to reach ground speed. This is used to calculate acceleration.
+**Time to Ground Speed** - The time, in seconds, it will take to reach ground speed. This is used to calculate acceleration. A value of 0 mean instantaneous movement.
 
 **Ground Stop Distance** - If at full speed, how far will the motor skid to a stop.
+
+**Allow Direction Change In Air** - If true, then the motor's x velocity can be changed while in air. If false, then the motor's x velocity cannot be changed when in the air.
 
 **Horizontal Air Speed** - Maximum speed the motor will move horizontally while in the air.
 
@@ -42,15 +60,11 @@ For immediate player support, drop the PlatformerPlayer2D prefab into the scene 
 
 **Air Stop Distance** - If at full air speed, how far will the motor 'skid' to a stop.
 
-**Allow Direction Change In Air** - If true, then the motor's x velocity can be changed while in air. If false, then the motor's x velocity cannot be changed when in the air.
-
 **Max Fall Speed** - Maximum fall speed (only y axis when negative).
 
 **Max Fast Fall Speed** - Maximum fall speed when falling fast.
 
 **Fast Fall Gravity Multiplier** - Gravity multiplier when falling fast. A value of 1 means no different, higher values mean faster fall acceleration.
-
-**Preserve Momentum When Landing** - Unity's physics engine will reduce horizontal speed when the motor lands. This means movement speed will have to be accelerated again and can cause a slight pause. Check this one to keep horizontal speed intact.
 
 ### Jumping ###
 
@@ -70,7 +84,7 @@ For immediate player support, drop the PlatformerPlayer2D prefab into the scene 
 
 **Allow Wall Cling** - If the motor should cling to the walls (sticking in place).
 
-**Wall Cling Duration** - The time, in seconds, that the motor will stick to walls.
+**Wall Cling Duration** - The time, in seconds, that the motor will stick to walls. A large value (say 1000000) is effectively infinite.
 
 ### Wall Slide ###
 
@@ -331,7 +345,7 @@ The PlayerController2D script is a simple script that connects player input to t
 
 ## Moving Platforms
 
-Given the complexity of the Unity 2D Physics engine, moving platforms have a few special rules in order to work. Each moving platform is required to have a MovingPlatformMotor2D attached to it and it is *IMPORTANT* that the MovingPlatformMotor2D script runs before the PlatformerMotor2D script in the Script Execution Order Settings (Edit -> Project Settings -> Script Execution Settings). The platform should update its position in FixedUpdate() and can leverage the velocity/position from MovingPlatformMotor2D.
+Given the complexity of the Unity 2D Physics engine, moving platforms have a few special rules in order to work. Each moving platform is required to have a MovingPlatformMotor2D attached to it and it is **IMPORTANT** that the MovingPlatformMotor2D script and any other script that moves the platforms is executed before the PlatformerMotor2D script in the Script Execution Order Settings (Edit -> Project Settings -> Script Execution Settings). The platform should update its position in FixedUpdate() and can leverage the velocity/position from MovingPlatformMotor2D.
 
 See the Moving Platform scene for examples.
 
@@ -364,14 +378,6 @@ The motor will ignore all "Used By Effector" collisions except for the ground gi
 See the Platformer scene for an example.
 
 ## FAQs
-
-**PlatformerMotor2D is messing with values in my rigidbody2D!**
-PlatformerMotor2D reduces drag on the rigidbody2D to 0 and handles deceleration on the ground and in the air on its own. The motor will also manipulate the gravity to suit its needs for fast falls and wall interactions.
-
-If your game has moments where it needs to leverage gravity or drag then disable the motor during these moments.
-
-**My character seems to puch into walls when dashing or falling!**
-This appeared somewhere around 5.0.1. Turn on continuous detection on the rigidbody2d attached with the motor to fix.
 
 **What's with all the required layers?**
 This is mostly an optimization. MovingPlatformMotor2D is required on moving platforms but querying on a regular environment that doesn't have one generates garbage. The more garbage generated then the more often the garbage collection will kick in. If the layers present a problem then it would be easy to change the check to tags instead in the motor.
