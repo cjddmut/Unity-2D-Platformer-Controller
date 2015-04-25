@@ -390,6 +390,12 @@ If you're using the supplied PlayerController2D script or one of your own in whi
 
 **Something isn't working right!**
 Well, this happens. Please open up an [issue](https://github.com/cjddmut/Unity-2D-Platformer-Controller/issues)!
+
+## Games using the Unity 2D Platformer Controller
+
+[Beep Boop](http://cjkimberlin.com/games/LD32/WebGL/index.html) - Help Beep Boop navigate past dangers using its unconventional weapon to send it flying. Created solo in 72 hours for Ludumdare 32.
+
+If you are using the motor for your game, add it and set up a pull request or let me know at [@cjkimberlin](https://twitter.com/cjkimberlin)!
 <!---%title=Unity 2D Platformer Controller%-->
 <!---%download=https://github.com/cjddmut/Unity-2D-Platformer-Controller/releases/download/v0.2.0/PC2D_v0.2.0b.unitypackage%-->
 <!---%github=https://github.com/cjddmut/Unity-2D-Platformer-Controller%-->
