@@ -694,7 +694,6 @@ public class PlatformerMotor2D : MonoBehaviour
         public float distanceDashed;
         public bool force;
         public float gravityEnabledTimer;
-        public Vector2 previousLoc;
     }
     private DashState _dashing = new DashState();
 
@@ -719,6 +718,7 @@ public class PlatformerMotor2D : MonoBehaviour
     private MovingPlatformState _movingPlatformState = new MovingPlatformState();
 
     private const float BUFFER_DURING_CHECK = 0.05f;
+    private const float GROUND_CHECK_PAD = 0.025f;
 
     // When jumping off of a wall, this is the amount of time that movement input is ignored.
     private const float IGNORE_INPUT_TIME = 0.2f;
@@ -796,8 +796,7 @@ public class PlatformerMotor2D : MonoBehaviour
             if (motorState == MotorState.Dashing)
             {
                 // Still dashing, nothing else matters.
-                _dashing.distanceDashed += (_rigidbody2D.position - _dashing.previousLoc).magnitude;
-                _dashing.previousLoc = _rigidbody2D.position;
+                _dashing.distanceDashed += (_rigidbody2D.position - _previousLoc).magnitude;
                 yield return new WaitForFixedUpdate();
                 continue;
             }
@@ -1480,7 +1479,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
         _dashing.distanceDashed = 0;
         _dashing.distanceCalculated = 0;
-        _dashing.previousLoc = _rigidbody2D.position;
+        _previousLoc = _rigidbody2D.position;
 
         // This will begin the dash this frame.
         _dashing.timeDashed = GetDeltaTime();
@@ -1506,6 +1505,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
         float distance = _dashFunction(0, dashDistance, normalizedTime);
 
+        _previousLoc = _rigidbody2D.position;
         _rigidbody2D.MovePosition(_rigidbody2D.position + _dashing.dashDir * (distance - _dashing.distanceCalculated));
 
         _dashing.distanceCalculated = distance;
@@ -1703,6 +1703,34 @@ public class PlatformerMotor2D : MonoBehaviour
                 {
                     surfaces |= CollidedSurface.RightWall;
                 }
+            }
+        }
+
+        if (surfaces == CollidedSurface.None)
+        {
+            // There's a small window where the above overlap areas will not detect the ground but the physics engine will during
+            // it's tick. This causes the motor to try to fall but not actually fall (in some cases causes the motor to be
+            // permanently stuck). These extra ray casts check for that. This could possibly be avoided by doing box casts above
+            // with GROUND_CHECK_PAD and checking for normals.
+
+            RaycastHit2D hit = Physics2D.Raycast(
+                new Vector2(box.max.x + GROUND_CHECK_PAD, box.min.y + BUFFER_DURING_CHECK),
+                -Vector2.up, checkDistance + BUFFER_DURING_CHECK, 
+                layerMask);
+
+            if (hit.collider == null)
+            {
+                // left side
+                hit = Physics2D.Raycast(
+                    new Vector2(box.min.x - GROUND_CHECK_PAD, box.min.y + BUFFER_DURING_CHECK),
+                    -Vector2.up, checkDistance + BUFFER_DURING_CHECK,
+                    layerMask);
+            }
+
+            if (hit.collider != null)
+            {
+                _collidersUpAgainst[DIRECTION_DOWN] = hit.collider;
+                surfaces |= CollidedSurface.Ground;
             }
         }
 
