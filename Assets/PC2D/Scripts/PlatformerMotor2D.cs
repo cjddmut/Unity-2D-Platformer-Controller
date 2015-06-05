@@ -209,6 +209,8 @@ public class PlatformerMotor2D : MonoBehaviour
     /// </summary>
     public float checkDistance = 0.025f;
 
+    public float distanceFromEnvironment = 0.025f;
+
     /// <summary>
     /// The environment check mask. The motor doesn't know what to consider is an environment so this mask tells it.
     /// </summary>
@@ -618,7 +620,6 @@ public class PlatformerMotor2D : MonoBehaviour
     private Rigidbody2D _rigidbody2D;
     private Vector2 _velocity;
     private float _timeScale = 1;
-    private Collider2D _collider2D;
     private Vector2 _previousLoc;
     private Collider2D[] _collidersUpAgainst = new Collider2D[DIRECTIONS_CHECKED];
     private MotorState _prevState;
@@ -717,8 +718,20 @@ public class PlatformerMotor2D : MonoBehaviour
     }
     private MovingPlatformState _movingPlatformState = new MovingPlatformState();
 
-    private const float BUFFER_DURING_CHECK = 0.05f;
-    private const float GROUND_CHECK_PAD = 0.025f;
+    // Used for environment checks and one way platforms
+    private static RaycastHit2D[] _hits = new RaycastHit2D[STARTING_ARRAY_SIZE];
+    private static RaycastHit2D[] _hitsNoDistance = new RaycastHit2D[STARTING_ARRAY_SIZE];
+
+    // This shrinks the collider bounds oh so slightly when doing surroundings checks. If left at 1f the motor would sometimes
+    // detect surroundings that it doesn't need to (such as right/left wall when on the ground). This causes the motor to glitch
+    // out. This value was settled on but there isn't a high level of confidence with it. Keep in mind and tweak if need be.
+    private const float BOUNDS_SIZE_MULTIPLIER = 0.995f;
+
+    private const float ONE_WAY_DOT_CHECK = 0.0001f;
+
+    private const int STARTING_ARRAY_SIZE = 4;
+    private const float INCREASE_ARRAY_SIZE_MULTIPLIER = 2;
+
 
     // When jumping off of a wall, this is the amount of time that movement input is ignored.
     private const float IGNORE_INPUT_TIME = 0.2f;
@@ -734,6 +747,19 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private const string FROZEN_SET_WHILE_DISABLED = "PC2D: PlatformerMotor2D.frozen set when motor is disabled, ignoring.";
 
+    private Collider2D _collider2D
+    {
+        get
+        {
+            if (colliderToUse != null)
+            {
+                return colliderToUse;
+            }
+
+            return GetComponent<Collider2D>();
+        }
+    }
+
     private void Awake()
     {
         _upRight = Vector2.up + Vector2.right;
@@ -741,7 +767,6 @@ public class PlatformerMotor2D : MonoBehaviour
         _upLeft = new Vector2(-_upRight.x, _upRight.y);
 
         _rigidbody2D = GetComponent<Rigidbody2D>();
-        _collider2D = GetComponent<Collider2D>();
         _originalDrag = _rigidbody2D.drag;
         _originalGravity = _rigidbody2D.gravityScale;
 
@@ -780,6 +805,8 @@ public class PlatformerMotor2D : MonoBehaviour
     {
         while (true)
         {
+            _rigidbody2D.velocity = Vector2.zero;
+
             if (frozen)
             {
                 yield return new WaitForFixedUpdate();
@@ -1596,141 +1623,229 @@ public class PlatformerMotor2D : MonoBehaviour
         return HasFlag(CollidedSurface.Ground) && _velocity.y <= 0;
     }
 
-    private CollidedSurface CheckSurroundings(
-        CollidedSurface checkAgainst = CollidedSurface.Ceiling | 
-        CollidedSurface.Ground | 
-        CollidedSurface.LeftWall | 
-        CollidedSurface.RightWall)
+    private int GetNearbyHits(
+        Vector2 direction, 
+        float distance,
+        Bounds motorBounds, 
+        bool useExternalHits)
     {
-        Bounds box;
-        CollidedSurface surfaces;
-
-        if (colliderToUse != null)
-        {
-            box = colliderToUse.bounds;
-        }
-        else
-        {
-            box = _collider2D.bounds;
-        }
-
-        Vector2 min = box.min;
-        Vector2 max = box.max;
-
         int layerMask = staticEnvironmentLayerMask | movingPlatformLayerMask;
 
-        // TODO: This requires that a ground layer is set up to work. Consider moving to a set up that will consider all
-        //       collisions but ignore the player's collider.
+        int num = Physics2D.BoxCastNonAlloc(
+            motorBounds.center,
+            motorBounds.size,
+            0f,
+            direction,
+            useExternalHits ? _hits : _hitsNoDistance,
+            distance,
+            layerMask);
 
-        surfaces = CollidedSurface.None;
-
-        if ((checkAgainst & CollidedSurface.Ground) != 0)
+        if (num > _hits.Length)
         {
-            min.y -= checkDistance;
-            max.y = box.min.y + BUFFER_DURING_CHECK;
-
-            _collidersUpAgainst[DIRECTION_DOWN] = Physics2D.OverlapArea(min, max, layerMask);
-
-            if (_collidersUpAgainst[DIRECTION_DOWN] != null)
+            if (useExternalHits)
             {
-                surfaces |= CollidedSurface.Ground;
+                _hits = new RaycastHit2D[(int)(INCREASE_ARRAY_SIZE_MULTIPLIER * _hits.Length)];
+            }
+            else
+            {
+                _hitsNoDistance = new RaycastHit2D[(int)(INCREASE_ARRAY_SIZE_MULTIPLIER * _hitsNoDistance.Length)];
             }
         }
 
-        if ((checkAgainst & CollidedSurface.Ceiling) != 0)
+        num = Physics2D.BoxCastNonAlloc(
+            motorBounds.center,
+            motorBounds.size,
+            0f,
+            direction,
+            useExternalHits ? _hits : _hitsNoDistance,
+            distance,
+            layerMask);
+
+        return num;
+    }
+
+    private RaycastHit2D GetClosestHit(
+        Bounds motorBounds, 
+        Vector3 direction,
+        float minimumCloseBy)
+    {
+        int numOfHits = GetNearbyHits(
+            direction, 
+            checkDistance, 
+            motorBounds, 
+            true);
+
+        RaycastHit2D closestHit = new RaycastHit2D();
+        float closeBy = minimumCloseBy;
+
+        for (int i = 0; i < numOfHits; i++)
         {
-            min = box.min;
-            max = box.max;
-
-            max.y += checkDistance;
-            min.y = box.max.y - BUFFER_DURING_CHECK;
-
-            _collidersUpAgainst[DIRECTION_UP] = Physics2D.OverlapArea(min, max, layerMask);
-
-            if (_collidersUpAgainst[DIRECTION_UP] != null)
+            if (_hits[i].collider.usedByEffector &&
+                _hits[i].collider.GetComponent<PlatformEffector2D>().useOneWay)
             {
-                if (_collidersUpAgainst[DIRECTION_UP].usedByEffector)
+                //Debug.Log("One Way Platform!");
+                bool isTouching = false;
+
+                // You'd think OverlapArea would be sufficient but doesn't
+                // appear to necessarily reliably return the expected colliders
+                // So we box cast a distance of 0 instead.
+                int numOfNoDistanceHits = GetNearbyHits(
+                    direction,
+                    0f,
+                    motorBounds,
+                    false);
+
+                for (int j = 0; j < numOfNoDistanceHits; j++)
                 {
-                    _collidersUpAgainst[DIRECTION_UP] = null;
+                    if (_hitsNoDistance[j].collider == _hits[i].collider)
+                    {
+                        isTouching = true;
+                        break;
+                    }
                 }
-                else
+
+                if (isTouching)
                 {
-                    surfaces |= CollidedSurface.Ceiling;
+                    continue;
+                }
+
+                if (_velocity != Vector2.zero)
+                {
+                    Vector3 oneWayPlatformForward = _hits[i].collider.transform.TransformDirection(Vector3.up);
+
+                    float dot = Vector3.Dot(
+                        oneWayPlatformForward,
+                        _velocity);
+
+                    // We check to see if the effector will play a role.
+                    if (dot > ONE_WAY_DOT_CHECK)
+                    {
+                        // ignore
+                        continue;
+                    }
+                }
+            }
+
+            // Little unfortunate but check changes depending on direction.
+            if (direction == Vector3.down)
+            {
+                if (closeBy < _hits[i].collider.bounds.max.y)
+                {
+                    closeBy = _hits[i].collider.bounds.max.y;
+                    closestHit = _hits[i];
+                }
+            }
+            else if (direction == Vector3.up)
+            {
+                if (closeBy > _hits[i].collider.bounds.min.y)
+                {
+                    closeBy = _hits[i].collider.bounds.min.y;
+                    closestHit = _hits[i];
+                }
+            }
+            else if (direction == Vector3.left)
+            {
+                if (closeBy < _hits[i].collider.bounds.max.x)
+                {
+                    closeBy = _hits[i].collider.bounds.max.x;
+                    closestHit = _hits[i];
+                }
+            }
+            else
+            {
+                if (closeBy > _hits[i].collider.bounds.min.x)
+                {
+                    closeBy = _hits[i].collider.bounds.min.x;
+                    closestHit = _hits[i];
                 }
             }
         }
 
-        if ((checkAgainst & CollidedSurface.LeftWall) != 0)
+        return closestHit;
+    }
+
+    private CollidedSurface CheckSurroundings()
+    {
+        Bounds motorBounds = _collider2D.bounds;
+        CollidedSurface surfaces = CollidedSurface.None;
+
+        // Ground
+        Vector3 newSize = motorBounds.size;
+        newSize.x *= BOUNDS_SIZE_MULTIPLIER;
+        motorBounds.size = newSize;
+
+        RaycastHit2D closestHit = GetClosestHit(motorBounds, Vector3.down, float.MinValue);
+
+        _collidersUpAgainst[DIRECTION_DOWN] = closestHit.collider;
+
+        if (closestHit.collider != null)
         {
-            min = box.min;
-            max = box.max;
+            surfaces |= CollidedSurface.Ground;
 
-            min.x -= checkDistance;
-            max.x = box.min.x + BUFFER_DURING_CHECK;
-
-            _collidersUpAgainst[DIRECTION_LEFT] = Physics2D.OverlapArea(min, max, layerMask);
-
-            if (_collidersUpAgainst[DIRECTION_LEFT] != null)
+            if (transform.position.y - closestHit.centroid.y < distanceFromEnvironment)
             {
-                if (_collidersUpAgainst[DIRECTION_LEFT].usedByEffector)
-                {
-                    _collidersUpAgainst[DIRECTION_LEFT] = null;
-                }
-                else
-                {
-                    surfaces |= CollidedSurface.LeftWall;
-                }
+                transform.position += (distanceFromEnvironment - (transform.position.y - closestHit.centroid.y)) * Vector3.up;
             }
         }
 
-        if ((checkAgainst & CollidedSurface.RightWall) != 0)
+        // Right
+        motorBounds = _collider2D.bounds;
+        newSize = motorBounds.size;
+        newSize.y *= BOUNDS_SIZE_MULTIPLIER;
+        motorBounds.size = newSize;
+
+        closestHit = GetClosestHit(motorBounds, Vector3.right, float.MaxValue);
+
+        _collidersUpAgainst[DIRECTION_RIGHT] = closestHit.collider;
+
+        if (closestHit.collider != null)
         {
-            min = box.min;
-            max = box.max;
+            surfaces |= CollidedSurface.RightWall;
 
-            min.x = box.max.x - BUFFER_DURING_CHECK;
-            max.x += checkDistance;
-
-            _collidersUpAgainst[DIRECTION_RIGHT] = Physics2D.OverlapArea(min, max, layerMask);
-
-            if (_collidersUpAgainst[DIRECTION_RIGHT] != null)
+            if (closestHit.centroid.x - transform.position.x < distanceFromEnvironment)
             {
-                if (_collidersUpAgainst[DIRECTION_RIGHT].usedByEffector)
-                {
-                    _collidersUpAgainst[DIRECTION_RIGHT] = null;
-                }
-                else
-                {
-                    surfaces |= CollidedSurface.RightWall;
-                }
+                transform.position += (distanceFromEnvironment - (closestHit.centroid.x - transform.position.x)) * Vector3.left;
             }
         }
 
-        if (surfaces == CollidedSurface.None)
+
+        // Left
+        motorBounds = _collider2D.bounds;
+        newSize = motorBounds.size;
+        newSize.y *= BOUNDS_SIZE_MULTIPLIER;
+        motorBounds.size = newSize;
+
+        closestHit = GetClosestHit(motorBounds, Vector3.left, float.MinValue);
+
+        _collidersUpAgainst[DIRECTION_LEFT] = closestHit.collider;
+
+        if (closestHit.collider != null)
         {
-            // There's a small window where the above overlap areas will not detect the ground but the physics engine will during
-            // it's tick. This causes the motor to try to fall but not actually fall (in some cases causes the motor to be
-            // permanently stuck). These extra ray casts check for that. This could possibly be avoided by doing box casts above
-            // with GROUND_CHECK_PAD and checking for normals.
+            surfaces |= CollidedSurface.LeftWall;
 
-            RaycastHit2D hit = Physics2D.Raycast(
-                new Vector2(box.max.x + GROUND_CHECK_PAD, box.min.y + BUFFER_DURING_CHECK),
-                -Vector2.up, checkDistance + BUFFER_DURING_CHECK, 
-                layerMask);
-
-            if (hit.collider == null)
+            if (transform.position.x - closestHit.centroid.x < distanceFromEnvironment)
             {
-                // left side
-                hit = Physics2D.Raycast(
-                    new Vector2(box.min.x - GROUND_CHECK_PAD, box.min.y + BUFFER_DURING_CHECK),
-                    -Vector2.up, checkDistance + BUFFER_DURING_CHECK,
-                    layerMask);
+                transform.position += (distanceFromEnvironment - (transform.position.x - closestHit.centroid.x)) * Vector3.right;
             }
+        }
 
-            if (hit.collider != null)
+        // Ceiling
+        motorBounds = _collider2D.bounds;
+        newSize = motorBounds.size;
+        newSize.x *= BOUNDS_SIZE_MULTIPLIER;
+        motorBounds.size = newSize;
+
+        closestHit = GetClosestHit(motorBounds, Vector3.up, float.MaxValue);
+
+        _collidersUpAgainst[DIRECTION_UP] = closestHit.collider;
+
+        if (closestHit.collider != null)
+        {
+            surfaces |= CollidedSurface.Ceiling;
+
+            if (closestHit.centroid.y - transform.position.y < distanceFromEnvironment)
             {
-                _collidersUpAgainst[DIRECTION_DOWN] = hit.collider;
-                surfaces |= CollidedSurface.Ground;
+                transform.position += (distanceFromEnvironment - (closestHit.centroid.y - transform.position.y)) * Vector3.down;
             }
         }
 

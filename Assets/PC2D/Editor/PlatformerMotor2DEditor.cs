@@ -55,7 +55,7 @@ public class PlatformerMotor2DEditor : Editor
     private SerializedProperty _checkMaskProp;
     private SerializedProperty _movingPlatformMaskProp;
     private SerializedProperty _checkDistanceProp;
-
+    private SerializedProperty _distanceFromEnvironmentProp;
     private SerializedProperty _wallInteractionThresholdProp;
 
     void OnEnable()
@@ -102,6 +102,7 @@ public class PlatformerMotor2DEditor : Editor
         _checkMaskProp = serializedObject.FindProperty("staticEnvironmentLayerMask");
         _movingPlatformMaskProp = serializedObject.FindProperty("movingPlatformLayerMask");
         _checkDistanceProp = serializedObject.FindProperty("checkDistance");
+        _distanceFromEnvironmentProp = serializedObject.FindProperty("distanceFromEnvironment");
 
         _wallInteractionThresholdProp = serializedObject.FindProperty("wallInteractionThreshold");
     }
@@ -118,6 +119,7 @@ public class PlatformerMotor2DEditor : Editor
         EditorGUILayout.PropertyField(_checkMaskProp, new GUIContent("Static Environment Layer Mask"));
         EditorGUILayout.PropertyField(_movingPlatformMaskProp, new GUIContent("Moving Platform Layer Mask"));
         EditorGUILayout.PropertyField(_checkDistanceProp, new GUIContent("Environment Check Distance"));
+        EditorGUILayout.PropertyField(_distanceFromEnvironmentProp, new GUIContent("Minimum Distance From Env"));
 
         EditorGUILayout.Separator();
 
