@@ -1310,9 +1310,8 @@ public class PlatformerMotor2D : MonoBehaviour
     /// </summary>
     private void HandlePreWallInteraction()
     {
-        if (fallFast || motorState == MotorState.Jumping)
+        if (motorState == MotorState.Jumping)
         {
-            // If we're being told to fall fast then we won't allow any wall interactions. Ditto on if we're jumping.
             return;
         }
 
@@ -1343,13 +1342,19 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         // Wall slide?
-        if (allowWallSlide && motorState != MotorState.Clinging && motorState != MotorState.OnCorner)
+        if (allowWallSlide && 
+            motorState != MotorState.Clinging && 
+            motorState != MotorState.OnCorner)
         {
             if (_velocity.y <= 0 && (PressingIntoLeftWall() || PressingIntoRightWall()))
             {
-                _velocity = -Vector2.up * wallSlideSpeed;
                 motorState = MotorState.Sliding;
             }
+        }
+
+        if (motorState == MotorState.Sliding)
+        {
+            _velocity = -Vector2.up * wallSlideSpeed;
         }
     }
 
