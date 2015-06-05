@@ -44,6 +44,8 @@ The motor requires that a Collider2D be present on the GameObject or that a Coll
 
 **Environment Check Distance** - This is how far out the motor will check for the environment.  
 
+**Minimum Distance From Env** - This is the minimum separation between the motor and surrounding environnment. This is used to prevent catching matching edges of box colliders (or tiles). Half distance of the Environment Check Distance is probably pretty good.
+
 ### Movement ###
 
 **Ground Speed** - Maximum ground speed.
@@ -371,11 +373,9 @@ Invoked when a motor makes contact with a moving platform and is considered 'att
 
 ### One Way Platforms ###
 
-To acheive one way platforms with the motor. Have a environment piece with an edge collider at the top and a PlatformEffector2D component attached. Be sure to check Use One Way and to check Used By Effector on the edge collider.
+To acheive one way platforms with the motor. Have a environment piece with a collider and a PlatformEffector2D component attached. Be sure to check Use One Way and to check Used By Effector on the edge collider.
 
-The motor will ignore all "Used By Effector" collisions except for the ground giving the desired effect. Note at this point no wall interaction mechanics are supported for one way platforms.
-
-See the Platformer scene for an example.
+See the One Way Platforms scene for examples.
 
 ## FAQs
 
@@ -392,6 +392,8 @@ If you're using the supplied PlayerController2D script or one of your own in whi
 Well, this happens. Please open up an [issue](https://github.com/cjddmut/Unity-2D-Platformer-Controller/issues)!
 
 ## Games using the Unity 2D Platformer Controller
+
+[Bit Ball](http://bitballgame.com) - Be a Bit Baller. The universe's top athletes in its most beloved pixelated sport, Bit Ball.
 
 [Beep Boop](http://cjkimberlin.com/games/LD32/WebGL/index.html) - Help Beep Boop navigate past dangers using its unconventional weapon to send it flying. Created solo in 72 hours for Ludumdare 32.
 
