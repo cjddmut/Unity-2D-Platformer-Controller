@@ -1070,6 +1070,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 if (_movingPlatformState.platform.velocity.y < -maxFastFallSpeed)
                 {
                     _movingPlatformState.platform = null;
+                    _velocity.y = -maxFastFallSpeed;
                 }
             }
             else
@@ -1077,6 +1078,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 if (_movingPlatformState.platform.velocity.y < -maxFallSpeed)
                 {
                     _movingPlatformState.platform = null;
+                    _velocity.y = -maxFallSpeed;
                 }
             }
         }
