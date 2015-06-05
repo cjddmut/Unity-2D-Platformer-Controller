@@ -1624,9 +1624,9 @@ public class PlatformerMotor2D : MonoBehaviour
     }
 
     private int GetNearbyHits(
-        Vector2 direction, 
+        Vector2 direction,
         float distance,
-        Bounds motorBounds, 
+        Bounds motorBounds,
         bool useExternalHits)
     {
         int layerMask = staticEnvironmentLayerMask | movingPlatformLayerMask;
@@ -1665,14 +1665,14 @@ public class PlatformerMotor2D : MonoBehaviour
     }
 
     private RaycastHit2D GetClosestHit(
-        Bounds motorBounds, 
+        Bounds motorBounds,
         Vector3 direction,
         float minimumCloseBy)
     {
         int numOfHits = GetNearbyHits(
-            direction, 
-            checkDistance, 
-            motorBounds, 
+            direction,
+            checkDistance,
+            motorBounds,
             true);
 
         RaycastHit2D closestHit = new RaycastHit2D();
@@ -1769,53 +1769,13 @@ public class PlatformerMotor2D : MonoBehaviour
         Bounds motorBounds = _collider2D.bounds;
         CollidedSurface surfaces = CollidedSurface.None;
 
-        // Ground
-        Vector3 newSize = motorBounds.size;
-        newSize.x *= BOUNDS_SIZE_MULTIPLIER;
-        motorBounds.size = newSize;
-
-        RaycastHit2D closestHit = GetClosestHit(motorBounds, Vector3.down, float.MinValue);
-
-        _collidersUpAgainst[DIRECTION_DOWN] = closestHit.collider;
-
-        if (closestHit.collider != null)
-        {
-            surfaces |= CollidedSurface.Ground;
-
-            if (transform.position.y - closestHit.centroid.y < distanceFromEnvironment)
-            {
-                transform.position += (distanceFromEnvironment - (transform.position.y - closestHit.centroid.y)) * Vector3.up;
-            }
-        }
-
-        // Right
-        motorBounds = _collider2D.bounds;
-        newSize = motorBounds.size;
-        newSize.y *= BOUNDS_SIZE_MULTIPLIER;
-        motorBounds.size = newSize;
-
-        closestHit = GetClosestHit(motorBounds, Vector3.right, float.MaxValue);
-
-        _collidersUpAgainst[DIRECTION_RIGHT] = closestHit.collider;
-
-        if (closestHit.collider != null)
-        {
-            surfaces |= CollidedSurface.RightWall;
-
-            if (closestHit.centroid.x - transform.position.x < distanceFromEnvironment)
-            {
-                transform.position += (distanceFromEnvironment - (closestHit.centroid.x - transform.position.x)) * Vector3.left;
-            }
-        }
-
-
         // Left
         motorBounds = _collider2D.bounds;
-        newSize = motorBounds.size;
+        Vector3 newSize = motorBounds.size;
         newSize.y *= BOUNDS_SIZE_MULTIPLIER;
         motorBounds.size = newSize;
 
-        closestHit = GetClosestHit(motorBounds, Vector3.left, float.MinValue);
+        RaycastHit2D closestHit = GetClosestHit(motorBounds, Vector3.left, float.MinValue);
 
         _collidersUpAgainst[DIRECTION_LEFT] = closestHit.collider;
 
@@ -1846,6 +1806,55 @@ public class PlatformerMotor2D : MonoBehaviour
             if (closestHit.centroid.y - transform.position.y < distanceFromEnvironment)
             {
                 transform.position += (distanceFromEnvironment - (closestHit.centroid.y - transform.position.y)) * Vector3.down;
+            }
+        }
+
+        // Right
+        motorBounds = _collider2D.bounds;
+        newSize = motorBounds.size;
+        newSize.y *= BOUNDS_SIZE_MULTIPLIER;
+        motorBounds.size = newSize;
+
+        closestHit = GetClosestHit(motorBounds, Vector3.right, float.MaxValue);
+
+        _collidersUpAgainst[DIRECTION_RIGHT] = closestHit.collider;
+
+        if (closestHit.collider != null)
+        {
+            surfaces |= CollidedSurface.RightWall;
+
+            if (closestHit.centroid.x - transform.position.x < distanceFromEnvironment)
+            {
+                transform.position += (distanceFromEnvironment - (closestHit.centroid.x - transform.position.x)) * Vector3.left;
+            }
+        }
+
+        // Ground
+        newSize = motorBounds.size;
+
+        if (surfaces == CollidedSurface.None)
+        {
+            // There is a small spatial window where the physics engine think we're on the ground but
+            // my checks above do not. We look for this case and push the motor out.
+            newSize.x += distanceFromEnvironment * 2;
+        }
+        else
+        {
+            newSize.x *= BOUNDS_SIZE_MULTIPLIER;
+        }
+
+        motorBounds.size = newSize;
+        closestHit = GetClosestHit(motorBounds, Vector3.down, float.MinValue);
+
+        _collidersUpAgainst[DIRECTION_DOWN] = closestHit.collider;
+
+        if (closestHit.collider != null)
+        {
+            surfaces |= CollidedSurface.Ground;
+
+            if (transform.position.y - closestHit.centroid.y < distanceFromEnvironment)
+            {
+                transform.position += (distanceFromEnvironment - (transform.position.y - closestHit.centroid.y)) * Vector3.up;
             }
         }
 
