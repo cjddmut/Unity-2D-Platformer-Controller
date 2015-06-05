@@ -121,6 +121,11 @@ public class PlatformerMotor2DEditor : Editor
         GUIStyle boldStyle = new GUIStyle();
         boldStyle.fontStyle = FontStyle.Bold;
 
+        if (_checkMaskProp.intValue == 0)
+        {
+            EditorGUILayout.HelpBox("Static Environment Layer Mask has to be set!", MessageType.Error);
+        }
+
         EditorGUILayout.Separator();
         _showGeneral = EditorGUILayout.Foldout(_showGeneral, "General");
 
