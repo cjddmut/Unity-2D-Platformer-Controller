@@ -16,5 +16,7 @@
         public const float FAST_FALL_THRESHOLD = 0.5f;
 
         public const int ENV_MASK = 0x100;
+
+        public const string PACKAGE_NAME = "PC2D";
     }
 }

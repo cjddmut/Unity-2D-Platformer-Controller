@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using PC2D;
+using UnityEngine;
 using UnityEditor;
 
 /**
@@ -58,6 +59,13 @@ public class PlatformerMotor2DEditor : Editor
     private SerializedProperty _distanceFromEnvironmentProp;
     private SerializedProperty _wallInteractionThresholdProp;
 
+    private bool _showGeneral;
+    private bool _showMovement;
+    private bool _showJumping;
+    private bool _showWallInteractions;
+    private bool _showDashing;
+    private bool _showInformation;
+
     void OnEnable()
     {
         _maxGroundSpeedProp = serializedObject.FindProperty("maxGroundSpeed");
@@ -114,105 +122,139 @@ public class PlatformerMotor2DEditor : Editor
         boldStyle.fontStyle = FontStyle.Bold;
 
         EditorGUILayout.Separator();
+        _showGeneral = EditorGUILayout.Foldout(_showGeneral, "General");
 
-        EditorGUILayout.LabelField("General", boldStyle);
-        EditorGUILayout.PropertyField(_checkMaskProp, new GUIContent("Static Environment Layer Mask"));
-        EditorGUILayout.PropertyField(_movingPlatformMaskProp, new GUIContent("Moving Platform Layer Mask"));
-        EditorGUILayout.PropertyField(_checkDistanceProp, new GUIContent("Environment Check Distance"));
-        EditorGUILayout.PropertyField(_distanceFromEnvironmentProp, new GUIContent("Minimum Distance From Env"));
-
-        EditorGUILayout.Separator();
-
-        EditorGUILayout.LabelField("Movement", boldStyle);
-        EditorGUILayout.PropertyField(_maxGroundSpeedProp, new GUIContent("Ground Speed"));
-        EditorGUILayout.PropertyField(_timeToMaxGroundSpeedProp, new GUIContent("Time To Ground Speed"));
-        EditorGUILayout.PropertyField(_groundStopDistanceProp, new GUIContent("Ground Stop Distance"));
-
-        EditorGUILayout.Separator();
-
-        EditorGUILayout.PropertyField(_maxAirSpeedProp, new GUIContent("Horizontal Air Speed"));
-        EditorGUILayout.PropertyField(_canChangeDirInAirProp, new GUIContent("Allow Direction Change In Air"));
-
-        if (_canChangeDirInAirProp.boolValue)
+        if (_showGeneral)
         {
-            EditorGUILayout.PropertyField(_timeToMaxAirSpeedProp, new GUIContent("Time To Air Speed"));
-            EditorGUILayout.PropertyField(_airStopDistanceProp, new GUIContent("Air Stop Distance"));
+            EditorGUILayout.PropertyField(_checkMaskProp, new GUIContent("Static Environment Layer Mask"));
+            EditorGUILayout.PropertyField(_movingPlatformMaskProp, new GUIContent("Moving Platform Layer Mask"));
+            EditorGUILayout.PropertyField(_checkDistanceProp, new GUIContent("Environment Check Distance"));
+            EditorGUILayout.PropertyField(_distanceFromEnvironmentProp, new GUIContent("Minimum Distance From Env"));
+            EditorGUILayout.Separator();
         }
 
-        EditorGUILayout.Separator();
+        _showMovement = EditorGUILayout.Foldout(_showMovement, "Movement");
 
-        EditorGUILayout.PropertyField(_maxFallSpeedProp, new GUIContent("Max Fall Speed"));
-        EditorGUILayout.PropertyField(_maxFastFallSpeedProp, new GUIContent("Max Fast Fall Speed"));
-        EditorGUILayout.PropertyField(_fastFallGravityMultiplierProp, new GUIContent("Fast Fall Gravity Multiplier"));
-
-        EditorGUILayout.Separator();
-
-        EditorGUILayout.LabelField("Jumping", boldStyle);
-        EditorGUILayout.PropertyField(_baseJumpHeightProp, new GUIContent("Base Jump Height"));
-        EditorGUILayout.PropertyField(_extraJumpHeightProp, new GUIContent("Held Extra Jump Height"));
-        EditorGUILayout.PropertyField(_jumpAllowedGraceProp, new GUIContent("Grace For Jump"));
-        EditorGUILayout.PropertyField(_numAirJumpsProp, new GUIContent("Air Jumps Allowed"));
-
-        EditorGUILayout.Separator();
-
-        EditorGUILayout.LabelField("Wall Interactions", boldStyle);
-        EditorGUILayout.PropertyField(_allowWallJumpProp, new GUIContent("Allow Wall Jump"));
-
-        if (_allowWallJumpProp.hasMultipleDifferentValues || _allowWallJumpProp.boolValue)
+        if (_showMovement)
         {
-            EditorGUILayout.PropertyField(_wallJumpMultiplierProp, new GUIContent("Wall Jump Multiplier"));
+            EditorGUILayout.PropertyField(_maxGroundSpeedProp, new GUIContent("Ground Speed"));
+            EditorGUILayout.PropertyField(_timeToMaxGroundSpeedProp, new GUIContent("Time To Ground Speed"));
+            EditorGUILayout.PropertyField(_groundStopDistanceProp, new GUIContent("Ground Stop Distance"));
+
+            EditorGUILayout.Separator();
+
+            EditorGUILayout.PropertyField(_maxAirSpeedProp, new GUIContent("Horizontal Air Speed"));
+            EditorGUILayout.PropertyField(_canChangeDirInAirProp, new GUIContent("Allow Direction Change In Air"));
+
+            if (_canChangeDirInAirProp.boolValue)
+            {
+                EditorGUILayout.PropertyField(_timeToMaxAirSpeedProp, new GUIContent("Time To Air Speed"));
+                EditorGUILayout.PropertyField(_airStopDistanceProp, new GUIContent("Air Stop Distance"));
+            }
+
+            EditorGUILayout.Separator();
+
+            EditorGUILayout.PropertyField(_maxFallSpeedProp, new GUIContent("Max Fall Speed"));
+            EditorGUILayout.PropertyField(_maxFastFallSpeedProp, new GUIContent("Max Fast Fall Speed"));
+            EditorGUILayout.PropertyField(_fastFallGravityMultiplierProp, new GUIContent("Fast Fall Gravity Multiplier"));
+            EditorGUILayout.Separator();
         }
 
-        EditorGUILayout.Separator();
+        _showJumping = EditorGUILayout.Foldout(_showJumping, "Jumping");
 
-        EditorGUILayout.PropertyField(_allowWallClingProp, new GUIContent("Allow Wall Cling"));
-
-        if (_allowWallClingProp.hasMultipleDifferentValues || _allowWallClingProp.boolValue)
+        if (_showJumping)
         {
-            EditorGUILayout.PropertyField(_wallClingDurationProp, new GUIContent("Wall Cling Duration"));
+            EditorGUILayout.PropertyField(_baseJumpHeightProp, new GUIContent("Base Jump Height"));
+            EditorGUILayout.PropertyField(_extraJumpHeightProp, new GUIContent("Held Extra Jump Height"));
+            EditorGUILayout.PropertyField(_jumpAllowedGraceProp, new GUIContent("Grace For Jump"));
+            EditorGUILayout.PropertyField(_numAirJumpsProp, new GUIContent("Air Jumps Allowed"));
+            EditorGUILayout.Separator();
         }
 
-        EditorGUILayout.Separator();
+        _showWallInteractions = EditorGUILayout.Foldout(_showWallInteractions, "Wall Interactions");
 
-        EditorGUILayout.PropertyField(_allowWallSlideProp, new GUIContent("Allow Wall Slide"));
-
-        if (_allowWallSlideProp.hasMultipleDifferentValues || _allowWallSlideProp.boolValue)
+        if (_showWallInteractions)
         {
-            EditorGUILayout.PropertyField(_wallSlideSpeedProp, new GUIContent("Wall Slide Speed"));
+            EditorGUILayout.PropertyField(_allowWallJumpProp, new GUIContent("Allow Wall Jump"));
+
+            if (_allowWallJumpProp.hasMultipleDifferentValues || _allowWallJumpProp.boolValue)
+            {
+                EditorGUILayout.PropertyField(_wallJumpMultiplierProp, new GUIContent("Wall Jump Multiplier"));
+            }
+
+            EditorGUILayout.Separator();
+
+            EditorGUILayout.PropertyField(_allowWallClingProp, new GUIContent("Allow Wall Cling"));
+
+            if (_allowWallClingProp.hasMultipleDifferentValues || _allowWallClingProp.boolValue)
+            {
+                EditorGUILayout.PropertyField(_wallClingDurationProp, new GUIContent("Wall Cling Duration"));
+            }
+
+            EditorGUILayout.Separator();
+
+            EditorGUILayout.PropertyField(_allowWallSlideProp, new GUIContent("Allow Wall Slide"));
+
+            if (_allowWallSlideProp.hasMultipleDifferentValues || _allowWallSlideProp.boolValue)
+            {
+                EditorGUILayout.PropertyField(_wallSlideSpeedProp, new GUIContent("Wall Slide Speed"));
+            }
+
+            EditorGUILayout.Separator();
+
+            EditorGUILayout.PropertyField(_allowCornerGrabProp, new GUIContent("Allow Corner Grab"));
+
+            if (_allowCornerGrabProp.hasMultipleDifferentValues || _allowCornerGrabProp.boolValue)
+            {
+                EditorGUILayout.PropertyField(_cornerGrabDurationProp, new GUIContent("Corner Grab Duration"));
+                EditorGUILayout.PropertyField(_cornerJumpMultiplierProp, new GUIContent("Corner Jump Multiplier"));
+                EditorGUILayout.PropertyField(_cornerDistanceCheckProp, new GUIContent("Corner Distance Check"));
+            }
+
+            EditorGUILayout.Separator();
+
+            if ((_allowWallClingProp.hasMultipleDifferentValues || _allowWallClingProp.boolValue) ||
+                (_allowCornerGrabProp.hasMultipleDifferentValues || _allowCornerGrabProp.boolValue) ||
+                (_allowWallSlideProp.hasMultipleDifferentValues || _allowWallSlideProp.boolValue))
+            {
+                EditorGUILayout.PropertyField(_wallInteractionThresholdProp, new GUIContent("Wall Interaction Threshold"));
+            }
+
+            EditorGUILayout.Separator();
         }
 
-        EditorGUILayout.Separator();
+        _showDashing = EditorGUILayout.Foldout(_showDashing, "Dashing");
 
-        EditorGUILayout.PropertyField(_allowCornerGrabProp, new GUIContent("Allow Corner Grab"));
-
-        if (_allowCornerGrabProp.hasMultipleDifferentValues || _allowCornerGrabProp.boolValue)
+        if (_showDashing)
         {
-            EditorGUILayout.PropertyField(_cornerGrabDurationProp, new GUIContent("Corner Grab Duration"));
-            EditorGUILayout.PropertyField(_cornerJumpMultiplierProp, new GUIContent("Corner Jump Multiplier"));
-            EditorGUILayout.PropertyField(_cornerDistanceCheckProp, new GUIContent("Corner Distance Check"));
+            EditorGUILayout.PropertyField(_allowDashProp, new GUIContent("Allow Dashing"));
+
+            if (_allowDashProp.hasMultipleDifferentValues || _allowDashProp.boolValue)
+            {
+                EditorGUILayout.PropertyField(_dashDistanceProp, new GUIContent("Dash Distance"));
+                EditorGUILayout.PropertyField(_dashDurationProp, new GUIContent("Dash Duration"));
+                EditorGUILayout.PropertyField(_dashCooldownProp, new GUIContent("Dash Cooldown"));
+                EditorGUILayout.PropertyField(_dashEasingFunctionProp, new GUIContent("Dash Easing Function"));
+                EditorGUILayout.PropertyField(_endDashDelay, new GUIContent("Gravity Delay After Dash"));
+            }
+
+            EditorGUILayout.Separator();
         }
 
-        EditorGUILayout.Separator();
-
-        if ((_allowWallClingProp.hasMultipleDifferentValues || _allowWallClingProp.boolValue) ||
-            (_allowCornerGrabProp.hasMultipleDifferentValues || _allowCornerGrabProp.boolValue) ||
-            (_allowWallSlideProp.hasMultipleDifferentValues || _allowWallSlideProp.boolValue))
+        if (!serializedObject.isEditingMultipleObjects)
         {
-            EditorGUILayout.PropertyField(_wallInteractionThresholdProp, new GUIContent("Wall Interaction Threshold"));
-        }
+            _showInformation = EditorGUILayout.Foldout(_showInformation, "Information");
 
-        EditorGUILayout.Separator();
-
-        EditorGUILayout.LabelField("Dashing", boldStyle);
-        EditorGUILayout.PropertyField(_allowDashProp, new GUIContent("Allow Dashing"));
-
-        if (_allowDashProp.hasMultipleDifferentValues || _allowDashProp.boolValue)
-        {
-            EditorGUILayout.PropertyField(_dashDistanceProp, new GUIContent("Dash Distance"));
-            EditorGUILayout.PropertyField(_dashDurationProp, new GUIContent("Dash Duration"));
-            EditorGUILayout.PropertyField(_dashCooldownProp, new GUIContent("Dash Cooldown"));
-            EditorGUILayout.PropertyField(_dashEasingFunctionProp, new GUIContent("Dash Easing Function"));
-            EditorGUILayout.PropertyField(_endDashDelay, new GUIContent("Gravity Delay After Dash"));
+            if (_showInformation)
+            {
+                EditorGUILayout.HelpBox(
+                    "Approx Jump Distance: " + _maxAirSpeedProp.floatValue * 2 *
+                        Mathf.Sqrt(2 *
+                        (_baseJumpHeightProp.floatValue + _extraJumpHeightProp.floatValue) /
+                        (((PlatformerMotor2D)target).GetComponent<Rigidbody2D>().gravityScale * Mathf.Abs(Physics2D.gravity.y))), 
+                    MessageType.Info, 
+                    true);
+            }
         }
 
         serializedObject.ApplyModifiedProperties();
