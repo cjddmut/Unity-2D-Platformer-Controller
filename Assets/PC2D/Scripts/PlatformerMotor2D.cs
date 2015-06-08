@@ -118,6 +118,12 @@ public class PlatformerMotor2D : MonoBehaviour
     public float wallSlideSpeed = 1;
 
     /// <summary>
+    /// Cooldown for allowing slides, clings, and corner grabs. This may be necessary if the motor can slide down a vertical
+    /// moving platform. If they don't exist then this can be 0.
+    /// </summary>
+    public float slideClingCooldown;
+
+    /// <summary>
     /// Are corner grabs allowed? A corner grab is when the motor sticks to a corner.
     /// </summary>
     public bool allowCornerGrab = false;
@@ -226,6 +232,8 @@ public class PlatformerMotor2D : MonoBehaviour
     /// The layer that contains moving platforms.
     /// </summary>
     public LayerMask movingPlatformLayerMask;
+
+    public bool debug;
 
     /// <summary>
     /// The states the motor can be in.
@@ -621,6 +629,13 @@ public class PlatformerMotor2D : MonoBehaviour
     // This is stored to notice if the public field changes during runtime.
     private EasingFunctions.Functions _currentDashEasingFunction;
 
+    // Debug
+    private Vector3 _point;
+    private Vector3 _point2;
+    private Bounds _prevPosPlat;
+    private Bounds _startPosMotor;
+    private Bounds _movedPosMotor;
+
     // Contains the various jump variables, this is for organization.
     private class JumpState
     {
@@ -694,6 +709,7 @@ public class PlatformerMotor2D : MonoBehaviour
         public float cornerHangTime;
         public float clingTime;
 
+        public float timeUntilHang;
         public bool canHangAgain = true;
     }
     private WallState _wallInfo = new WallState();
@@ -793,6 +809,43 @@ public class PlatformerMotor2D : MonoBehaviour
         }
     }
 
+    private static Vector2 GetPointOnBounds(Bounds bounds, Vector3 origin, Vector3 toPoint)
+    {
+        // From http://stackoverflow.com/questions/4061576/finding-points-on-a-rectangle-at-a-given-angle
+        float angle = Vector3.Angle(Vector3.right, toPoint);
+
+        if (toPoint.y < 0)
+        {
+            angle = 360f - angle;
+        }
+
+        float multiplier = 1f;
+
+        if ((angle >= 0f && angle < 45f) ||
+            angle > 315f ||
+            (angle >= 135f && angle < 225f))
+        {
+
+            if (angle >= 135f && angle < 225f)
+            {
+                multiplier = -1f;
+            }
+
+            return new Vector2(
+                multiplier * bounds.size.x / 2 + origin.x,
+                origin.y + multiplier * ((bounds.size.x / 2) * Mathf.Tan(angle * Mathf.Deg2Rad)));
+        }
+
+        if (angle >= 225f)
+        {
+            multiplier = -1f;
+        }
+
+        return new Vector2(
+            origin.x + multiplier * bounds.size.y / (2 * Mathf.Tan(angle * Mathf.Deg2Rad)),
+            multiplier * bounds.size.y / 2 + origin.y);
+    }
+
     private void PreMovement()
     {
         // Timers
@@ -800,6 +853,7 @@ public class PlatformerMotor2D : MonoBehaviour
         _dashing.gravityEnabledTimer -= GetDeltaTime();
         _wallInfo.cornerHangTime -= GetDeltaTime();
         _wallInfo.clingTime -= GetDeltaTime();
+        _wallInfo.timeUntilHang -= GetDeltaTime();
 
         // First, are we trying to dash?
         if (allowDash &&
@@ -814,13 +868,6 @@ public class PlatformerMotor2D : MonoBehaviour
 
         if (motorState != MotorState.Dashing)
         {
-            // Update location if on a moving platform.
-            if (_movingPlatformState.isOnPlatform)
-            {
-                Vector3 toNewPos = _movingPlatformState.platform.position - _movingPlatformState.previousPos;
-                transform.position += toNewPos;
-            }
-
             // If we have standard control then facing can change any frame.
             SetFacing();
 
@@ -841,9 +888,10 @@ public class PlatformerMotor2D : MonoBehaviour
             {
                 if (fallFast)
                 {
-                    _velocity.y += fastFallGravityMultiplier *
-                                   GetDeltaTime() *
-                                   Physics2D.gravity.y;
+                    _velocity.y += 
+                        fastFallGravityMultiplier *
+                        GetDeltaTime() *
+                       Physics2D.gravity.y;
 
                     if (_velocity.y <= 0)
                     {
@@ -854,9 +902,10 @@ public class PlatformerMotor2D : MonoBehaviour
                 {
                     if (_dashing.gravityEnabledTimer <= 0)
                     {
-                        _velocity.y += gravityMultiplier *
-                                       GetDeltaTime() *
-                                       Physics2D.gravity.y;
+                        _velocity.y += 
+                            gravityMultiplier *
+                            GetDeltaTime() *
+                            Physics2D.gravity.y;
                     }
 
                     if (_velocity.y <= 0)
@@ -887,7 +936,7 @@ public class PlatformerMotor2D : MonoBehaviour
             return;
         }
 
-        if (HasFlag(CollidedSurface.Ground) && _velocity.y <= 0)
+        if (HasFlag(CollidedSurface.Ground))
         {
             if ((motorState == MotorState.Falling ||
                 motorState == MotorState.FallingFast) &&
@@ -898,6 +947,8 @@ public class PlatformerMotor2D : MonoBehaviour
 
             _velocity.y = 0;
         }
+
+        AttachToMovingPlatforms();
 
         UpdateDistancesAndJump();
 
@@ -924,8 +975,6 @@ public class PlatformerMotor2D : MonoBehaviour
             motorState = MotorState.Falling;
         }
 
-        AttachToMovingPlatforms();
-
         if (_movingPlatformState.isOnPlatform)
         {
             _movingPlatformState.previousPos = _movingPlatformState.platform.position;
@@ -942,7 +991,14 @@ public class PlatformerMotor2D : MonoBehaviour
             return;
         }
 
-        float time = Time.realtimeSinceStartup;
+        // Update location if on a moving platform.
+        if (motorState != MotorState.Dashing && _movingPlatformState.isOnPlatform)
+        {
+            Vector3 toNewPos = _movingPlatformState.platform.position - _movingPlatformState.previousPos;
+            transform.position += toNewPos;
+        }
+
+        SeparateFromMovingPlatform();
 
         PreMovement();
 
@@ -970,8 +1026,121 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         PostMovement();
+    }
 
-        time = Time.realtimeSinceStartup - time;
+    private void SeparateFromMovingPlatform()
+    {
+        if (debug)
+        {
+            _point = new Vector3();
+            _point2 = new Vector3();
+            _prevPosPlat = new Bounds();
+            _movedPosMotor = new Bounds();
+            _startPosMotor = new Bounds();
+        }
+
+        RaycastHit2D hit = Physics2D.BoxCast(_collider2D.bounds.center, _collider2D.bounds.size, 0f, Vector3.up, 0f,
+            movingPlatformLayerMask);
+
+        if (hit.collider != null)
+        {
+            if (debug)
+            {
+                _point = hit.point;
+            }
+
+            // Intersecting with a platform, we separate along the velocity unless we would have landed on it then it's only up.
+            MovingPlatformMotor2D mpMotor = hit.collider.GetComponent<MovingPlatformMotor2D>();
+            bool separateAlongMovement = true;
+
+            Vector3 curLoc;
+
+            if (debug)
+            {
+                curLoc = mpMotor.position;
+                mpMotor.transform.position = mpMotor.previousPosition;
+                _prevPosPlat = mpMotor.GetComponent<Collider2D>().bounds;
+                mpMotor.transform.position = curLoc;
+                _startPosMotor = _collider2D.bounds;
+            }
+
+            if (mpMotor.position.y > mpMotor.previousPosition.y)
+            {
+                // Can only have landed on it if it is moving up.
+                curLoc = mpMotor.position;
+                mpMotor.transform.position = mpMotor.previousPosition;
+
+                float distance = curLoc.y - mpMotor.previousPosition.y;
+
+                int num = GetNearbyHits(Vector3.down, distance, _collider2D.bounds, false);
+
+                for (int i = 0; i < num; i++)
+                {
+                    if (_hits[i].collider == hit.collider)
+                    {
+                        // Coming from underneath, just separate up.
+                        mpMotor.transform.position = curLoc;
+
+                        hit = Physics2D.Raycast(
+                            hit.point + Vector2.up * _collider2D.bounds.size.y, 
+                            Vector3.down, 
+                            _collider2D.bounds.size.y + checkDistance,
+                            movingPlatformLayerMask);
+
+                        if (hit.collider != null)
+                        {
+                            if (debug)
+                            {
+                                _point2 = hit.point;
+                            }
+
+                            float moveUpBy = hit.point.y - _collider2D.bounds.min.y;
+                            transform.position += Vector3.up * (moveUpBy + distanceFromEnvironment);
+                        }
+
+                        separateAlongMovement = false;
+                        break;
+                    }
+                }
+
+                if (separateAlongMovement)
+                {
+                    mpMotor.transform.position = curLoc;
+                }
+            }
+
+            if (separateAlongMovement)
+            {
+                Vector2 toNewPos = mpMotor.position - mpMotor.previousPosition;
+                Vector2 toNewPosNorm = toNewPos.normalized;
+
+                float distance = ((Vector3)GetPointOnBounds(_collider2D.bounds, _collider2D.bounds.center, toNewPosNorm) - 
+                    _collider2D.bounds.center).magnitude * 2;
+
+                RaycastHit2D hit2 = Physics2D.Raycast(
+                    hit.point + toNewPosNorm * distance,
+                    -toNewPosNorm,
+                    distance + checkDistance,
+                    movingPlatformLayerMask);
+
+                if (hit2.collider != null)
+                {
+                    transform.position += (Vector3)toNewPosNorm * ((hit2.point - hit.point).magnitude + distanceFromEnvironment);
+
+                    if (debug)
+                    {
+                        _point2 = hit2.point;
+                    }
+                }
+            }
+
+            if (debug)
+            {
+                _movedPosMotor = _collider2D.bounds;
+            }
+
+            PostMovement();
+        }
     }
 
     private void SetLastJumpType()
@@ -1242,7 +1411,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private bool PressingIntoLeftWall()
     {
-        if (_movingPlatformState.isOnPlatform && _movingPlatformState.stuckToWall == CollidedSurface.LeftWall && normalizedXMovement < wallInteractionThreshold)
+        if (_movingPlatformState.isOnPlatform && _movingPlatformState.stuckToWall == CollidedSurface.LeftWall && normalizedXMovement < -wallInteractionThreshold)
         {
             return true;
         }
@@ -1262,12 +1431,6 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private void HandlePostWallInteraction()
     {
-        // We can grab corners or walls again.
-        if (!PressingIntoLeftWall() && !PressingIntoRightWall())
-        {
-            _wallInfo.canHangAgain = true;
-        }
-
         // Kill off horizontal velocity if we are by a wall.
         if (HasFlag(CollidedSurface.LeftWall) && _velocity.x < 0 ||
             HasFlag(CollidedSurface.RightWall) && _velocity.x > 0)
@@ -1275,34 +1438,43 @@ public class PlatformerMotor2D : MonoBehaviour
             _velocity.x = 0;
         }
 
-        if (motorState == MotorState.OnCorner)
+        // We can grab corners or walls again.
+        if (!PressingIntoLeftWall() && !PressingIntoRightWall())
         {
-            if (!CheckIfAtCorner() || _wallInfo.cornerHangTime < 0)
+            if (!_wallInfo.canHangAgain)
+            {
+                // Debounce time, mostly for platforms that are moving down and constantly triggering clings
+                _wallInfo.timeUntilHang = slideClingCooldown;
+            }
+
+            _wallInfo.canHangAgain = true;
+
+            if (motorState == MotorState.OnCorner ||
+                motorState == MotorState.Clinging ||
+                motorState == MotorState.Sliding)
             {
                 motorState = MotorState.Falling;
             }
         }
-
-        if (motorState == MotorState.Clinging)
+        else
         {
-            if (!(PressingIntoLeftWall() || PressingIntoRightWall()) || _wallInfo.clingTime < 0)
+            if (motorState == MotorState.OnCorner)
             {
-                motorState = MotorState.Falling;
+                if (!CheckIfAtCorner() || _wallInfo.cornerHangTime < 0)
+                {
+                    motorState = MotorState.Falling;
+                }
+            }
+
+            if (motorState == MotorState.Clinging)
+            {
+                if (!(PressingIntoLeftWall() || PressingIntoRightWall()) || _wallInfo.clingTime < 0)
+                {
+                    motorState = MotorState.Falling;
+                }
             }
         }
 
-        if (motorState == MotorState.Falling && allowWallSlide && _velocity.y <= 0)
-        {
-            motorState = MotorState.Sliding;
-        }
-
-        if (motorState == MotorState.Sliding)
-        {
-            if (!(PressingIntoLeftWall() || PressingIntoRightWall()))
-            {
-                motorState = MotorState.Falling;
-            }
-        }
 
         if (HasFlag(CollidedSurface.Ground))
         {
@@ -1315,7 +1487,7 @@ public class PlatformerMotor2D : MonoBehaviour
     /// </summary>
     private void HandlePreWallInteraction()
     {
-        if (motorState == MotorState.Jumping)
+        if (motorState == MotorState.Jumping || _wallInfo.timeUntilHang > 0 || HasFlag(CollidedSurface.Ground))
         {
             return;
         }
@@ -1351,7 +1523,7 @@ public class PlatformerMotor2D : MonoBehaviour
             motorState != MotorState.Clinging && 
             motorState != MotorState.OnCorner)
         {
-            if (_velocity.y <= 0 && (PressingIntoLeftWall() || PressingIntoRightWall()))
+            if (_velocity.y <= 0 && (PressingIntoLeftWall() || PressingIntoRightWall()) && !IsGrounded())
             {
                 motorState = MotorState.Sliding;
             }
@@ -1456,6 +1628,12 @@ public class PlatformerMotor2D : MonoBehaviour
                     _velocity.x = 0;
                 }
             }
+        }
+
+        if (HasFlag(CollidedSurface.LeftWall) && _velocity.x < 0 ||
+            HasFlag(CollidedSurface.RightWall) && _velocity.x > 0)
+        {
+            _velocity.x = 0;
         }
     }
 
@@ -1717,7 +1895,6 @@ public class PlatformerMotor2D : MonoBehaviour
             if (_hits[i].collider.usedByEffector &&
                 _hits[i].collider.GetComponent<PlatformEffector2D>().useOneWay)
             {
-                //Debug.Log("One Way Platform!");
                 bool isTouching = false;
 
                 // You'd think OverlapArea would be sufficient but doesn't
@@ -1908,6 +2085,20 @@ public class PlatformerMotor2D : MonoBehaviour
         from = box.max;
         Gizmos.color = Color.blue;
         Gizmos.DrawLine(from, from + Vector2.right * airStopDistance);
+
+        if (debug)
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawSphere(_point, 0.01f);
+            Gizmos.DrawWireCube(_prevPosPlat.center, _prevPosPlat.size);
+
+            Gizmos.color = Color.blue;
+            Gizmos.DrawWireCube(_startPosMotor.center, _startPosMotor.size);
+
+            Gizmos.color = Color.green;
+            Gizmos.DrawSphere(_point2, 0.01f);
+            Gizmos.DrawWireCube(_movedPosMotor.center, _movedPosMotor.size);
+        }
     }
 
     #endregion

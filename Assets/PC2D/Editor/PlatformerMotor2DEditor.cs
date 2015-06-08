@@ -47,6 +47,8 @@ public class PlatformerMotor2DEditor : Editor
     private SerializedProperty _cornerGrabDurationProp;
     private SerializedProperty _cornerDistanceCheckProp;
 
+    private SerializedProperty _slideClingCooldownProp;
+
     private SerializedProperty _allowDashProp;
     private SerializedProperty _dashCooldownProp;
     private SerializedProperty _dashDistanceProp;
@@ -101,6 +103,8 @@ public class PlatformerMotor2DEditor : Editor
         _cornerJumpMultiplierProp = serializedObject.FindProperty("cornerJumpMultiplier");
         _cornerGrabDurationProp = serializedObject.FindProperty("cornerGrabDuration");
         _cornerDistanceCheckProp = serializedObject.FindProperty("cornerDistanceCheck");
+
+        _slideClingCooldownProp = serializedObject.FindProperty("slideClingCooldown");
 
         _allowDashProp = serializedObject.FindProperty("allowDash");
         _dashCooldownProp = serializedObject.FindProperty("dashCooldown");
@@ -227,6 +231,7 @@ public class PlatformerMotor2DEditor : Editor
                 (_allowWallSlideProp.hasMultipleDifferentValues || _allowWallSlideProp.boolValue))
             {
                 EditorGUILayout.PropertyField(_wallInteractionThresholdProp, new GUIContent("Wall Interaction Threshold"));
+                EditorGUILayout.PropertyField(_slideClingCooldownProp, new GUIContent("Wall Interaction Cooldown"));
             }
 
             EditorGUILayout.Separator();

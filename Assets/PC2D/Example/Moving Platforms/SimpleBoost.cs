@@ -46,14 +46,24 @@ namespace PC2D
             {
                 _time += Time.fixedDeltaTime;
 
-                transform.position = new Vector3(
-                    transform.position.x,
+                _mpMotor.position = new Vector3(
+                    _mpMotor.position.x,
                     _moveDownFunc(_originalY + heightReached, _originalY, Mathf.Clamp01(_time / moveDownDuration)),
                     transform.position.z);
 
                 if (_time >= moveDownDuration)
                 {
                     _state = State.None;
+
+                    if (_player != null && _player.connectedPlatform == _mpMotor)
+                    {
+                        _state = State.Up;
+                        _time = 0;
+                    }
+                    else
+                    {
+                        _player = null;
+                    }
                 }
             }
 
@@ -61,8 +71,8 @@ namespace PC2D
             {
                 _time += Time.fixedDeltaTime;
 
-                transform.position = new Vector3(
-                    transform.position.x,
+                _mpMotor.position = new Vector3(
+                    _mpMotor.position.x,
                     _moveUpFunc(_originalY, _originalY + heightReached, Mathf.Clamp01(_time / moveUpDuration)),
                     transform.position.z);
 
@@ -74,7 +84,8 @@ namespace PC2D
                     if (_player.connectedPlatform == _mpMotor)
                     {
                         _player.DisconnectFromPlatform();
-                        _player.velocity += Vector2.up * playerSpeedYAtApex; 
+                        _player.velocity += Vector2.up * playerSpeedYAtApex;
+                        _player = null;
                     }
                 }
             }
@@ -82,8 +93,12 @@ namespace PC2D
 
         private void PlayerContact(PlatformerMotor2D player)
         {
-            _state = State.Up;
-            _time = 0;
+            if (_state == State.None)
+            {
+                _state = State.Up;
+                _time = 0;
+
+            }
 
             _player = player;
         }
