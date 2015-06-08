@@ -20,16 +20,6 @@ For immediate player support, drop the Basic Player Controller prefab into the s
 
 ## Requirements of PlatformerMotor2D
 
-### Rigidbody2D ###
-
-A Rigidbody2D is required for the motor as it uses rigidbody2D.MovePosition() to move the GameObject. The Rigidbody2D should have Fixed Angle checked and Is Kinematic needs to be unchecked. Mass has no impact on the motor.
-
-The motor sets the drag and gravity of the Rigidbody2D to 0 and handles deceleration and gravity on its own. If disabled then the motor will restore the original values of the Rigidbody2D. This is useful if you a player to lose control and allow Unity's physics to take over.
-
-Since the motor uses MovePosition, extrapolate will not have any effect.
-
-If the motor appears to punch through/into walls when dashing or falling then set Collision Detection to continuous.
-
 ### Collider2D ###
 
 The motor requires that a Collider2D be present on the GameObject or that a Collider2D is specified to the motor through the colliderToUse property. The motor uses the bounds of the Collider2D to understand where to check for contact with surfaces.
@@ -63,6 +53,8 @@ The motor requires that a Collider2D be present on the GameObject or that a Coll
 **Air Stop Distance** - If at full air speed, how far will the motor 'skid' to a stop.
 
 **Max Fall Speed** - Maximum fall speed (only y axis when negative).
+
+**Gravity Multiplier** - Gravity multiplier to the Physics2D.gravity setting. Works like RigidBody2D's gravityScale.
 
 **Max Fast Fall Speed** - Maximum fall speed when falling fast.
 
@@ -107,6 +99,8 @@ The motor requires that a Collider2D be present on the GameObject or that a Coll
 ### General Wall Interactions ###
 
 **Wall Interaction Threshold** - The input threshold for wall clings, corner grabs, and slides. Could be set to higher to prevent unwanted sticking to walls.
+
+**Wall Interaction Cooldown** - Cooldown for allowing slides, clings, and corner grabs. This may be necessary if the motor can slide down a vertical moving platform. If they don't exist then this can be 0.
 
 ### Dashing ###
 
@@ -363,7 +357,7 @@ Set this to drive the platform by speed. This velocity is used to determine if t
 Vector2 position
 ```
 
-Quick access to transform position typed to Vector2.
+Quick access to transform position typed to Vector2. 
 
 ```csharp
 Action<PlatformerMotor2D> onMotorContact
@@ -378,6 +372,12 @@ To acheive one way platforms with the motor. Have a environment piece with a col
 See the One Way Platforms scene for examples.
 
 ## FAQs
+
+**Can the GameObject have a Rigidbody2D attached?**
+This is fine. The motor will turn on isKinematic when enabled and set it back to whatever the default was when disabled. This can be useful if you want to disable the motor and allow the Physics engine to take over.
+
+**OMG?! I'm not getting the collision/trigger messages!**
+Attached a Rigidbody2D to the motor. See above.
 
 **What's with all the required layers?**
 This is mostly an optimization. MovingPlatformMotor2D is required on moving platforms but querying on a regular environment that doesn't have one generates garbage. The more garbage generated then the more often the garbage collection will kick in. If the layers present a problem then it would be easy to change the check to tags instead in the motor.
