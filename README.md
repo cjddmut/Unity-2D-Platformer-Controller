@@ -357,7 +357,7 @@ Set this to drive the platform by speed. This velocity is used to determine if t
 Vector2 position
 ```
 
-Quick access to transform position typed to Vector2. 
+If you plan to update the position manually then use this field instead of transform.position. If this is set then the velocity field is zeroed out.
 
 ```csharp
 Action<PlatformerMotor2D> onMotorContact
