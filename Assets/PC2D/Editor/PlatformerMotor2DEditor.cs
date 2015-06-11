@@ -35,6 +35,7 @@ public class PlatformerMotor2DEditor : Editor
 
     private SerializedProperty _allowWallJumpProp;
     private SerializedProperty _wallJumpMultiplierProp;
+    private SerializedProperty _wallJumpDegreeProp;
 
     private SerializedProperty _allowWallClingProp;
     private SerializedProperty _wallClingDurationProp;
@@ -92,6 +93,7 @@ public class PlatformerMotor2DEditor : Editor
 
         _allowWallJumpProp = serializedObject.FindProperty("allowWallJump");
         _wallJumpMultiplierProp = serializedObject.FindProperty("wallJumpMultiplier");
+        _wallJumpDegreeProp = serializedObject.FindProperty("wallJumpDegree");
 
         _allowWallClingProp = serializedObject.FindProperty("allowWallCling");
         _wallClingDurationProp = serializedObject.FindProperty("wallClingDuration");
@@ -127,17 +129,18 @@ public class PlatformerMotor2DEditor : Editor
         GUIStyle boldStyle = new GUIStyle();
         boldStyle.fontStyle = FontStyle.Bold;
 
+        /*
         if (_checkMaskProp.intValue == 0)
         {
             EditorGUILayout.HelpBox("Static Environment Layer Mask has to be set!", MessageType.Error);
-        }
+        }*/
 
         EditorGUILayout.Separator();
         _showGeneral = EditorGUILayout.Foldout(_showGeneral, "General");
 
         if (_showGeneral)
         {
-            EditorGUILayout.PropertyField(_checkMaskProp, new GUIContent("Static Environment Layer Mask"));
+//            EditorGUILayout.PropertyField(_checkMaskProp, new GUIContent("Static Environment Layer Mask"));
             EditorGUILayout.PropertyField(_movingPlatformMaskProp, new GUIContent("Moving Platform Layer Mask"));
             EditorGUILayout.PropertyField(_checkDistanceProp, new GUIContent("Environment Check Distance"));
             EditorGUILayout.PropertyField(_distanceFromEnvironmentProp, new GUIContent("Minimum Distance From Env"));
@@ -193,6 +196,7 @@ public class PlatformerMotor2DEditor : Editor
             if (_allowWallJumpProp.hasMultipleDifferentValues || _allowWallJumpProp.boolValue)
             {
                 EditorGUILayout.PropertyField(_wallJumpMultiplierProp, new GUIContent("Wall Jump Multiplier"));
+                EditorGUILayout.PropertyField(_wallJumpDegreeProp, new GUIContent("Wall Jump Angle"));
             }
 
             EditorGUILayout.Separator();
