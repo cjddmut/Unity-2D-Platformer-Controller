@@ -229,10 +229,36 @@ public class PlatformerMotor2D : MonoBehaviour
     /// </summary>
     public float distanceFromEnvironment = 0.025f;
 
+    /// <summary>
+    /// The angle of slope the motor is allowed to walk on. It could be a good idea to keep this slightly above the minimum.
+    /// </summary>
+    public float degreeAllowedForSlopes = 5;
+
+    /// <summary>
+    /// Should the speed of the motor change depending of the angle of the slope. This only impacts walking on slopes, not
+    /// while sliding.
+    /// </summary>
     public bool changeSpeedOnSlopes;
-    public float degreeAllowedForSlopes;
+
+    /// <summary>
+    /// If the motor changes speed on slopes then this acts as a multiplier. Lower values will mean bigger slow downs. A value
+    /// of 1 means that it's only based off of the angle of the slope.
+    /// </summary>
+
+    [Range(0f, 1f)]
     public float speedMultiplierOnSlope = 0.5f;
+
+    /// <summary>
+    /// Should the motor stick to the ground when walking down onto a slope or up over a slope? Otherwise the motor may fall onto
+    /// the slope or have a slight hop when moving up over a slope.
+    /// </summary>
     public bool stickToGround;
+
+    /// <summary>
+    /// If stickToGround is true then the motor will search down for the ground to place itself on. This is how far it is willing
+    /// to check. This needs to be high enough to account for the distance placed by the motor speed but should be smaller than
+    /// the difference between environment heights. Play around until a nice value is found.
+    /// </summary>
     public float distanceToCheckToStick;
 
     /// <summary>
@@ -240,6 +266,9 @@ public class PlatformerMotor2D : MonoBehaviour
     /// </summary>
     public LayerMask movingPlatformLayerMask;
 
+    /// <summary>
+    /// Internal gizmos debug rendering.
+    /// </summary>
     public bool debug;
 
     /// <summary>
@@ -269,7 +298,9 @@ public class PlatformerMotor2D : MonoBehaviour
         Ground = 0x1,
         LeftWall = 0x2,
         RightWall = 0x4,
-        Ceiling = 0x8
+        Ceiling = 0x8,
+        SlopeLeft = 0x10,
+        SlopeRight = 0x20
     }
 
     /// <summary>
@@ -481,6 +512,16 @@ public class PlatformerMotor2D : MonoBehaviour
     }
 
     /// <summary>
+    /// Whether or not the motor is on a slope. This can be simply walking on a slope or slipping.
+    /// </summary>
+    public bool onSlope { get; private set; }
+
+    /// <summary>
+    /// The normal of the slope the motor is on. This value doesn't have meaning unless onSlope is true.
+    /// </summary>
+    public Vector2 slopeNormal { get; private set; }
+
+    /// <summary>
     /// Call this to have the GameObject try to jump, once called it will be handled in the FixedUpdate tick. The y axis is 
     /// considered jump.
     /// </summary>
@@ -643,6 +684,8 @@ public class PlatformerMotor2D : MonoBehaviour
     private int _collisionMask;
     private Collider2D _colliderToUse;
     private float _dotAllowedForSlopes;
+    private float _cornerDistanceCheck;
+    private Vector2 _bottomRight;
 
     // This is the unconverted motor velocity. This ignores slopes. It is converted into the appropriate vector before
     // moving.
@@ -756,11 +799,10 @@ public class PlatformerMotor2D : MonoBehaviour
     private static RaycastHit2D[] _hits = new RaycastHit2D[STARTING_ARRAY_SIZE];
     private static RaycastHit2D[] _hitsNoDistance = new RaycastHit2D[STARTING_ARRAY_SIZE];
 
-    private const float ONE_WAY_DOT_CHECK = 0.0001f;
+    private const float NEAR_ZERO = 0.0001f;
 
     private const int STARTING_ARRAY_SIZE = 4;
     private const float INCREASE_ARRAY_SIZE_MULTIPLIER = 2;
-
 
     // When jumping off of a wall, this is the amount of time that movement input is ignored.
     private const float IGNORE_INPUT_TIME = 0.2f;
@@ -770,9 +812,6 @@ public class PlatformerMotor2D : MonoBehaviour
     private const int DIRECTION_UP = 1;
     private const int DIRECTION_LEFT = 2;
     private const int DIRECTION_RIGHT = 3;
-
-    private const string CHECK_MASK_NOT_SET =
-        "PC2D: Environment Check Mask not set! This is needed to know what to collide against!";
 
     private const string FROZEN_SET_WHILE_DISABLED = "PC2D: PlatformerMotor2D.frozen set when motor is disabled, ignoring.";
 
@@ -800,6 +839,10 @@ public class PlatformerMotor2D : MonoBehaviour
         motorState = MotorState.Falling;
         _wallJumpVector = Quaternion.AngleAxis(wallJumpDegree, Vector3.forward) * Vector3.right;
         _currentWallJumpDegree = wallJumpDegree;
+
+        _cornerDistanceCheck = Mathf.Sqrt(2 * checkDistance * checkDistance);
+
+        _bottomRight = new Vector2(1, -1).normalized;
 
         BuildCollisionMask();
         SetSlopeDegreeAllowed();
@@ -1039,16 +1082,6 @@ public class PlatformerMotor2D : MonoBehaviour
             return;
         }
 
-        if (stickToGround &&
-            (motorState == MotorState.OnGround || motorState == MotorState.Slipping) && 
-            (collidingAgainst == CollidedSurface.None || collidingAgainst == CollidedSurface.Ceiling))
-        {
-            // We were on the ground but now we are not, we'll see if we should put ourselves back on the ground. We don't bother
-            // rechecking surrounding areas. This will probably be fine in most cases. If weird cases start to pop then recall
-            // CheckSurroundings.
-            collidingAgainst |= CheckGround(distanceToCheckToStick, true);
-        }
-
         if (HasFlag(CollidedSurface.Ground))
         {
             if ((motorState == MotorState.Falling ||
@@ -1197,7 +1230,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
                 float distance = curLoc.y - mpMotor.previousPosition.y;
 
-                int num = GetNearbyHits(Vector3.down, distance, _collider2D.bounds, false);
+                int num = GetNearbyHitsBox(Vector3.down, distance, false);
 
                 for (int i = 0; i < num; i++)
                 {
@@ -1676,6 +1709,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 if (IsSlipping() && Vector2.Dot(GetMovementDir(normalizedXMovement), GetDownSlopeDir()) <= 0)
                 {
                     // Don't allow walking up a slope that we slide down.
+                    _velocity = GetMovementDir(_velocity.x) * _velocity.magnitude;
                     return;
                 }
 
@@ -1788,8 +1822,8 @@ public class PlatformerMotor2D : MonoBehaviour
             }
         }
 
-        if (HasFlag(CollidedSurface.LeftWall) && _collidedNormals[DIRECTION_LEFT] == Vector2.right ||
-            HasFlag(CollidedSurface.RightWall) && _collidedNormals[DIRECTION_RIGHT] == -Vector2.right)
+        if (HasFlag(CollidedSurface.LeftWall) && _collidedNormals[DIRECTION_LEFT] == Vector2.right && _velocity.x < 0 ||
+            HasFlag(CollidedSurface.RightWall) && _collidedNormals[DIRECTION_RIGHT] == -Vector2.right && _velocity.x > 0)
         {
             _velocity.x = 0;
         }
@@ -1799,7 +1833,7 @@ public class PlatformerMotor2D : MonoBehaviour
     {
         Vector3 moveDir = GetMovementDir(_velocity.x);
 
-        if (IsOnSlope())
+        if (onSlope)
         {
             speed = Vector3.Project(_velocity, moveDir).magnitude * Mathf.Sign(_velocity.x);
             Vector3 slopeDir = GetDownSlopeDir();
@@ -1942,7 +1976,7 @@ public class PlatformerMotor2D : MonoBehaviour
         Vector3 toNewPos = newPos - transform.position;
         float distance = toNewPos.magnitude;
 
-        RaycastHit2D hit = GetClosestHit(toNewPos / distance, distance);
+        RaycastHit2D hit = GetClosestHit(_collider2D.bounds.center, toNewPos / distance, distance);
 
         _previousLoc = transform.position;
 
@@ -1969,15 +2003,24 @@ public class PlatformerMotor2D : MonoBehaviour
             speed = normalizedXMovement;
         }
 
-        moveDir.x = multiplier * _collidedNormals[DIRECTION_DOWN].y;
-
-        if (_collidedNormals[DIRECTION_DOWN].x * speed > 0)
+        if (!onSlope && 
+            ((!HasFlag(CollidedSurface.SlopeLeft) && !HasFlag(CollidedSurface.SlopeRight)) ||
+            (facingLeft && HasFlag(CollidedSurface.SlopeRight)) ||
+            (!facingLeft && HasFlag(CollidedSurface.SlopeLeft)) ||
+            (Vector3.Dot(Vector3.up, slopeNormal) < _dotAllowedForSlopes)))
         {
-            moveDir.y = -Mathf.Abs(_collidedNormals[DIRECTION_DOWN].x);
+            return Mathf.Sign(speed) * Vector3.right;
+        }
+
+        moveDir.x = multiplier * slopeNormal.y;
+
+        if (slopeNormal.x * speed > 0)
+        {
+            moveDir.y = -Mathf.Abs(slopeNormal.x);
         }
         else
         {
-            moveDir.y = Mathf.Abs(_collidedNormals[DIRECTION_DOWN].x);
+            moveDir.y = Mathf.Abs(slopeNormal.x);
         }
 
         return moveDir;
@@ -1985,9 +2028,14 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private Vector3 GetDownSlopeDir()
     {
+        if (!onSlope)
+        {
+            return Vector3.zero;
+        }
+
         Vector3 downDir = Vector3.zero;
-        downDir.x = Mathf.Sign(_collidedNormals[DIRECTION_DOWN].x) * _collidedNormals[DIRECTION_DOWN].y;
-        downDir.y = -Math.Abs(_collidedNormals[DIRECTION_DOWN].x);
+        downDir.x = Mathf.Sign(slopeNormal.x) * slopeNormal.y;
+        downDir.y = -Math.Abs(slopeNormal.x);
 
         return downDir;
     }
@@ -2073,29 +2121,22 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private bool IsGrounded()
     {
-        return HasFlag(CollidedSurface.Ground) && motorState != MotorState.Jumping;
-    }
-
-    private bool IsOnSlope()
-    {
-        return IsGrounded() && Vector3.Dot(Vector3.up, _collidedNormals[DIRECTION_DOWN]) < 1f;
+        return (HasFlag(CollidedSurface.Ground) || onSlope) && motorState != MotorState.Jumping;
     }
 
     private bool IsSlipping()
     {
-        return IsGrounded() &&
-            Vector3.Dot(Vector3.up, _collidedNormals[DIRECTION_DOWN]) < _dotAllowedForSlopes;
+        return onSlope && Vector3.Dot(Vector3.up, slopeNormal) < _dotAllowedForSlopes;
     }
 
-    private int GetNearbyHits(
+    private int GetNearbyHitsBox(
         Vector2 direction,
         float distance,
-        Bounds motorBounds,
         bool useExternalHits)
     {
         int num = Physics2D.BoxCastNonAlloc(
-            motorBounds.center,
-            motorBounds.size,
+            _collider2D.bounds.center,
+            _collider2D.bounds.size,
             0f,
             direction,
             useExternalHits ? _hits : _hitsNoDistance,
@@ -2115,8 +2156,8 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         num = Physics2D.BoxCastNonAlloc(
-            motorBounds.center,
-            motorBounds.size,
+            _collider2D.bounds.center,
+            _collider2D.bounds.size,
             0f,
             direction,
             useExternalHits ? _hits : _hitsNoDistance,
@@ -2126,15 +2167,64 @@ public class PlatformerMotor2D : MonoBehaviour
         return num;
     }
 
-    private RaycastHit2D GetClosestHit(
-        Vector3 direction,
-        float distance)
+    private int GetNearbyHitsRay(
+        Vector2 origin,
+        Vector2 direction,
+        float distance,
+        bool useExternalHits)
     {
-        int numOfHits = GetNearbyHits(
+        int num = Physics2D.RaycastNonAlloc(
+            origin,
             direction,
+            useExternalHits ? _hits : _hitsNoDistance,
             distance,
-            _collider2D.bounds,
-            true);
+            _collisionMask);
+
+        if (num > _hits.Length)
+        {
+            if (useExternalHits)
+            {
+                _hits = new RaycastHit2D[(int)(INCREASE_ARRAY_SIZE_MULTIPLIER * _hits.Length)];
+            }
+            else
+            {
+                _hitsNoDistance = new RaycastHit2D[(int)(INCREASE_ARRAY_SIZE_MULTIPLIER * _hitsNoDistance.Length)];
+            }
+        }
+
+        num = Physics2D.RaycastNonAlloc(
+            origin,
+            direction,
+            useExternalHits ? _hits : _hitsNoDistance,
+            distance,
+            _collisionMask);
+
+        return num;
+    }
+
+    private RaycastHit2D GetClosestHit(
+        Vector2 origin,
+        Vector3 direction,
+        float distance,
+        bool useBox = true)
+    {
+        int numOfHits;
+
+        if (useBox)
+        {
+            numOfHits = GetNearbyHitsBox(
+                direction,
+                distance,
+                true);
+        }
+        else
+        {
+            numOfHits = GetNearbyHitsRay(
+                origin,
+                direction,
+                distance,
+                true);
+        }
 
         RaycastHit2D closestHit = new RaycastHit2D();
         float closeBy = float.MaxValue;
@@ -2154,11 +2244,23 @@ public class PlatformerMotor2D : MonoBehaviour
                 // You'd think OverlapArea would be sufficient but doesn't
                 // appear to necessarily reliably return the expected colliders
                 // So we box cast a distance of 0 instead.
-                int numOfNoDistanceHits = GetNearbyHits(
-                    direction,
-                    0f,
-                    _collider2D.bounds,
-                    false);
+                int numOfNoDistanceHits;
+
+                if (useBox)
+                {
+                    numOfNoDistanceHits = GetNearbyHitsBox(
+                        direction,
+                        0f,
+                        false);
+                }
+                else
+                {
+                    numOfNoDistanceHits = GetNearbyHitsRay(
+                        origin,
+                        direction,
+                        distance,
+                        false);
+                }
 
                 for (int j = 0; j < numOfNoDistanceHits; j++)
                 {
@@ -2183,7 +2285,7 @@ public class PlatformerMotor2D : MonoBehaviour
                         _velocity);
 
                     // We check to see if the effector will play a role.
-                    if (dot > ONE_WAY_DOT_CHECK)
+                    if (dot > NEAR_ZERO)
                     {
                         // ignore
                         continue;
@@ -2203,15 +2305,10 @@ public class PlatformerMotor2D : MonoBehaviour
         return closestHit;
     }
 
-    private CollidedSurface CheckGround(float distance, bool forceDistance = false, bool ignoreIfFlat = false)
+    private CollidedSurface CheckGround(float distance, bool forceDistance = false)
     {
         CollidedSurface surfaces = CollidedSurface.None;
-        RaycastHit2D closestHit = GetClosestHit(Vector3.down, distance);
-
-        if (ignoreIfFlat && closestHit.collider != null && closestHit.normal == Vector2.up)
-        {
-            return surfaces;
-        }
+        RaycastHit2D closestHit = GetClosestHit(_collider2D.bounds.center, Vector3.down, distance);
 
         _collidersUpAgainst[DIRECTION_DOWN] = closestHit.collider;
         _collidedNormals[DIRECTION_DOWN] = closestHit.normal;
@@ -2232,10 +2329,17 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private CollidedSurface CheckSurroundings()
     {
+        // PERF: This function is getting very expensive...consider optimizations such as not checking ceiling if we already
+        //       detected ground and not checking left wall if we already detected right wall. A simple OverlapArea to start
+        //       can tell us to not bother doing raycasts at all.
+        //
+        //       Having a toggle in the editor to tell us to not worry about slopes, or edge catches, can save us from doing more
+        //       expensive ray/box casts.
+
         CollidedSurface surfaces = CollidedSurface.None;
 
         // Left
-        RaycastHit2D closestHit = GetClosestHit(Vector3.left, checkDistance);
+        RaycastHit2D closestHit = GetClosestHit(_collider2D.bounds.center, Vector3.left, checkDistance);
 
         _collidersUpAgainst[DIRECTION_LEFT] = closestHit.collider;
         _collidedNormals[DIRECTION_LEFT] = closestHit.normal;
@@ -2251,7 +2355,7 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         // Ceiling
-        closestHit = GetClosestHit(Vector3.up, checkDistance);
+        closestHit = GetClosestHit(_collider2D.bounds.center, Vector3.up, checkDistance);
 
         _collidersUpAgainst[DIRECTION_UP] = closestHit.collider;
         _collidedNormals[DIRECTION_UP] = closestHit.normal;
@@ -2267,7 +2371,7 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         // Right
-        closestHit = GetClosestHit(Vector3.right, checkDistance);
+        closestHit = GetClosestHit(_collider2D.bounds.center, Vector3.right, checkDistance);
 
         _collidersUpAgainst[DIRECTION_RIGHT] = closestHit.collider;
         _collidedNormals[DIRECTION_RIGHT] = closestHit.normal;
@@ -2283,7 +2387,69 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         // Ground
-        surfaces |= CheckGround(checkDistance);
+        float distance = checkDistance;
+        bool forceDistanceFromEnv = false;
+
+        if (stickToGround &&
+            (motorState == MotorState.OnGround || motorState == MotorState.Slipping) &&
+            (surfaces == CollidedSurface.None || surfaces == CollidedSurface.Ceiling))
+        {
+            distance = distanceToCheckToStick;
+            forceDistanceFromEnv = true;
+        }
+
+        surfaces |= CheckGround(distance, forceDistanceFromEnv);
+
+        onSlope = false;
+
+        // Slopes check
+        if ((surfaces & (CollidedSurface.Ground | CollidedSurface.RightWall | CollidedSurface.LeftWall)) !=
+            CollidedSurface.None)
+        {
+            // We only check for slopes if we are on the ground or colliding with left/right wall
+            Vector2 dir = _bottomRight;
+            Vector2 origin = new Vector2(_collider2D.bounds.max.x, _collider2D.bounds.min.y);
+            Vector2 rightNormal = Vector2.zero;
+            Vector2 leftNormal = Vector2.zero;
+
+            closestHit = GetClosestHit(origin, dir, _cornerDistanceCheck, false);
+
+            if (closestHit.collider != null && closestHit.normal.x < -NEAR_ZERO && Mathf.Abs(closestHit.normal.y) > NEAR_ZERO)
+            {
+                surfaces |= CollidedSurface.SlopeRight;
+                rightNormal = closestHit.normal;
+            }
+
+            dir.x *= -1;
+            origin = _collider2D.bounds.min;
+            closestHit = GetClosestHit(origin, dir, _cornerDistanceCheck, false);
+
+            if (closestHit.collider != null && closestHit.normal.x > NEAR_ZERO && Mathf.Abs(closestHit.normal.y) > NEAR_ZERO)
+            {
+                surfaces |= CollidedSurface.SlopeLeft;
+                leftNormal = closestHit.normal;
+            }
+
+            if ((surfaces & CollidedSurface.SlopeLeft) != CollidedSurface.None &&
+                (surfaces & CollidedSurface.SlopeRight) != CollidedSurface.None)
+            {
+                // Both sides sloping? Maybe if we fell down a 'V'? Don't consider us on a slope but on the ground
+                surfaces &= ~(CollidedSurface.SlopeLeft | CollidedSurface.SlopeRight);
+                surfaces |= CollidedSurface.Ground;
+            }
+            else if ((surfaces & CollidedSurface.SlopeRight) != CollidedSurface.None)
+            {
+                slopeNormal = rightNormal;
+                onSlope = !((surfaces & CollidedSurface.Ground) != CollidedSurface.None &&
+                           (_collidedNormals[DIRECTION_DOWN] == Vector2.up));
+            }
+            else if ((surfaces & CollidedSurface.SlopeLeft) != CollidedSurface.None)
+            {
+                slopeNormal = leftNormal;
+                onSlope = !((surfaces & CollidedSurface.Ground) != CollidedSurface.None &&
+                           (_collidedNormals[DIRECTION_DOWN] == Vector2.up));
+            }
+        }
 
         return surfaces;
     }

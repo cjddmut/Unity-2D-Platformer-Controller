@@ -28,6 +28,12 @@ public class PlatformerMotor2DEditor : Editor
     private SerializedProperty _gravityMultiplierProp;
     private SerializedProperty _fastFallGravityMultiplierProp;
 
+    private SerializedProperty _degreeAllowedForSlopesProp;
+    private SerializedProperty _changeSpeedOnSlopesProp;
+    private SerializedProperty _speedMultiplierOnSlopeProp;
+    private SerializedProperty _stickToGroundProp;
+    private SerializedProperty _distanceToCheckToStickProp;
+
     private SerializedProperty _baseJumpHeightProp;
     private SerializedProperty _extraJumpHeightProp;
     private SerializedProperty _jumpAllowedGraceProp;
@@ -57,7 +63,6 @@ public class PlatformerMotor2DEditor : Editor
     private SerializedProperty _dashEasingFunctionProp;
     private SerializedProperty _endDashDelay;
 
-    private SerializedProperty _checkMaskProp;
     private SerializedProperty _movingPlatformMaskProp;
     private SerializedProperty _checkDistanceProp;
     private SerializedProperty _distanceFromEnvironmentProp;
@@ -65,6 +70,7 @@ public class PlatformerMotor2DEditor : Editor
 
     private bool _showGeneral;
     private bool _showMovement;
+    private bool _showSlopes;
     private bool _showJumping;
     private bool _showWallInteractions;
     private bool _showDashing;
@@ -84,6 +90,12 @@ public class PlatformerMotor2DEditor : Editor
         _maxFastFallSpeedProp = serializedObject.FindProperty("maxFastFallSpeed");
         _gravityMultiplierProp = serializedObject.FindProperty("gravityMultiplier");
         _fastFallGravityMultiplierProp = serializedObject.FindProperty("fastFallGravityMultiplier");
+
+        _degreeAllowedForSlopesProp = serializedObject.FindProperty("degreeAllowedForSlopes");
+        _changeSpeedOnSlopesProp = serializedObject.FindProperty("changeSpeedOnSlopes");
+        _speedMultiplierOnSlopeProp = serializedObject.FindProperty("speedMultiplierOnSlope");
+        _stickToGroundProp = serializedObject.FindProperty("stickToGround");
+        _distanceToCheckToStickProp = serializedObject.FindProperty("distanceToCheckToStick");
 
         _baseJumpHeightProp = serializedObject.FindProperty("baseJumpHeight");
         _extraJumpHeightProp = serializedObject.FindProperty("extraJumpHeight");
@@ -115,7 +127,6 @@ public class PlatformerMotor2DEditor : Editor
         _dashEasingFunctionProp = serializedObject.FindProperty("dashEasingFunction");
         _endDashDelay = serializedObject.FindProperty("endDashDelay");
 
-        _checkMaskProp = serializedObject.FindProperty("staticEnvironmentLayerMask");
         _movingPlatformMaskProp = serializedObject.FindProperty("movingPlatformLayerMask");
         _checkDistanceProp = serializedObject.FindProperty("checkDistance");
         _distanceFromEnvironmentProp = serializedObject.FindProperty("distanceFromEnvironment");
@@ -129,18 +140,11 @@ public class PlatformerMotor2DEditor : Editor
         GUIStyle boldStyle = new GUIStyle();
         boldStyle.fontStyle = FontStyle.Bold;
 
-        /*
-        if (_checkMaskProp.intValue == 0)
-        {
-            EditorGUILayout.HelpBox("Static Environment Layer Mask has to be set!", MessageType.Error);
-        }*/
-
         EditorGUILayout.Separator();
         _showGeneral = EditorGUILayout.Foldout(_showGeneral, "General");
 
         if (_showGeneral)
         {
-//            EditorGUILayout.PropertyField(_checkMaskProp, new GUIContent("Static Environment Layer Mask"));
             EditorGUILayout.PropertyField(_movingPlatformMaskProp, new GUIContent("Moving Platform Layer Mask"));
             EditorGUILayout.PropertyField(_checkDistanceProp, new GUIContent("Environment Check Distance"));
             EditorGUILayout.PropertyField(_distanceFromEnvironmentProp, new GUIContent("Minimum Distance From Env"));
@@ -160,7 +164,7 @@ public class PlatformerMotor2DEditor : Editor
             EditorGUILayout.PropertyField(_maxAirSpeedProp, new GUIContent("Horizontal Air Speed"));
             EditorGUILayout.PropertyField(_canChangeDirInAirProp, new GUIContent("Allow Direction Change In Air"));
 
-            if (_canChangeDirInAirProp.boolValue)
+            if (_canChangeDirInAirProp.boolValue || _canChangeDirInAirProp.hasMultipleDifferentValues)
             {
                 EditorGUILayout.PropertyField(_timeToMaxAirSpeedProp, new GUIContent("Time To Air Speed"));
                 EditorGUILayout.PropertyField(_airStopDistanceProp, new GUIContent("Air Stop Distance"));
@@ -173,6 +177,28 @@ public class PlatformerMotor2DEditor : Editor
 
             EditorGUILayout.PropertyField(_maxFastFallSpeedProp, new GUIContent("Max Fast Fall Speed"));
             EditorGUILayout.PropertyField(_fastFallGravityMultiplierProp, new GUIContent("Fast Fall Gravity Multiplier"));
+            EditorGUILayout.Separator();
+        }
+
+        _showSlopes = EditorGUILayout.Foldout(_showSlopes, "Slopes");
+
+        if (_showSlopes)
+        {
+            EditorGUILayout.PropertyField(_degreeAllowedForSlopesProp, new GUIContent("Angle (Degree) Allowed"));
+            EditorGUILayout.PropertyField(_changeSpeedOnSlopesProp, new GUIContent("Change Speed on Slopes"));
+
+            if (_changeSpeedOnSlopesProp.boolValue || _changeSpeedOnSlopesProp.hasMultipleDifferentValues)
+            {
+                EditorGUILayout.PropertyField(_speedMultiplierOnSlopeProp, new GUIContent("Speed Multiplier on Slopes"));
+            }
+
+            EditorGUILayout.PropertyField(_stickToGroundProp, new GUIContent("Stick to Ground"));
+
+            if (_stickToGroundProp.boolValue || _stickToGroundProp.hasMultipleDifferentValues)
+            {
+                EditorGUILayout.PropertyField(_distanceToCheckToStickProp, new GUIContent("Distance to Check for Sticking"));
+            }
+
             EditorGUILayout.Separator();
         }
 
@@ -269,7 +295,7 @@ public class PlatformerMotor2DEditor : Editor
                     "Approx Jump Distance: " + _maxAirSpeedProp.floatValue * 2 *
                         Mathf.Sqrt(2 *
                         (_baseJumpHeightProp.floatValue + _extraJumpHeightProp.floatValue) /
-                        (((PlatformerMotor2D)target).GetComponent<Rigidbody2D>().gravityScale * Mathf.Abs(Physics2D.gravity.y))), 
+                        (((PlatformerMotor2D)target).gravityMultiplier * Mathf.Abs(Physics2D.gravity.y))), 
                     MessageType.Info, 
                     true);
             }
