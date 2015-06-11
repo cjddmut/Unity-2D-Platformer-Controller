@@ -3,7 +3,7 @@
 
 <!---%=description%-->
 
-A customizable 2D platformer motor that interacts with Unity's physics engine to do mechanics such as double jumps, wall jumps, and corner grabs. Includes a player controlled prefab that can be dropped into any scene for immediate support.
+A customizable 2D platformer motor that handles mechanics such as double jumps, wall jumps, and corner grabs. Includes a player controlled prefab that can be dropped into any scene for immediate support.
 
 <!---%=obtain%-->
 
@@ -16,7 +16,7 @@ If you'd like the most up to date version (which is the most cool), then pull th
 
 ## Setup
 
-For immediate player support, drop the Basic Player Controller prefab into the scene and update the field Environment Check Mask to the layer that contains your environment. For more complicated interaction, interface with PlatformerMotor2D's members and methods.
+For immediate player support, drop the Basic Player Controller prefab into the scene. For more complicated interaction, interface with PlatformerMotor2D's members and methods.
 
 ## Requirements of PlatformerMotor2D
 
@@ -27,8 +27,6 @@ The motor requires that a Collider2D be present on the GameObject or that a Coll
 ## PlatformerMotor2D Inspector Properties
 
 ### General ###
-
-**Static Environment Layer Mask** - This tells the motor what layer collisions to consider the environment (to determine if on the ground, wall, or corner).
 
 **Moving Platform Layer Mask** - What layer contains moving platforms. The motor uses this knowledge to grab a rigidbody2D from the platforms.
 
@@ -73,6 +71,18 @@ The motor requires that a Collider2D be present on the GameObject or that a Coll
 **Allow Wall Jump** - If jumping off the wall is allowed.
 
 **Wall Jump Multiplier** - The base jump speed is calculated from Base Jump and Extra Jump Height. The multiplier multiplies the result. Leave at 1 for no change.
+
+### Slopes ###
+
+**Angle (Degree) Allowed** - This is the degree of the slope the motor can walk on. 0 means only on flat ground where as 50 would mean any slope up to and including 50 degrees.
+
+**Change Speed on Slopes** - Should the motor slow down on steeper slopes. The speed is based off of Max Ground Speed and the angle of the slope. If false then the motor always moves at Max Ground Speed on any allowed slope.
+
+**Speed Multiplier on Slopes** - Multiplier against the speed on slopes. This will heavily emphasize slow downs on slopes.
+
+**Stick to Ground** - This tells the motor to try to always stay on the ground when moving down slopes or up over slopes. For example, if this is false and the motor moves forward on a plane that then slopes down, the motor will fall onto the slope. If this is true then the motor will stay connected to the ground.
+
+**Distance to Check for Sticking** - The motor ray casts down to see if there is ground to stick to. This value tells the motor how far to check. Increase this if the motor isn't sticking properly. Be cautious having this value too large as it may make the motor stick to grounds that aren't intended.
 
 ### Wall Cling ###
 
@@ -148,11 +158,12 @@ enum MotorState
     Jumping,
     Falling,
     FallingFast,
-    Sliding,
+    WallSliding,
     OnCorner,
     Clinging,
     Dashing,
-    Frozen
+    Frozen,
+    Slipping
 }
 ```
 
@@ -168,7 +179,9 @@ public enum CollidedSurface
     Ground = 0x1,
     LeftWall = 0x2,
     RightWall = 0x4,
-    Ceiling = 0x8
+    Ceiling = 0x8,
+    SlopeLeft = 0x10,
+    SlopeRight = 0x20
 }
 
 ```
@@ -180,6 +193,18 @@ bool facingLeft // Readonly
 ```
 
 Since the motor needs to know the facing of the object, this information is made available to anyone else who might need it.
+
+```csharp
+bool onSlope // Readonly
+```
+
+If the motor is currently on a slope. This will be true for walking up/down slopes as well as slipping down a slope.
+
+```csharp
+bool slopeNormal // Readyonly
+```
+
+The normal of the slope the motor is on. This only has value if onSlope is true. This value could be used to calculate up/down the slope for movements such as dashes.
 
 ```csharp
 bool fallFast
@@ -378,9 +403,6 @@ This is fine. The motor will turn on isKinematic when enabled and set it back to
 
 **OMG?! I'm not getting the collision/trigger messages!**
 Attached a Rigidbody2D to the motor. See above.
-
-**What's with all the required layers?**
-This is mostly an optimization. MovingPlatformMotor2D is required on moving platforms but querying on a regular environment that doesn't have one generates garbage. The more garbage generated then the more often the garbage collection will kick in. If the layers present a problem then it would be easy to change the check to tags instead in the motor.
 
 **Can I use PlatformerMotor2D for controlling AI movements?**
 Sure can. PlatformerMotor2D doesn't know anything about inputs, it just acts on information passed to it. An AI script can interface with the motor similarly how a player controller script could. A very simple example is included in the SimpleAI scene.
