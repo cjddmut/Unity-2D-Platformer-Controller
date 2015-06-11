@@ -1293,12 +1293,6 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         // We don't track air jumps as they are always valid in the air.
-
-        if (_jumping.jumpTypeChanged && _jumping.lastValidJump != JumpState.JumpType.None)
-        {
-            _jumping.jumpTypeChanged = false;
-            _jumping.jumpGraceTime = Time.time + jumpAllowedGrace;
-        }
     }
 
     private void UpdateInformationFromMovement()
@@ -1414,6 +1408,12 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private void HandlePreJumping()
     {
+        if (_jumping.jumpTypeChanged && _jumping.lastValidJump != JumpState.JumpType.None)
+        {
+            _jumping.jumpTypeChanged = false;
+            _jumping.jumpGraceTime = Time.time + jumpAllowedGrace;
+        }
+
         // This is something that the default Unity Controller script does, allows the player to press jump button
         // earlier than would normally be allowed. They say it leads to a more pleasant experience for the
         // user. I'll assume they're on to something.
