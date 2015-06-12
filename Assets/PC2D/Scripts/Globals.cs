@@ -18,5 +18,7 @@
         public const int ENV_MASK = 0x100;
 
         public const string PACKAGE_NAME = "PC2D";
+
+        public const float MINIMUM_DISTANCE_CHECK = 0.005f;
     }
 }

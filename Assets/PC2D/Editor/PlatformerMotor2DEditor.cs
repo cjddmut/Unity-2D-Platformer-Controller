@@ -1,4 +1,5 @@
-﻿using PC2D;
+﻿using System.Text;
+using PC2D;
 using UnityEngine;
 using UnityEditor;
 
@@ -28,6 +29,7 @@ public class PlatformerMotor2DEditor : Editor
     private SerializedProperty _gravityMultiplierProp;
     private SerializedProperty _fastFallGravityMultiplierProp;
 
+    private SerializedProperty _checkForSlopesProp;
     private SerializedProperty _degreeAllowedForSlopesProp;
     private SerializedProperty _changeSpeedOnSlopesProp;
     private SerializedProperty _speedMultiplierOnSlopeProp;
@@ -67,6 +69,7 @@ public class PlatformerMotor2DEditor : Editor
     private SerializedProperty _checkDistanceProp;
     private SerializedProperty _distanceFromEnvironmentProp;
     private SerializedProperty _wallInteractionThresholdProp;
+    private SerializedProperty _checkForOneWayPlatformsProp;
 
     private bool _showGeneral;
     private bool _showMovement;
@@ -75,6 +78,8 @@ public class PlatformerMotor2DEditor : Editor
     private bool _showWallInteractions;
     private bool _showDashing;
     private bool _showInformation;
+
+    private const string NEWLINE = "\n";
 
     void OnEnable()
     {
@@ -91,6 +96,7 @@ public class PlatformerMotor2DEditor : Editor
         _gravityMultiplierProp = serializedObject.FindProperty("gravityMultiplier");
         _fastFallGravityMultiplierProp = serializedObject.FindProperty("fastFallGravityMultiplier");
 
+        _checkForSlopesProp = serializedObject.FindProperty("checkForSlopes");
         _degreeAllowedForSlopesProp = serializedObject.FindProperty("degreeAllowedForSlopes");
         _changeSpeedOnSlopesProp = serializedObject.FindProperty("changeSpeedOnSlopes");
         _speedMultiplierOnSlopeProp = serializedObject.FindProperty("speedMultiplierOnSlope");
@@ -130,6 +136,7 @@ public class PlatformerMotor2DEditor : Editor
         _movingPlatformMaskProp = serializedObject.FindProperty("movingPlatformLayerMask");
         _checkDistanceProp = serializedObject.FindProperty("checkDistance");
         _distanceFromEnvironmentProp = serializedObject.FindProperty("distanceFromEnvironment");
+        _checkForOneWayPlatformsProp = serializedObject.FindProperty("checkForOneWayPlatforms");
 
         _wallInteractionThresholdProp = serializedObject.FindProperty("wallInteractionThreshold");
     }
@@ -140,6 +147,15 @@ public class PlatformerMotor2DEditor : Editor
         GUIStyle boldStyle = new GUIStyle();
         boldStyle.fontStyle = FontStyle.Bold;
 
+        if (!Physics2D.raycastsStartInColliders && 
+            (_movingPlatformMaskProp.hasMultipleDifferentValues || _movingPlatformMaskProp.intValue != 0))
+        {
+            EditorGUILayout.HelpBox(
+                "'Raycasts Start in Colliders' in the Physics 2D settings needs to be checked on for moving platforms",
+                MessageType.Error,
+                true);
+        }
+
         EditorGUILayout.Separator();
         _showGeneral = EditorGUILayout.Foldout(_showGeneral, "General");
 
@@ -148,6 +164,22 @@ public class PlatformerMotor2DEditor : Editor
             EditorGUILayout.PropertyField(_movingPlatformMaskProp, new GUIContent("Moving Platform Layer Mask"));
             EditorGUILayout.PropertyField(_checkDistanceProp, new GUIContent("Environment Check Distance"));
             EditorGUILayout.PropertyField(_distanceFromEnvironmentProp, new GUIContent("Minimum Distance From Env"));
+
+            EditorGUILayout.PropertyField(_checkForOneWayPlatformsProp, new GUIContent("Check for One Way Platforms"));
+
+            if (!serializedObject.isEditingMultipleObjects &&
+                !_checkForOneWayPlatformsProp.boolValue)
+            {
+                Collider2D col = ((PlatformerMotor2D) target).GetComponent<Collider2D>();
+
+                if (col != null && !Physics2D.GetIgnoreLayerCollision(col.gameObject.layer, col.gameObject.layer))
+                {
+                    EditorGUILayout.HelpBox(
+                        "To ignore One Way Platforms, the collider's layer needs to not collide with itself in the Physics 2D settings.",
+                        MessageType.Warning,
+                        true);
+                }
+            }
             EditorGUILayout.Separator();
         }
 
@@ -164,7 +196,7 @@ public class PlatformerMotor2DEditor : Editor
             EditorGUILayout.PropertyField(_maxAirSpeedProp, new GUIContent("Horizontal Air Speed"));
             EditorGUILayout.PropertyField(_canChangeDirInAirProp, new GUIContent("Allow Direction Change In Air"));
 
-            if (_canChangeDirInAirProp.boolValue || _canChangeDirInAirProp.hasMultipleDifferentValues)
+            if (_canChangeDirInAirProp.hasMultipleDifferentValues || _canChangeDirInAirProp.boolValue)
             {
                 EditorGUILayout.PropertyField(_timeToMaxAirSpeedProp, new GUIContent("Time To Air Speed"));
                 EditorGUILayout.PropertyField(_airStopDistanceProp, new GUIContent("Air Stop Distance"));
@@ -184,19 +216,25 @@ public class PlatformerMotor2DEditor : Editor
 
         if (_showSlopes)
         {
-            EditorGUILayout.PropertyField(_degreeAllowedForSlopesProp, new GUIContent("Angle (Degree) Allowed"));
-            EditorGUILayout.PropertyField(_changeSpeedOnSlopesProp, new GUIContent("Change Speed on Slopes"));
+            EditorGUILayout.PropertyField(_checkForSlopesProp, new GUIContent("Check for Slopes"));
 
-            if (_changeSpeedOnSlopesProp.boolValue || _changeSpeedOnSlopesProp.hasMultipleDifferentValues)
+            if (_checkForSlopesProp.hasMultipleDifferentValues || _checkForSlopesProp.boolValue)
             {
-                EditorGUILayout.PropertyField(_speedMultiplierOnSlopeProp, new GUIContent("Speed Multiplier on Slopes"));
-            }
+                EditorGUILayout.PropertyField(_degreeAllowedForSlopesProp, new GUIContent("Angle (Degree) Allowed"));
+                EditorGUILayout.PropertyField(_changeSpeedOnSlopesProp, new GUIContent("Change Speed on Slopes"));
 
-            EditorGUILayout.PropertyField(_stickToGroundProp, new GUIContent("Stick to Ground"));
+                if (_changeSpeedOnSlopesProp.hasMultipleDifferentValues || _changeSpeedOnSlopesProp.boolValue)
+                {
+                    EditorGUILayout.PropertyField(_speedMultiplierOnSlopeProp, new GUIContent("Speed Multiplier on Slopes"));
+                }
 
-            if (_stickToGroundProp.boolValue || _stickToGroundProp.hasMultipleDifferentValues)
-            {
-                EditorGUILayout.PropertyField(_distanceToCheckToStickProp, new GUIContent("Distance to Check for Sticking"));
+                EditorGUILayout.PropertyField(_stickToGroundProp, new GUIContent("Stick to Ground"));
+
+                if (_stickToGroundProp.hasMultipleDifferentValues || _stickToGroundProp.boolValue)
+                {
+                    EditorGUILayout.PropertyField(_distanceToCheckToStickProp, new GUIContent("Distance to Check for Sticking"));
+                }
+
             }
 
             EditorGUILayout.Separator();
@@ -292,15 +330,75 @@ public class PlatformerMotor2DEditor : Editor
             if (_showInformation)
             {
                 EditorGUILayout.HelpBox(
-                    "Approx Jump Distance: " + _maxAirSpeedProp.floatValue * 2 *
-                        Mathf.Sqrt(2 *
-                        (_baseJumpHeightProp.floatValue + _extraJumpHeightProp.floatValue) /
-                        (((PlatformerMotor2D)target).gravityMultiplier * Mathf.Abs(Physics2D.gravity.y))), 
+                    GetInformation(), 
                     MessageType.Info, 
                     true);
             }
         }
 
+        CheckValues();
+
         serializedObject.ApplyModifiedProperties();
+    }
+
+    private void CheckValues()
+    {
+        if (!_checkDistanceProp.hasMultipleDifferentValues &&
+            _checkDistanceProp.floatValue <= Globals.MINIMUM_DISTANCE_CHECK * 2)
+        {
+            _checkDistanceProp.floatValue = Globals.MINIMUM_DISTANCE_CHECK * 2;
+        }
+
+        if (!_distanceFromEnvironmentProp.hasMultipleDifferentValues &&
+            _distanceFromEnvironmentProp.floatValue <= Globals.MINIMUM_DISTANCE_CHECK)
+        {
+            _distanceFromEnvironmentProp.floatValue = Globals.MINIMUM_DISTANCE_CHECK;
+        }
+    }
+
+    private string GetInformation()
+    {
+        StringBuilder sb = new StringBuilder();
+
+        sb.AppendFormat("Approx jump distance: {0}", GetJumpDistance());
+
+        if (_timeToMaxGroundSpeedProp.floatValue != 0)
+        {
+            sb.AppendFormat(
+                "\nMax ground acceleration: {0}", 
+                _maxGroundSpeedProp.floatValue / _timeToMaxGroundSpeedProp.floatValue);
+        }
+
+        if (_timeToMaxAirSpeedProp.floatValue != 0 && _canChangeDirInAirProp.boolValue)
+        {
+            sb.AppendFormat(
+                "\nMax air acceleration: {0}", 
+                _maxAirSpeedProp.floatValue / _timeToMaxAirSpeedProp.floatValue);
+        }
+
+        sb.AppendFormat("\nApprox single jump duration (up & down): {0}", 
+            Mathf.Sqrt(-8 * (_baseJumpHeightProp.floatValue + _extraJumpHeightProp.floatValue) / 
+                (_gravityMultiplierProp.floatValue * Physics2D.gravity.y)));
+
+        sb.AppendFormat("\nWill hit fall speed cap during jump: {0}", (GetJumpSpeed() >= _maxFallSpeedProp.floatValue));
+
+
+        return sb.ToString();
+    }
+
+    private float GetJumpDistance()
+    {
+        return _maxAirSpeedProp.floatValue * 2 *
+               Mathf.Sqrt(2 *
+                    (_baseJumpHeightProp.floatValue +
+                    _extraJumpHeightProp.floatValue) /
+                    (((PlatformerMotor2D)target).gravityMultiplier *
+                    Mathf.Abs(Physics2D.gravity.y)));
+    }
+
+    private float GetJumpSpeed()
+    {
+        return Mathf.Sqrt(-2 * (_baseJumpHeightProp.floatValue + _extraJumpHeightProp.floatValue)  * 
+            _gravityMultiplierProp.floatValue * Physics2D.gravity.y);
     }
 }
