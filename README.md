@@ -28,11 +28,13 @@ The motor requires that a Collider2D be present on the GameObject or that a Coll
 
 ### General ###
 
-**Moving Platform Layer Mask** - What layer contains moving platforms. The motor uses this knowledge to grab a rigidbody2D from the platforms.
+**Moving Platform Layer Mask** - What layer contains moving platforms. The motor uses this knowledge to grab a MovingPlatformMotor2D component from the platforms. This requires that 'Raycasts Start in Colliders' is true in the Physics 2D settings. If there aren't any moving platforms then make sure this value is 'Nothing' (or 0). The motor will be more efficient.
 
 **Environment Check Distance** - This is how far out the motor will check for the environment.  
 
 **Minimum Distance From Env** - This is the minimum separation between the motor and surrounding environnment. This is used to prevent catching matching edges of box colliders (or tiles). Half distance of the Environment Check Distance is probably pretty good.
+
+**Check for One Way Platforms** - Should the motor check for one way platforms? Uncheck this if there aren't any, the motor will be more efficient. This will only have an effect if the motor's collider can't collide with its own layer. If it can then setting this to false won't help, one way platforms or not.
 
 ### Movement ###
 
@@ -58,6 +60,20 @@ The motor requires that a Collider2D be present on the GameObject or that a Coll
 
 **Fast Fall Gravity Multiplier** - Gravity multiplier when falling fast. A value of 1 means no different, higher values mean faster fall acceleration.
 
+### Slopes ###
+
+**Check for Slopes** - Should the motor check for slopes? If there aren't any slopes to walk/up down or slide down then uncheck this. The motor will be more efficient.
+
+**Angle (Degree) Allowed** - This is the degree of the slope the motor can walk on. 0 means only on flat ground where as 50 would mean any slope up to and including 50 degrees.
+
+**Change Speed on Slopes** - Should the motor slow down on steeper slopes. The speed is based off of Max Ground Speed and the angle of the slope. If false then the motor always moves at Max Ground Speed on any allowed slope.
+
+**Speed Multiplier on Slopes** - Multiplier against the speed on slopes. This will heavily emphasize slow downs on slopes.
+
+**Stick to Ground** - This tells the motor to try to always stay on the ground when moving down slopes or up over slopes. For example, if this is false and the motor moves forward on a plane that then slopes down, the motor will fall onto the slope. If this is true then the motor will stay connected to the ground.
+
+**Distance to Check for Sticking** - The motor ray casts down to see if there is ground to stick to. This value tells the motor how far to check. Increase this if the motor isn't sticking properly. Be cautious having this value too large as it may make the motor stick to grounds that aren't intended.
+
 ### Jumping ###
 
 **Base Jump Height** - The height, in Unity units, that the motor will jump to.
@@ -71,18 +87,6 @@ The motor requires that a Collider2D be present on the GameObject or that a Coll
 **Allow Wall Jump** - If jumping off the wall is allowed.
 
 **Wall Jump Multiplier** - The base jump speed is calculated from Base Jump and Extra Jump Height. The multiplier multiplies the result. Leave at 1 for no change.
-
-### Slopes ###
-
-**Angle (Degree) Allowed** - This is the degree of the slope the motor can walk on. 0 means only on flat ground where as 50 would mean any slope up to and including 50 degrees.
-
-**Change Speed on Slopes** - Should the motor slow down on steeper slopes. The speed is based off of Max Ground Speed and the angle of the slope. If false then the motor always moves at Max Ground Speed on any allowed slope.
-
-**Speed Multiplier on Slopes** - Multiplier against the speed on slopes. This will heavily emphasize slow downs on slopes.
-
-**Stick to Ground** - This tells the motor to try to always stay on the ground when moving down slopes or up over slopes. For example, if this is false and the motor moves forward on a plane that then slopes down, the motor will fall onto the slope. If this is true then the motor will stay connected to the ground.
-
-**Distance to Check for Sticking** - The motor ray casts down to see if there is ground to stick to. This value tells the motor how far to check. Increase this if the motor isn't sticking properly. Be cautious having this value too large as it may make the motor stick to grounds that aren't intended.
 
 ### Wall Cling ###
 
@@ -360,6 +364,12 @@ void DisconnectFromPlatform()
 
 Decouples the motor from the platform. This could be useful for a platform that throw the motor in the air. Call this when when the motor should disconnect then set the appropriate velocity.
 
+```csharp
+void BuildCollisionMask()
+```
+
+Call this if the collision matrix has changed for the layer the collider is on during runtime. This updates the internal view.
+
 ## PlayerController2D
 
 The PlayerController2D script is a simple script that connects player input to the motor. This is set up as an example and it is encourage to write your own script that interacts with the motor.
@@ -397,6 +407,13 @@ To acheive one way platforms with the motor. Have a environment piece with a col
 See the One Way Platforms scene for examples.
 
 ## FAQs
+
+**Moving platforms move right into the motor!**
+This became a problem with Unity 5.1.0f3 (when I first noticed it). It appears to be due to a bug with Physics2D.BoxCast. A post has been created on the Unity forums to see if it will be fixed. 
+
+http://forum.unity3d.com/threads/physics2d-boxcast-bug-in-5-1-0f3.333039/
+
+If it is a bug that will be fixed then no workaround will be created in the motor (use a slightly older version of Unity). If it doesn't look like it'll be fixed then a solution will be created in the motor.
 
 **Can the GameObject have a Rigidbody2D attached?**
 This is fine. The motor will turn on isKinematic when enabled and set it back to whatever the default was when disabled. This can be useful if you want to disable the motor and allow the Physics engine to take over.
