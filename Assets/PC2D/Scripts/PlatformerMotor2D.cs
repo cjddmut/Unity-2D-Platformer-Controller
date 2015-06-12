@@ -262,11 +262,21 @@ public class PlatformerMotor2D : MonoBehaviour
     public float distanceToCheckToStick;
 
     /// <summary>
-    /// The layer that contains moving platforms.
+    /// The layer that contains moving platforms. If there are no moving platforms then make sure this has no layers (value of 0).
+    /// Optimizations are made in the motor if it isn't expecting any moving platforms.
     /// </summary>
     public LayerMask movingPlatformLayerMask;
 
+    /// <summary>
+    /// Should the motor check for any slopes? Set this to false if there are no slopes, the motor will be more efficient.
+    /// </summary>
     public bool checkForSlopes = true;
+
+    /// <summary>
+    /// Should the motor check for one way platforms? Set this to false if there aren't any, the motor will be more efficient.
+    /// This will only have an effect if the motor's collider can't collide with its own layer. If it can then setting this to
+    /// false won't help, one way platforms or not.
+    /// </summary>
     public bool checkForOneWayPlatforms = true;
 
     /// <summary>
