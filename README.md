@@ -88,6 +88,8 @@ The motor requires that a Collider2D be present on the GameObject or that a Coll
 
 **Wall Jump Multiplier** - The base jump speed is calculated from Base Jump and Extra Jump Height. The multiplier multiplies the result. Leave at 1 for no change.
 
+**Wall Jump Angle** - The angle (in degrees) of the wall jump. 0 is along the wall normal and 90 is straight up.
+
 ### Wall Cling ###
 
 **Allow Wall Cling** - If the motor should cling to the walls (sticking in place).
