@@ -58,7 +58,7 @@ The motor requires that a Collider2D be present on the GameObject or that a Coll
 
 **Max Fast Fall Speed** - Maximum fall speed when falling fast.
 
-**Fast Fall Gravity Multiplier** - Gravity multiplier when falling fast. A value of 1 means no different, higher values mean faster fall acceleration.
+**Fast Fall Gravity Multiplier** - Gravity multiplier when falling fast.
 
 ### Slopes ###
 
