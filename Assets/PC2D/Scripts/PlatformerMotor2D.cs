@@ -1552,8 +1552,6 @@ public class PlatformerMotor2D : MonoBehaviour
             {
                 _jumping.allowExtraDuration -= GetDeltaTime();
                 _jumping.ignoreGravity = true;
-
-                Debug.Log("Ignore gravity!");
             }
         }
 
