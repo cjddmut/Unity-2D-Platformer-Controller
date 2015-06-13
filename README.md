@@ -34,7 +34,7 @@ The motor requires that a Collider2D be present on the GameObject or that a Coll
 
 **Minimum Distance From Env** - This is the minimum separation between the motor and surrounding environnment. This is used to prevent catching matching edges of box colliders (or tiles). Half distance of the Environment Check Distance is probably pretty good.
 
-**Number of Iterations** - The number of iterations the motor can take to resolve the final position at the end of a tick. Lower numbers mean more performant but at a cost of potential position loss. 2 iterations will likely cover most cases (unless the time step is really long).
+**Number of Iterations** - The number of iterations the motor can take to resolve the final position during a tick. Lower numbers mean more performant but at a cost of potential position loss. 2 iterations will likely cover most cases (unless the time step is really long).
 
 **Check for One Way Platforms** - Should the motor check for one way platforms? Uncheck this if there aren't any, the motor will be more efficient. This will only have an effect if the motor's collider can't collide with its own layer. If it can then setting this to false won't help, one way platforms or not.
 
