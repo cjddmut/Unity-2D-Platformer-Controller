@@ -262,6 +262,11 @@ public class PlatformerMotor2D : MonoBehaviour
     public float distanceToCheckToStick;
 
     /// <summary>
+    /// The static environment check mask. This should only be environment that doesn't move.
+    /// </summary>
+    public LayerMask checkMask;
+
+    /// <summary>
     /// The layer that contains moving platforms. If there are no moving platforms then make sure this has no layers (value of 0).
     /// Optimizations are made in the motor if it isn't expecting any moving platforms.
     /// </summary>
@@ -522,18 +527,7 @@ public class PlatformerMotor2D : MonoBehaviour
     /// <summary>
     /// Set this to use a specific collider for checks instead of grabbing the collider from gameObject.collider2D.
     /// </summary>
-    public Collider2D colliderToUse
-    {
-        get
-        {
-            return _colliderToUse;
-        }
-        set
-        {
-            _colliderToUse = value;
-            BuildCollisionMask();
-        }
-    }
+    public Collider2D colliderToUse { get; set; }
 
     /// <summary>
     /// Whether or not the motor is on a slope. This can be simply walking on a slope or slipping.
@@ -691,31 +685,6 @@ public class PlatformerMotor2D : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Call this if the collision matrix has changed for the layer the collider is on. This updates the internal view.
-    /// </summary>
-    public void BuildCollisionMask()
-    {
-        _collisionMask = 0;
-
-        for (int i = 0; i < 32; i++)
-        {
-            if (!Physics2D.GetIgnoreLayerCollision(_collider2D.gameObject.layer, i))
-            {
-                _collisionMask |= (1 << i);
-            }
-        }
-
-        if (!checkForOneWayPlatforms && (_collisionMask & (1 << _collider2D.gameObject.layer)) != 0)
-        {
-            _internalCheckForOneWayPlatforms = true;
-        }
-        else
-        {
-            _internalCheckForOneWayPlatforms = checkForOneWayPlatforms;
-        }
-    }
-
     #endregion
 
     #region Private
@@ -730,16 +699,13 @@ public class PlatformerMotor2D : MonoBehaviour
     private Vector2[] _collidedNormals = new Vector2[DIRECTIONS_CHECKED];
     private MotorState _prevState;
     private Bounds _prevColliderBounds;
-    private int _collisionMask;
-    private Collider2D _colliderToUse;
     private Collider2D _colliderOnObj;
     private float _dotAllowedForSlopes;
     private float _cornerDistanceCheck;
     private Vector2 _bottomRight;
     private Vector3 _toTransform;
-    private int _previousLayer;
-    private bool _internalCheckForOneWayPlatforms;
     private float _currentDeltaTime;
+    private Rigidbody2D _rigidbody2D;
 
     // This is the unconverted motor velocity. This ignores slopes. It is converted into the appropriate vector before
     // moving.
@@ -892,6 +858,7 @@ public class PlatformerMotor2D : MonoBehaviour
     {
         SetDashFunctions();
         _colliderOnObj = GetComponent<Collider2D>();
+        _rigidbody2D = GetComponent<Rigidbody2D>();
 
         if (iterationDebug)
         {
@@ -910,30 +877,26 @@ public class PlatformerMotor2D : MonoBehaviour
 
         _bottomRight = new Vector2(1, -1).normalized;
         _toTransform = transform.position - _collider2D.bounds.center;
-        BuildCollisionMask();
+
         SetSlopeDegreeAllowed();
     }
 
     private void OnEnable()
     {
-        Rigidbody2D rb = GetComponent<Rigidbody2D>();
-
-        if (rb != null)
+        if (_rigidbody2D != null)
         {
-            _velocity = rb.velocity;
-            _originalKinematic = rb.isKinematic;
-            rb.isKinematic = true;
+            _velocity = _rigidbody2D.velocity;
+            _originalKinematic = _rigidbody2D.isKinematic;
+            _rigidbody2D.isKinematic = true;
         }
     }
 
     private void OnDisable()
     {
-        Rigidbody2D rb = GetComponent<Rigidbody2D>();
-
-        if (rb != null)
+        if (_rigidbody2D != null)
         {
-            rb.velocity = _velocity;
-            rb.isKinematic = _originalKinematic;
+            _rigidbody2D.velocity = _velocity;
+            _rigidbody2D.isKinematic = _originalKinematic;
         }
     }
 
@@ -991,11 +954,6 @@ public class PlatformerMotor2D : MonoBehaviour
         if (_collider2D.bounds != _prevColliderBounds)
         {
             _toTransform = transform.position - _collider2D.bounds.center;
-        }
-
-        if (_collider2D.gameObject.layer != _previousLayer)
-        {
-            BuildCollisionMask();
         }
     }
 
@@ -1143,7 +1101,7 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         MovePosition(_collider2D.bounds.center + (Vector3)_velocity * GetDeltaTime());
-
+        
         if (numberOfIterationsAllowed == 1 || 
             (targetPos - _collider2D.bounds.center).sqrMagnitude < DISTANCE_TO_END_ITERATION * DISTANCE_TO_END_ITERATION)
         {
@@ -1281,7 +1239,6 @@ public class PlatformerMotor2D : MonoBehaviour
         UpdateState(movingPlatformLayerMask != 0);
 
         _prevColliderBounds = _collider2D.bounds;
-        _previousLayer = _collider2D.gameObject.layer;
 
         return deltaTime;
     }
@@ -1595,6 +1552,8 @@ public class PlatformerMotor2D : MonoBehaviour
             {
                 _jumping.allowExtraDuration -= GetDeltaTime();
                 _jumping.ignoreGravity = true;
+
+                Debug.Log("Ignore gravity!");
             }
         }
 
@@ -2128,7 +2087,6 @@ public class PlatformerMotor2D : MonoBehaviour
         {
             transform.position = _toTransform + newPos;
         }
-
     }
 
     private Vector3 GetMovementDir(float speed)
@@ -2227,7 +2185,7 @@ public class PlatformerMotor2D : MonoBehaviour
             return false;
         }
 
-        Collider2D col = Physics2D.OverlapArea(min, max, _collisionMask);
+        Collider2D col = Physics2D.OverlapArea(min, max, checkMask | movingPlatformLayerMask);
 
         return col == null;
     }
@@ -2281,7 +2239,7 @@ public class PlatformerMotor2D : MonoBehaviour
             direction,
             useExternalHits ? _hits : _hitsNoDistance,
             distance,
-            _collisionMask);
+            checkMask | movingPlatformLayerMask);
 
         if (num > _hits.Length)
         {
@@ -2302,7 +2260,7 @@ public class PlatformerMotor2D : MonoBehaviour
             direction,
             useExternalHits ? _hits : _hitsNoDistance,
             distance,
-            _collisionMask);
+            checkMask | movingPlatformLayerMask);
 
         return num;
     }
@@ -2318,7 +2276,7 @@ public class PlatformerMotor2D : MonoBehaviour
             direction,
             useExternalHits ? _hits : _hitsNoDistance,
             distance,
-            _collisionMask);
+            checkMask | movingPlatformLayerMask);
 
         if (num > _hits.Length)
         {
@@ -2337,7 +2295,7 @@ public class PlatformerMotor2D : MonoBehaviour
             direction,
             useExternalHits ? _hits : _hitsNoDistance,
             distance,
-            _collisionMask);
+            checkMask | movingPlatformLayerMask);
 
         return num;
     }
@@ -2348,15 +2306,21 @@ public class PlatformerMotor2D : MonoBehaviour
         float distance,
         bool useBox = true)
     {
-        if (!_internalCheckForOneWayPlatforms)
+        if (!checkForOneWayPlatforms)
         {
             // This is much easier if we don't care about one way platforms.
             if (useBox)
             {
-                return Physics2D.BoxCast(origin, _collider2D.bounds.size, 0f, direction, distance, _collisionMask);
+                return Physics2D.BoxCast(
+                    origin, 
+                    _collider2D.bounds.size, 
+                    0f, 
+                    direction, 
+                    distance, 
+                    checkMask | movingPlatformLayerMask);
             }
 
-            return Physics2D.Raycast(origin, direction, distance, _collisionMask);
+            return Physics2D.Raycast(origin, direction, distance, checkMask | movingPlatformLayerMask);
         }
 
         // For one way platforms, things get interesting!
@@ -2384,11 +2348,6 @@ public class PlatformerMotor2D : MonoBehaviour
 
         for (int i = 0; i < numOfHits; i++)
         {
-            if (_hits[i].collider == _collider2D)
-            {
-                continue;
-            }
-
             if (_hits[i].collider.usedByEffector &&
                 _hits[i].collider.GetComponent<PlatformEffector2D>().useOneWay)
             {

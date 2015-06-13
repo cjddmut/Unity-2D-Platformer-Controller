@@ -65,6 +65,7 @@ public class PlatformerMotor2DEditor : Editor
     private SerializedProperty _dashEasingFunctionProp;
     private SerializedProperty _endDashDelay;
 
+    private SerializedProperty _staticEnvironmentCheckMaskProp;
     private SerializedProperty _movingPlatformMaskProp;
     private SerializedProperty _checkDistanceProp;
     private SerializedProperty _distanceFromEnvironmentProp;
@@ -132,6 +133,7 @@ public class PlatformerMotor2DEditor : Editor
         _dashEasingFunctionProp = serializedObject.FindProperty("dashEasingFunction");
         _endDashDelay = serializedObject.FindProperty("endDashDelay");
 
+        _staticEnvironmentCheckMaskProp = serializedObject.FindProperty("checkMask");
         _movingPlatformMaskProp = serializedObject.FindProperty("movingPlatformLayerMask");
         _checkDistanceProp = serializedObject.FindProperty("checkDistance");
         _distanceFromEnvironmentProp = serializedObject.FindProperty("distanceFromEnvironment");
@@ -147,7 +149,7 @@ public class PlatformerMotor2DEditor : Editor
         GUIStyle boldStyle = new GUIStyle();
         boldStyle.fontStyle = FontStyle.Bold;
 
-        if (!Physics2D.raycastsStartInColliders && 
+        if (!Physics2D.raycastsStartInColliders &&
             (_movingPlatformMaskProp.hasMultipleDifferentValues || _movingPlatformMaskProp.intValue != 0))
         {
             EditorGUILayout.HelpBox(
@@ -156,11 +158,29 @@ public class PlatformerMotor2DEditor : Editor
                 true);
         }
 
-        EditorGUILayout.Separator();
+        if (!_staticEnvironmentCheckMaskProp.hasMultipleDifferentValues && _staticEnvironmentCheckMaskProp.intValue == 0)
+        {
+            EditorGUILayout.HelpBox(
+                "Static Environment Layer Mask is required to be set!",
+                MessageType.Error,
+                true);
+        }
+
+        if (!_staticEnvironmentCheckMaskProp.hasMultipleDifferentValues && 
+            (_staticEnvironmentCheckMaskProp.intValue & (1 << ((PlatformerMotor2D)target).gameObject.layer)) != 0)
+        {
+            EditorGUILayout.HelpBox(
+                "The Static Environment Layer Mask should not include the layer the motor is on!",
+                MessageType.Error,
+                true);
+        }
+
+    EditorGUILayout.Separator();
         _showGeneral = EditorGUILayout.Foldout(_showGeneral, "General");
 
         if (_showGeneral)
         {
+            EditorGUILayout.PropertyField(_staticEnvironmentCheckMaskProp, new GUIContent("Static Environment Layer Mask"));
             EditorGUILayout.PropertyField(_movingPlatformMaskProp, new GUIContent("Moving Platform Layer Mask"));
             EditorGUILayout.PropertyField(_checkDistanceProp, new GUIContent("Environment Check Distance"));
             EditorGUILayout.PropertyField(_distanceFromEnvironmentProp, new GUIContent("Minimum Distance From Env"));
@@ -168,20 +188,6 @@ public class PlatformerMotor2DEditor : Editor
             EditorGUILayout.PropertyField(_numberOfIterationsAllowedProp, new GUIContent("Number of Iterations"));
 
             EditorGUILayout.PropertyField(_checkForOneWayPlatformsProp, new GUIContent("Check for One Way Platforms"));
-
-            if (!serializedObject.isEditingMultipleObjects &&
-                !_checkForOneWayPlatformsProp.boolValue)
-            {
-                Collider2D col = ((PlatformerMotor2D) target).GetComponent<Collider2D>();
-
-                if (col != null && !Physics2D.GetIgnoreLayerCollision(col.gameObject.layer, col.gameObject.layer))
-                {
-                    EditorGUILayout.HelpBox(
-                        "To ignore One Way Platforms, the collider's layer needs to not collide with itself in the Physics 2D settings.",
-                        MessageType.Warning,
-                        true);
-                }
-            }
             EditorGUILayout.Separator();
         }
 
