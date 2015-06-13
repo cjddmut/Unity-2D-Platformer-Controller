@@ -16,7 +16,7 @@ If you'd like the most up to date version (which is the most cool), then pull th
 
 ## Setup
 
-For immediate player support, drop the Basic Player Controller prefab into the scene. For more complicated interaction, interface with PlatformerMotor2D's members and methods.
+For immediate player support, drop the Basic Player Controller prefab into the scene and set the Static Environment Layer Mask field. For more complicated interaction, interface with PlatformerMotor2D's members and methods.
 
 ## Requirements of PlatformerMotor2D
 
@@ -27,6 +27,8 @@ The motor requires that a Collider2D be present on the GameObject or that a Coll
 ## PlatformerMotor2D Inspector Properties
 
 ### General ###
+
+**Static Environment Layer Mask** - This tells the motor what layer collisions to consider the environment (to determine if on the ground, wall, or corner). These are environments that shouldn't be able to move into the player.
 
 **Moving Platform Layer Mask** - What layer contains moving platforms. The motor uses this knowledge to grab a MovingPlatformMotor2D component from the platforms. This requires that 'Raycasts Start in Colliders' is true in the Physics 2D settings. If there aren't any moving platforms then make sure this value is 'Nothing' (or 0). The motor will be more efficient.
 
