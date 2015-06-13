@@ -280,9 +280,20 @@ public class PlatformerMotor2D : MonoBehaviour
     public bool checkForOneWayPlatforms = true;
 
     /// <summary>
-    /// Internal gizmos debug rendering.
+    /// The number of iterations the motor is allowed to make during the fixed update. Lower number will be more performant
+    /// at a cost of losing some movement when collisions occur.
     /// </summary>
-    public bool debug;
+    public int numberOfIterationsAllowed = 2;
+
+    /// <summary>
+    /// Internal gizmos moving platform debug rendering.
+    /// </summary>
+    public bool movingPlatformDebug;
+
+    /// <summary>
+    /// Internal gizmos for iteration debugging.
+    /// </summary>
+    public bool iterationDebug;
 
     /// <summary>
     /// The states the motor can be in.
@@ -728,6 +739,7 @@ public class PlatformerMotor2D : MonoBehaviour
     private Vector3 _toTransform;
     private int _previousLayer;
     private bool _internalCheckForOneWayPlatforms;
+    private float _currentDeltaTime;
 
     // This is the unconverted motor velocity. This ignores slopes. It is converted into the appropriate vector before
     // moving.
@@ -742,12 +754,16 @@ public class PlatformerMotor2D : MonoBehaviour
     private float _currentWallJumpDegree;
     private float _currentSlopeDegreeAllowed;
 
-    // Debug
+    // Moving Platform Debug
     private Vector3 _point;
     private Vector3 _point2;
     private Bounds _prevPosPlat;
     private Bounds _startPosMotor;
     private Bounds _movedPosMotor;
+
+    // Iteration Debug
+    private int _iterationsUsed;
+    private Bounds[] _iterationBounds;
 
     // Contains the various jump variables, this is for organization.
     private class JumpState
@@ -843,6 +859,8 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private const float NEAR_ZERO = 0.0001f;
 
+    private const float DISTANCE_TO_END_ITERATION = 0.001f;
+
     private const int STARTING_ARRAY_SIZE = 4;
     private const float INCREASE_ARRAY_SIZE_MULTIPLIER = 2;
 
@@ -874,6 +892,11 @@ public class PlatformerMotor2D : MonoBehaviour
     {
         SetDashFunctions();
         _colliderOnObj = GetComponent<Collider2D>();
+
+        if (iterationDebug)
+        {
+            _iterationBounds = new Bounds[2 + numberOfIterationsAllowed];
+        }
     }
 
     private void Start()
@@ -1051,7 +1074,7 @@ public class PlatformerMotor2D : MonoBehaviour
             {
                 if (fallFast)
                 {
-                    _velocity.y += 
+                    _velocity.y +=
                         fastFallGravityMultiplier *
                         GetDeltaTime() *
                        Physics2D.gravity.y;
@@ -1065,7 +1088,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 {
                     if (_dashing.gravityEnabledTimer <= 0)
                     {
-                        _velocity.y += 
+                        _velocity.y +=
                             gravityMultiplier *
                             GetDeltaTime() *
                             Physics2D.gravity.y;
@@ -1083,7 +1106,7 @@ public class PlatformerMotor2D : MonoBehaviour
         }
     }
 
-    private void MoveMotor()
+    private float MoveMotor()
     {
         if (motorState == MotorState.Dashing)
         {
@@ -1102,11 +1125,33 @@ public class PlatformerMotor2D : MonoBehaviour
             MovePosition(_collider2D.bounds.center + (Vector3)_dashing.dashDir * (distance - _dashing.distanceCalculated));
             _dashing.distanceCalculated = distance;
 
+            // Right now dash only moves along a line, doesn't ever need to adjust. We don't need multiple iterations for that.
+            return 0;
         }
-        else
+
+        Vector3 curPos = _collider2D.bounds.center;
+        Vector3 targetPos = _collider2D.bounds.center + (Vector3)_velocity * GetDeltaTime();
+
+        if (iterationDebug && _currentDeltaTime == Time.fixedDeltaTime)
         {
-            MovePosition(_collider2D.bounds.center + (Vector3)_velocity * GetDeltaTime());
+            _iterationBounds[0] = _collider2D.bounds;
+
+            Bounds b = _collider2D.bounds;
+            b.center = targetPos;
+
+            _iterationBounds[1] = b;
         }
+
+        MovePosition(_collider2D.bounds.center + (Vector3)_velocity * GetDeltaTime());
+
+        if (numberOfIterationsAllowed == 1 || 
+            (targetPos - _collider2D.bounds.center).sqrMagnitude < DISTANCE_TO_END_ITERATION * DISTANCE_TO_END_ITERATION)
+        {
+            return 0;
+        }
+
+        return Mathf.Lerp(_currentDeltaTime, 0,
+            (_collider2D.bounds.center - curPos).magnitude / (targetPos - curPos).magnitude);
     }
 
     private void UpdateState(bool forceSurroundingsCheck)
@@ -1191,6 +1236,26 @@ public class PlatformerMotor2D : MonoBehaviour
             return;
         }
 
+        float time = Time.fixedDeltaTime;
+        int iterations = 0;
+        _iterationsUsed = 0;
+
+        while (time > 0 && iterations < numberOfIterationsAllowed)
+        {
+            time = UpdateMotor(time);
+            iterations++;
+
+            if (iterationDebug)
+            {
+                _iterationBounds[(_iterationsUsed++) + 2] = _collider2D.bounds;
+            }
+        }
+    }
+
+    private float UpdateMotor(float deltaTime)
+    {
+        _currentDeltaTime = deltaTime;
+
         UpdateProperties();
 
         // The update phase is broken up into five phases each with certain responsibilities.
@@ -1209,7 +1274,7 @@ public class PlatformerMotor2D : MonoBehaviour
         UpdateVelocity();
 
         // Phase Four: Move the motor to the new location
-        MoveMotor();
+        deltaTime = MoveMotor();
 
         // Phase Five: Update internal state so it can be accurately queried and ready for next step. We have to force all sides
         //             if there is moving platforms. They can move next to us, or away from us, without us knowing.
@@ -1217,6 +1282,8 @@ public class PlatformerMotor2D : MonoBehaviour
 
         _prevColliderBounds = _collider2D.bounds;
         _previousLayer = _collider2D.gameObject.layer;
+
+        return deltaTime;
     }
 
     private bool UpdateMovingPlatform()
@@ -1227,7 +1294,7 @@ public class PlatformerMotor2D : MonoBehaviour
             return false;
         }
 
-        if (debug)
+        if (movingPlatformDebug)
         {
             _point = new Vector3();
             _point2 = new Vector3();
@@ -1244,16 +1311,16 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         RaycastHit2D hit = Physics2D.BoxCast(
-            _collider2D.bounds.center, 
-            _collider2D.bounds.size, 
-            0f, 
+            _collider2D.bounds.center,
+            _collider2D.bounds.size,
+            0f,
             Vector3.right,
-            0f, 
+            0f,
             movingPlatformLayerMask);
 
         if (hit.collider != null)
         {
-            if (debug)
+            if (movingPlatformDebug)
             {
                 _point = hit.point;
             }
@@ -1264,7 +1331,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
             Vector3 curLoc;
 
-            if (debug)
+            if (movingPlatformDebug)
             {
                 curLoc = mpMotor.position;
                 mpMotor.transform.position = mpMotor.previousPosition;
@@ -1291,14 +1358,14 @@ public class PlatformerMotor2D : MonoBehaviour
                         mpMotor.transform.position = curLoc;
 
                         hit = Physics2D.Raycast(
-                            hit.point + Vector2.up * _collider2D.bounds.size.y, 
-                            Vector3.down, 
+                            hit.point + Vector2.up * _collider2D.bounds.size.y,
+                            Vector3.down,
                             _collider2D.bounds.size.y + checkDistance,
                             movingPlatformLayerMask);
 
                         if (hit.collider != null)
                         {
-                            if (debug)
+                            if (movingPlatformDebug)
                             {
                                 _point2 = hit.point;
                             }
@@ -1323,7 +1390,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 Vector2 toNewPos = mpMotor.position - mpMotor.previousPosition;
                 Vector2 toNewPosNorm = toNewPos.normalized;
 
-                float distance = ((Vector3)GetPointOnBounds(_collider2D.bounds, _collider2D.bounds.center, toNewPosNorm) - 
+                float distance = ((Vector3)GetPointOnBounds(_collider2D.bounds, _collider2D.bounds.center, toNewPosNorm) -
                     _collider2D.bounds.center).magnitude * 2;
 
                 RaycastHit2D hit2 = Physics2D.Raycast(
@@ -1336,14 +1403,14 @@ public class PlatformerMotor2D : MonoBehaviour
                 {
                     transform.position += (Vector3)toNewPosNorm * ((hit2.point - hit.point).magnitude + distanceFromEnvironment);
 
-                    if (debug)
+                    if (movingPlatformDebug)
                     {
                         _point2 = hit2.point;
                     }
                 }
             }
 
-            if (debug)
+            if (movingPlatformDebug)
             {
                 _movedPosMotor = _collider2D.bounds;
             }
@@ -1428,7 +1495,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private float GetDeltaTime()
     {
-        return Time.fixedDeltaTime * timeScale;
+        return _currentDeltaTime * timeScale;
     }
 
     private void SetDashFunctions()
@@ -1745,8 +1812,8 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         // Wall slide?
-        if (allowWallSlide && 
-            motorState != MotorState.Clinging && 
+        if (allowWallSlide &&
+            motorState != MotorState.Clinging &&
             motorState != MotorState.OnCorner)
         {
             if (_velocity.y <= 0 && (PressingIntoLeftWall() || PressingIntoRightWall()) && !IsGrounded())
@@ -1887,8 +1954,15 @@ public class PlatformerMotor2D : MonoBehaviour
             }
         }
 
-        if (HasFlag(CollidedSurface.LeftWall) && _collidedNormals[DIRECTION_LEFT] == Vector2.right && _velocity.x < 0 ||
-            HasFlag(CollidedSurface.RightWall) && _collidedNormals[DIRECTION_RIGHT] == -Vector2.right && _velocity.x > 0)
+        // These mean we can't progress forward. Either a wall or a slope
+        if (HasFlag(CollidedSurface.LeftWall) &&
+            _velocity.x < 0 &&
+            _collidedNormals[DIRECTION_LEFT] == Vector2.right ||
+            HasFlag(CollidedSurface.RightWall) &&
+            _velocity.x > 0 &&
+            _collidedNormals[DIRECTION_RIGHT] == Vector2.left ||
+            (HasFlag(CollidedSurface.SlopeRight) && _velocity.x > 0 || HasFlag(CollidedSurface.SlopeLeft) && _velocity.x < 0) &&
+            Vector2.Dot(Vector2.up, slopeNormal) < _dotAllowedForSlopes)
         {
             _velocity.x = 0;
         }
@@ -2048,7 +2122,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
         if (hit.collider != null)
         {
-            transform.position = _toTransform + (Vector3)hit.centroid - (toNewPos / distance) * distanceFromEnvironment;
+            transform.position = _toTransform + (Vector3)hit.centroid + (Vector3)hit.normal * distanceFromEnvironment;
         }
         else
         {
@@ -2069,7 +2143,7 @@ public class PlatformerMotor2D : MonoBehaviour
             speed = normalizedXMovement;
         }
 
-        if (!onSlope && 
+        if (!onSlope &&
             ((!HasFlag(CollidedSurface.SlopeLeft) && !HasFlag(CollidedSurface.SlopeRight)) ||
             (facingLeft && HasFlag(CollidedSurface.SlopeRight)) ||
             (!facingLeft && HasFlag(CollidedSurface.SlopeLeft)) ||
@@ -2444,7 +2518,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
                 if (_collider2D.bounds.center.x - closestHit.centroid.x < distanceFromEnvironment)
                 {
-                    transform.position += (distanceFromEnvironment - 
+                    transform.position += (distanceFromEnvironment -
                         (_collider2D.bounds.center.x - closestHit.centroid.x)) * Vector3.right;
                 }
             }
@@ -2465,7 +2539,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
                 if (closestHit.centroid.y - _collider2D.bounds.center.y < distanceFromEnvironment)
                 {
-                    transform.position += (distanceFromEnvironment - 
+                    transform.position += (distanceFromEnvironment -
                         (closestHit.centroid.y - _collider2D.bounds.center.y)) * Vector3.down;
                 }
             }
@@ -2491,9 +2565,9 @@ public class PlatformerMotor2D : MonoBehaviour
             }
         }
 
-        if (forceCheck || 
-            Vector2.Dot(vecToCheck, Vector2.down) >= 0 || 
-            onSlope || 
+        if (forceCheck ||
+            Vector2.Dot(vecToCheck, Vector2.down) >= 0 ||
+            onSlope ||
             (HasFlag(CollidedSurface.Ground) && motorState != MotorState.Jumping))
         {
             // Ground
@@ -2638,7 +2712,7 @@ public class PlatformerMotor2D : MonoBehaviour
         Gizmos.color = Color.blue;
         Gizmos.DrawLine(from, from + Vector2.right * airStopDistance);
 
-        if (debug)
+        if (movingPlatformDebug)
         {
             Gizmos.color = Color.red;
             Gizmos.DrawSphere(_point, 0.01f);
@@ -2650,6 +2724,22 @@ public class PlatformerMotor2D : MonoBehaviour
             Gizmos.color = Color.green;
             Gizmos.DrawSphere(_point2, 0.01f);
             Gizmos.DrawWireCube(_movedPosMotor.center, _movedPosMotor.size);
+        }
+
+        if (iterationDebug && _iterationBounds != null)
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireCube(_iterationBounds[0].center, _iterationBounds[0].size);
+
+            Gizmos.color = Color.blue;
+
+            for (int i = 2; i < _iterationsUsed + 2; i++)
+            {
+                Gizmos.DrawWireCube(_iterationBounds[i].center, _iterationBounds[i].size);
+            }
+
+            Gizmos.color = Color.green;
+            Gizmos.DrawWireCube(_iterationBounds[1].center, _iterationBounds[1].size);
         }
     }
 

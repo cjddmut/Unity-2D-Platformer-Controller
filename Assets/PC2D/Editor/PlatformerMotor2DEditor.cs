@@ -70,6 +70,7 @@ public class PlatformerMotor2DEditor : Editor
     private SerializedProperty _distanceFromEnvironmentProp;
     private SerializedProperty _wallInteractionThresholdProp;
     private SerializedProperty _checkForOneWayPlatformsProp;
+    private SerializedProperty _numberOfIterationsAllowedProp;
 
     private bool _showGeneral;
     private bool _showMovement;
@@ -78,8 +79,6 @@ public class PlatformerMotor2DEditor : Editor
     private bool _showWallInteractions;
     private bool _showDashing;
     private bool _showInformation;
-
-    private const string NEWLINE = "\n";
 
     void OnEnable()
     {
@@ -137,6 +136,7 @@ public class PlatformerMotor2DEditor : Editor
         _checkDistanceProp = serializedObject.FindProperty("checkDistance");
         _distanceFromEnvironmentProp = serializedObject.FindProperty("distanceFromEnvironment");
         _checkForOneWayPlatformsProp = serializedObject.FindProperty("checkForOneWayPlatforms");
+        _numberOfIterationsAllowedProp = serializedObject.FindProperty("numberOfIterationsAllowed");
 
         _wallInteractionThresholdProp = serializedObject.FindProperty("wallInteractionThreshold");
     }
@@ -164,6 +164,8 @@ public class PlatformerMotor2DEditor : Editor
             EditorGUILayout.PropertyField(_movingPlatformMaskProp, new GUIContent("Moving Platform Layer Mask"));
             EditorGUILayout.PropertyField(_checkDistanceProp, new GUIContent("Environment Check Distance"));
             EditorGUILayout.PropertyField(_distanceFromEnvironmentProp, new GUIContent("Minimum Distance From Env"));
+
+            EditorGUILayout.PropertyField(_numberOfIterationsAllowedProp, new GUIContent("Number of Iterations"));
 
             EditorGUILayout.PropertyField(_checkForOneWayPlatformsProp, new GUIContent("Check for One Way Platforms"));
 
@@ -353,6 +355,12 @@ public class PlatformerMotor2DEditor : Editor
             _distanceFromEnvironmentProp.floatValue <= Globals.MINIMUM_DISTANCE_CHECK)
         {
             _distanceFromEnvironmentProp.floatValue = Globals.MINIMUM_DISTANCE_CHECK;
+        }
+
+        if (!_numberOfIterationsAllowedProp.hasMultipleDifferentValues &&
+            _numberOfIterationsAllowedProp.intValue < 0)
+        {
+            _numberOfIterationsAllowedProp.intValue = 1;
         }
     }
 
