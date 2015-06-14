@@ -66,7 +66,10 @@ public class PlatformerMotor2DEditor : Editor
     private SerializedProperty _endDashDelay;
 
     private SerializedProperty _staticEnvironmentCheckMaskProp;
+    
     private SerializedProperty _movingPlatformMaskProp;
+    private SerializedProperty _additionalRaycastsPerSideProp;
+
     private SerializedProperty _checkDistanceProp;
     private SerializedProperty _distanceFromEnvironmentProp;
     private SerializedProperty _wallInteractionThresholdProp;
@@ -134,7 +137,10 @@ public class PlatformerMotor2DEditor : Editor
         _endDashDelay = serializedObject.FindProperty("endDashDelay");
 
         _staticEnvironmentCheckMaskProp = serializedObject.FindProperty("checkMask");
+
         _movingPlatformMaskProp = serializedObject.FindProperty("movingPlatformLayerMask");
+        _additionalRaycastsPerSideProp = serializedObject.FindProperty("additionalRaycastsPerSide");
+
         _checkDistanceProp = serializedObject.FindProperty("checkDistance");
         _distanceFromEnvironmentProp = serializedObject.FindProperty("distanceFromEnvironment");
         _checkForOneWayPlatformsProp = serializedObject.FindProperty("checkForOneWayPlatforms");
@@ -181,13 +187,21 @@ public class PlatformerMotor2DEditor : Editor
         if (_showGeneral)
         {
             EditorGUILayout.PropertyField(_staticEnvironmentCheckMaskProp, new GUIContent("Static Environment Layer Mask"));
-            EditorGUILayout.PropertyField(_movingPlatformMaskProp, new GUIContent("Moving Platform Layer Mask"));
             EditorGUILayout.PropertyField(_checkDistanceProp, new GUIContent("Environment Check Distance"));
             EditorGUILayout.PropertyField(_distanceFromEnvironmentProp, new GUIContent("Minimum Distance From Env"));
 
             EditorGUILayout.PropertyField(_numberOfIterationsAllowedProp, new GUIContent("Number of Iterations"));
 
             EditorGUILayout.PropertyField(_checkForOneWayPlatformsProp, new GUIContent("Check for One Way Platforms"));
+            EditorGUILayout.Separator();
+            EditorGUILayout.PropertyField(_movingPlatformMaskProp, new GUIContent("Moving Platform Layer Mask"));
+
+            if (_movingPlatformMaskProp.hasMultipleDifferentValues || _movingPlatformMaskProp.intValue != 0)
+            {
+                EditorGUILayout.PropertyField(_additionalRaycastsPerSideProp,
+                    new GUIContent("Additional Raycasts Per Side"));
+            }
+
             EditorGUILayout.Separator();
         }
 

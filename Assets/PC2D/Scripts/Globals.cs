@@ -19,6 +19,6 @@
 
         public const string PACKAGE_NAME = "PC2D";
 
-        public const float MINIMUM_DISTANCE_CHECK = 0.005f;
+        public const float MINIMUM_DISTANCE_CHECK = 0.01f;
     }
 }

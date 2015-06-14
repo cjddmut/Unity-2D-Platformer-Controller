@@ -291,6 +291,13 @@ public class PlatformerMotor2D : MonoBehaviour
     public int numberOfIterationsAllowed = 2;
 
     /// <summary>
+    /// When checking for moving platforms that may have moved into the motor the corners are automatically casted on. This
+    /// variable impacts how many more casts are made to each side. If the smallest size environment is the same size or bigger
+    /// than the motor (width and height) then this can be 0. If it's at least half size then this can be 1. Increasing this
+    /// number allows separation from smaller platform pieces but at a performance cost.
+    /// </summary>
+    public int additionalRaycastsPerSide;
+    /// <summary>
     /// Internal gizmos moving platform debug rendering.
     /// </summary>
     public bool movingPlatformDebug;
@@ -702,10 +709,12 @@ public class PlatformerMotor2D : MonoBehaviour
     private Collider2D _colliderOnObj;
     private float _dotAllowedForSlopes;
     private float _cornerDistanceCheck;
+    private float _distanceFromEnvCorner;
     private Vector2 _bottomRight;
     private Vector3 _toTransform;
     private float _currentDeltaTime;
     private Rigidbody2D _rigidbody2D;
+    private float _distanceToBoundsCorner;
 
     // This is the unconverted motor velocity. This ignores slopes. It is converted into the appropriate vector before
     // moving.
@@ -874,6 +883,9 @@ public class PlatformerMotor2D : MonoBehaviour
         _currentWallJumpDegree = wallJumpDegree;
 
         _cornerDistanceCheck = Mathf.Sqrt(2 * checkDistance * checkDistance);
+        _distanceFromEnvCorner = Mathf.Sqrt(2 * distanceFromEnvironment * distanceFromEnvironment);
+
+        _distanceToBoundsCorner = (_collider2D.bounds.max - _collider2D.bounds.center).magnitude;
 
         _bottomRight = new Vector2(1, -1).normalized;
         _toTransform = transform.position - _collider2D.bounds.center;
@@ -907,7 +919,7 @@ public class PlatformerMotor2D : MonoBehaviour
         _currentSlopeDegreeAllowed = degreeAllowedForSlopes;
     }
 
-    private static Vector2 GetPointOnBounds(Bounds bounds, Vector3 origin, Vector3 toPoint)
+    private static Vector2 GetPointOnBounds(Bounds bounds, Vector3 toPoint)
     {
         // From http://stackoverflow.com/questions/4061576/finding-points-on-a-rectangle-at-a-given-angle
         float angle = Vector3.Angle(Vector3.right, toPoint);
@@ -930,8 +942,8 @@ public class PlatformerMotor2D : MonoBehaviour
             }
 
             return new Vector2(
-                multiplier * bounds.size.x / 2 + origin.x,
-                origin.y + multiplier * ((bounds.size.x / 2) * Mathf.Tan(angle * Mathf.Deg2Rad)));
+                multiplier * bounds.size.x / 2 + bounds.center.x,
+                bounds.center.y + multiplier * ((bounds.size.x / 2) * Mathf.Tan(angle * Mathf.Deg2Rad)));
         }
 
         if (angle >= 225f)
@@ -940,8 +952,8 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         return new Vector2(
-            origin.x + multiplier * bounds.size.y / (2 * Mathf.Tan(angle * Mathf.Deg2Rad)),
-            multiplier * bounds.size.y / 2 + origin.y);
+            bounds.center.x + multiplier * bounds.size.y / (2 * Mathf.Tan(angle * Mathf.Deg2Rad)),
+            multiplier * bounds.size.y / 2 + bounds.center.y);
     }
 
     private void UpdateProperties()
@@ -954,6 +966,11 @@ public class PlatformerMotor2D : MonoBehaviour
         if (_collider2D.bounds != _prevColliderBounds)
         {
             _toTransform = transform.position - _collider2D.bounds.center;
+        }
+
+        if (_collider2D.bounds.size != _prevColliderBounds.size)
+        {
+            _distanceToBoundsCorner = _collider2D.bounds.extents.magnitude;
         }
     }
 
@@ -1219,8 +1236,15 @@ public class PlatformerMotor2D : MonoBehaviour
         // The update phase is broken up into five phases each with certain responsibilities.
 
         // Phase One: Update internal state if something forced the motor into an unexpected state. This can be because
-        //            a moving platform moved into us or our collider changed.
-        if (UpdateMovingPlatform() || _prevColliderBounds != _collider2D.bounds)
+        //            a moving platform moved into us or our collider changed. This could means three UpdateStates, which is
+        //            expensive, but we need to know our state.
+
+        if (_prevColliderBounds != _collider2D.bounds)
+        {
+            UpdateState(true);
+        }
+
+        if (UpdateMovingPlatform())
         {
             UpdateState(true);
         }
@@ -1265,117 +1289,101 @@ public class PlatformerMotor2D : MonoBehaviour
         {
             Vector3 toNewPos = _movingPlatformState.platform.position - _movingPlatformState.previousPos;
             transform.position += toNewPos;
+
+            _prevColliderBounds = _collider2D.bounds;
         }
 
-        RaycastHit2D hit = Physics2D.BoxCast(
-            _collider2D.bounds.center,
-            _collider2D.bounds.size,
-            0f,
-            Vector3.right,
-            0f,
-            movingPlatformLayerMask);
+        Bounds checkBounds = _collider2D.bounds;
+        checkBounds.extents += Vector3.one * distanceFromEnvironment;
+
+        Collider2D col = Physics2D.OverlapArea(checkBounds.min, checkBounds.max, checkMask | movingPlatformLayerMask);
+
+        if (col != null)
+        {
+            SeparateFromEnvirionment();
+            return true;
+        }
+
+        return false;
+    }
+
+    private void SeparateFromEnvirionment()
+    {
+        // We'll start with the corners
+        RaycastAndSeparate(
+            (_collider2D.bounds.max - _collider2D.bounds.center) / _distanceToBoundsCorner,
+            _distanceToBoundsCorner + _distanceFromEnvCorner);
+
+        RaycastAndSeparate(
+            (new Vector3(_collider2D.bounds.max.x, _collider2D.bounds.min.y) - _collider2D.bounds.center) / 
+                _distanceToBoundsCorner,
+            _distanceToBoundsCorner + _distanceFromEnvCorner);
+
+        RaycastAndSeparate(
+            (_collider2D.bounds.min - _collider2D.bounds.center) / _distanceToBoundsCorner,
+            _distanceToBoundsCorner + _distanceFromEnvCorner);
+
+        RaycastAndSeparate(
+            (new Vector3(_collider2D.bounds.min.x, _collider2D.bounds.max.y) - _collider2D.bounds.center) /
+                _distanceToBoundsCorner,
+            _distanceToBoundsCorner + _distanceFromEnvCorner);
+
+        // These are more expensive...they only need to be done if piece of environment smaller (width/height) than the motor
+        // can move into it. Otherwise just set additionalRaycastsPerSide to 0.
+
+        // Top/Bottom
+        for (int i = 0; i < additionalRaycastsPerSide; i++)
+        {
+            Vector2 dir = new Vector2(
+                Mathf.Lerp(_collider2D.bounds.min.x, _collider2D.bounds.max.x, (float)(i + 1) / (additionalRaycastsPerSide + 1)), 
+                _collider2D.bounds.max.y) - (Vector2)_collider2D.bounds.center;
+
+            float distance = dir.magnitude;
+
+            RaycastAndSeparate(dir / distance, distance + distanceFromEnvironment);
+            RaycastAndSeparate(-dir / distance, distance + distanceFromEnvironment);
+        }
+
+        // Right/Left
+        for (int i = 0; i < additionalRaycastsPerSide; i++)
+        {
+            Vector2 dir = new Vector2(
+                _collider2D.bounds.max.x,
+                Mathf.Lerp(_collider2D.bounds.min.y, _collider2D.bounds.max.y,
+                    (float)(i + 1) / (additionalRaycastsPerSide + 1))) - (Vector2)_collider2D.bounds.center;
+
+            float distance = dir.magnitude;
+
+            RaycastAndSeparate(dir / distance, distance + distanceFromEnvironment);
+            RaycastAndSeparate(-dir / distance, distance + distanceFromEnvironment);
+        }
+    }
+
+    private void RaycastAndSeparate(Vector2 dir, float distance)
+    {
+        RaycastHit2D hit = GetClosestHit(_collider2D.bounds.center, dir, distance, false, true);
 
         if (hit.collider != null)
         {
+            Vector2 pointOnCol = GetPointOnBounds(_collider2D.bounds, -hit.normal);
+
+            Vector3 toPointOnCol = pointOnCol - hit.point;
+            Vector3 pointToSepFrom = (Vector3)hit.point + Vector3.Project(toPointOnCol, -hit.normal);
+
             if (movingPlatformDebug)
             {
                 _point = hit.point;
-            }
-
-            // Intersecting with a platform, we separate along the velocity unless we would have landed on it then it's only up.
-            MovingPlatformMotor2D mpMotor = hit.collider.GetComponent<MovingPlatformMotor2D>();
-            bool separateAlongMovement = true;
-
-            Vector3 curLoc;
-
-            if (movingPlatformDebug)
-            {
-                curLoc = mpMotor.position;
-                mpMotor.transform.position = mpMotor.previousPosition;
-                _prevPosPlat = mpMotor.GetComponent<Collider2D>().bounds;
-                mpMotor.transform.position = curLoc;
+                _point2 = pointToSepFrom;
                 _startPosMotor = _collider2D.bounds;
             }
 
-            if (mpMotor.position.y > mpMotor.previousPosition.y)
-            {
-                // Can only have landed on it if it is moving up.
-                curLoc = mpMotor.position;
-                mpMotor.transform.position = mpMotor.previousPosition;
-
-                float distance = curLoc.y - mpMotor.previousPosition.y;
-
-                int num = GetNearbyHitsBox(Vector3.down, distance, false);
-
-                for (int i = 0; i < num; i++)
-                {
-                    if (_hits[i].collider == hit.collider)
-                    {
-                        // Coming from underneath, just separate up.
-                        mpMotor.transform.position = curLoc;
-
-                        hit = Physics2D.Raycast(
-                            hit.point + Vector2.up * _collider2D.bounds.size.y,
-                            Vector3.down,
-                            _collider2D.bounds.size.y + checkDistance,
-                            movingPlatformLayerMask);
-
-                        if (hit.collider != null)
-                        {
-                            if (movingPlatformDebug)
-                            {
-                                _point2 = hit.point;
-                            }
-
-                            float moveUpBy = hit.point.y - _collider2D.bounds.min.y;
-                            transform.position += Vector3.up * (moveUpBy + distanceFromEnvironment);
-                        }
-
-                        separateAlongMovement = false;
-                        break;
-                    }
-                }
-
-                if (separateAlongMovement)
-                {
-                    mpMotor.transform.position = curLoc;
-                }
-            }
-
-            if (separateAlongMovement)
-            {
-                Vector2 toNewPos = mpMotor.position - mpMotor.previousPosition;
-                Vector2 toNewPosNorm = toNewPos.normalized;
-
-                float distance = ((Vector3)GetPointOnBounds(_collider2D.bounds, _collider2D.bounds.center, toNewPosNorm) -
-                    _collider2D.bounds.center).magnitude * 2;
-
-                RaycastHit2D hit2 = Physics2D.Raycast(
-                    hit.point + toNewPosNorm * distance,
-                    -toNewPosNorm,
-                    distance + checkDistance,
-                    movingPlatformLayerMask);
-
-                if (hit2.collider != null)
-                {
-                    transform.position += (Vector3)toNewPosNorm * ((hit2.point - hit.point).magnitude + distanceFromEnvironment);
-
-                    if (movingPlatformDebug)
-                    {
-                        _point2 = hit2.point;
-                    }
-                }
-            }
+            transform.position += ((Vector3)hit.point - pointToSepFrom) + (Vector3)hit.normal * distanceFromEnvironment;
 
             if (movingPlatformDebug)
             {
                 _movedPosMotor = _collider2D.bounds;
             }
-
-            return true;
         }
-
-        return false;
     }
 
     private void SetLastJumpType()
@@ -1495,12 +1503,18 @@ public class PlatformerMotor2D : MonoBehaviour
                 }
             }
         }
-        else if (PressingIntoLeftWall() && IsMovingPlatform(_collidersUpAgainst[DIRECTION_LEFT].gameObject))
+        else if ((IsOnWall() || IsGrounded()) && 
+            PressingIntoLeftWall() && 
+            IsMovingPlatform(_collidersUpAgainst[DIRECTION_LEFT].gameObject))
         {
+            // We allow the motor to attach when pressing into a moving platform. This prevent jitter as it's moving away from
+            // the motor.
             _movingPlatformState.platform = _collidersUpAgainst[DIRECTION_LEFT].GetComponent<MovingPlatformMotor2D>();
             _movingPlatformState.stuckToWall = CollidedSurface.LeftWall;
         }
-        else if (PressingIntoRightWall() && IsMovingPlatform(_collidersUpAgainst[DIRECTION_RIGHT].gameObject))
+        else if ((IsOnWall() || IsGrounded()) && 
+            PressingIntoRightWall() && 
+            IsMovingPlatform(_collidersUpAgainst[DIRECTION_RIGHT].gameObject))
         {
             _movingPlatformState.platform = _collidersUpAgainst[DIRECTION_RIGHT].GetComponent<MovingPlatformMotor2D>();
             _movingPlatformState.stuckToWall = CollidedSurface.RightWall;
@@ -1513,6 +1527,12 @@ public class PlatformerMotor2D : MonoBehaviour
                 _movingPlatformState.platform.onPlatformerMotorContact.Invoke(this);
             }
         }
+    }
+
+    private bool IsOnWall()
+    {
+        return motorState == MotorState.WallSliding || motorState == MotorState.OnCorner ||
+               motorState == MotorState.Clinging;
     }
 
     private bool IsMovingPlatform(GameObject obj)
@@ -2217,7 +2237,10 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private bool IsGrounded()
     {
-        return (HasFlag(CollidedSurface.Ground) || onSlope) && motorState != MotorState.Jumping;
+        return (HasFlag(CollidedSurface.Ground) || onSlope) &&
+               motorState != MotorState.Jumping &&
+               (onSlope && Vector2.Dot(_velocity, slopeNormal) <= 0 ||
+                Vector2.Dot(_velocity, Vector2.up) <= 0);
     }
 
     private bool IsSlipping()
@@ -2302,7 +2325,8 @@ public class PlatformerMotor2D : MonoBehaviour
         Vector2 origin,
         Vector3 direction,
         float distance,
-        bool useBox = true)
+        bool useBox = true,
+        bool checkWereTouching = false)
     {
         if (!checkForOneWayPlatforms)
         {
@@ -2354,23 +2378,10 @@ public class PlatformerMotor2D : MonoBehaviour
                 // You'd think OverlapArea would be sufficient but doesn't
                 // appear to necessarily reliably return the expected colliders
                 // So we box cast a distance of 0 instead.
-                int numOfNoDistanceHits;
-
-                if (useBox)
-                {
-                    numOfNoDistanceHits = GetNearbyHitsBox(
+                int numOfNoDistanceHits = GetNearbyHitsBox(
                         direction,
                         0f,
                         false);
-                }
-                else
-                {
-                    numOfNoDistanceHits = GetNearbyHitsRay(
-                        origin,
-                        direction,
-                        distance,
-                        false);
-                }
 
                 for (int j = 0; j < numOfNoDistanceHits; j++)
                 {
@@ -2383,23 +2394,74 @@ public class PlatformerMotor2D : MonoBehaviour
 
                 if (isTouching)
                 {
-                    continue;
+                    if (checkWereTouching && ((1 <<_hits[i].collider.gameObject.layer) & movingPlatformLayerMask) != 0)
+                    {
+                        // If it's a moving platform then we need to know if we were touching.
+                        MovingPlatformMotor2D mpMotor = _hits[i].collider.GetComponent<MovingPlatformMotor2D>();
+                        Vector3 curPos = mpMotor.transform.position;
+                        mpMotor.transform.position = mpMotor.previousPosition;
+                        bool wasTouching = false;
+
+                        numOfNoDistanceHits = GetNearbyHitsBox(
+                            direction,
+                            0f,
+                            false);
+
+                        mpMotor.transform.position = curPos;
+
+                        for (int j = 0; j < numOfNoDistanceHits; j++)
+                        {
+                            if (_hitsNoDistance[j].collider == _hits[i].collider)
+                            {
+                                wasTouching = true;
+                                break;
+                            }
+                        }
+
+                        if (wasTouching)
+                        {
+                            continue;
+                        }
+
+                    }
+                    else
+                    {
+                        continue;
+                    }
                 }
+
+                Vector3 oneWayPlatformForward = _hits[i].collider.transform.TransformDirection(Vector3.up);
+                float dot = 0;
 
                 if (_velocity != Vector2.zero)
                 {
-                    Vector3 oneWayPlatformForward = _hits[i].collider.transform.TransformDirection(Vector3.up);
-
-                    float dot = Vector3.Dot(
+                    dot = Vector3.Dot(
                         oneWayPlatformForward,
                         _velocity);
+                }
+                else if (((1 <<_hits[i].collider.gameObject.layer) & movingPlatformLayerMask) != 0)
+                {
+                    // If we aren't moving then it's interesting if it's a moving platform.
+                    MovingPlatformMotor2D mpMotor = _hits[i].collider.GetComponent<MovingPlatformMotor2D>();
 
-                    // We check to see if the effector will play a role.
-                    if (dot > NEAR_ZERO)
+                    if (_movingPlatformState.platform != mpMotor)
                     {
-                        // ignore
-                        continue;
+                        // This might break for more complicated one way platform moving platforms but it'll have to do.
+                        if (mpMotor.velocity != Vector2.zero)
+                        {
+                            dot = Vector3.Dot(oneWayPlatformForward, -velocity);
+                        }
+                        else
+                        {
+                            Vector2 toNewPlatformPos = mpMotor.position - mpMotor.previousPosition;
+                            dot = Vector3.Dot(oneWayPlatformForward, -toNewPlatformPos);
+                        }
                     }
+                }
+
+                if (dot > NEAR_ZERO)
+                {
+                    continue;
                 }
             }
 
@@ -2580,6 +2642,7 @@ public class PlatformerMotor2D : MonoBehaviour
                     // Both sides sloping? Maybe if we fell down a 'V'? Don't consider us on a slope but on the ground
                     surfaces &= ~(CollidedSurface.SlopeLeft | CollidedSurface.SlopeRight);
                     surfaces |= CollidedSurface.Ground;
+                    _collidedNormals[DIRECTION_DOWN] = Vector2.up;
                 }
                 else if ((surfaces & CollidedSurface.SlopeRight) != CollidedSurface.None)
                 {
