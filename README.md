@@ -30,8 +30,6 @@ The motor requires that a Collider2D be present on the GameObject or that a Coll
 
 **Static Environment Layer Mask** - This tells the motor what layer collisions to consider the environment (to determine if on the ground, wall, or corner). These are environments that shouldn't be able to move into the player.
 
-**Moving Platform Layer Mask** - What layer contains moving platforms. The motor uses this knowledge to grab a MovingPlatformMotor2D component from the platforms. This requires that 'Raycasts Start in Colliders' is true in the Physics 2D settings. If there aren't any moving platforms then make sure this value is 'Nothing' (or 0). The motor will be more efficient.
-
 **Environment Check Distance** - This is how far out the motor will check for the environment.  
 
 **Minimum Distance From Env** - This is the minimum separation between the motor and surrounding environnment. This is used to prevent catching matching edges of box colliders (or tiles). Half distance of the Environment Check Distance is probably pretty good.
@@ -39,6 +37,10 @@ The motor requires that a Collider2D be present on the GameObject or that a Coll
 **Number of Iterations** - The number of iterations the motor can take to resolve the final position during a tick. Lower numbers mean more performant but at a cost of potential position loss. 2 iterations will likely cover most cases (unless the time step is really long).
 
 **Check for One Way Platforms** - Should the motor check for one way platforms? Uncheck this if there aren't any, the motor will be more efficient. This will only have an effect if the motor's collider can't collide with its own layer. If it can then setting this to false won't help, one way platforms or not.
+
+**Moving Platform Layer Mask** - What layer contains moving platforms. The motor uses this knowledge to grab a MovingPlatformMotor2D component from the platforms. This requires that 'Raycasts Start in Colliders' is true in the Physics 2D settings. If there aren't any moving platforms then make sure this value is 'Nothing' (or 0). The motor will be more efficient.
+
+**Additional Raycasts Per Side** - By default the motor will raycast through the corners to separate itself from moving platforms (or static environment if moved into one by a moving platform). The raycasts can miss if the environment is small enough. Increasing the number of additional raycasts can fix this issue. A good way to think about it is if the smaller environment is at least the size of the motor then this can be 0. Half the size of the motor then it should be 1. A third then 2 and so on. Caution as more raycasts are more expensive.
 
 ### Movement ###
 
@@ -408,18 +410,14 @@ Invoked when a motor makes contact with a moving platform and is considered 'att
 
 ### One Way Platforms ###
 
-To acheive one way platforms with the motor. Have a environment piece with a collider and a PlatformEffector2D component attached. Be sure to check Use One Way and to check Used By Effector on the edge collider.
+To acheive one way platforms with the motor. Have a environment piece with a collider and a PlatformEffector2D component attached. Be sure to check Use One Way and to check Used By Effector on the edge collider. The direction of the one way platform is the local up Vector of the platform (same as how the Unity Physics engine considers it). The motor will collide with the platform if it's velocity points away from the 'up' of the platform.
 
 See the One Way Platforms scene for examples.
 
 ## FAQs
 
-**Moving platforms move right into the motor!**
-This became a problem with Unity 5.1.0f3 (when I first noticed it). It appears to be due to a bug with Physics2D.BoxCast. A post has been created on the Unity forums to see if it will be fixed. 
-
-http://forum.unity3d.com/threads/physics2d-boxcast-bug-in-5-1-0f3.333039/
-
-If it is a bug that will be fixed then no workaround will be created in the motor (use a slightly older version of Unity). If it doesn't look like it'll be fixed then a solution will be created in the motor.
+**The motor isn't separating correctly from my super awesome fast moving platform!**
+The separation code for the motor is really simple and only really separates well if there isn't a ton of penetration by the moving platform. This means that really fast platforms may penetrate too deeply (or even pass completely through the motor without it knowing). A better solution may be implemented in the future but if you need fast moving platforms then consider decreasing the time step for Physics in the Time settings.
 
 **Can the GameObject have a Rigidbody2D attached?**
 This is fine. The motor will turn on isKinematic when enabled and set it back to whatever the default was when disabled. This can be useful if you want to disable the motor and allow the Physics engine to take over.
