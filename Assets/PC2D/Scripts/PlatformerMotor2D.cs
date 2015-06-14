@@ -115,10 +115,16 @@ public class PlatformerMotor2D : MonoBehaviour
     /// </summary>
     public bool allowWallSlide = false;
 
+    
     /// <summary>
     /// The speed that the motor will slide down the wall.
     /// </summary>
     public float wallSlideSpeed = 1;
+
+    /// <summary>
+    /// The time, in seconds, to get to wall slide speed.
+    /// </summary>
+    public float timeToWallSlideSpeed;
 
     /// <summary>
     /// Cooldown for allowing slides, clings, and corner grabs. This may be necessary if the motor can slide down a vertical
@@ -1768,7 +1774,27 @@ public class PlatformerMotor2D : MonoBehaviour
 
         if (motorState == MotorState.WallSliding)
         {
-            _velocity = -Vector2.up * wallSlideSpeed;
+            if (_velocity.y != -wallSlideSpeed)
+            {
+                if (timeToWallSlideSpeed != 0)
+                {
+                    if (_velocity.y > -wallSlideSpeed)
+                    {
+                        _velocity = Vector2.up * Accelerate(_velocity.y, -wallSlideSpeed / timeToWallSlideSpeed, -wallSlideSpeed);
+                    }
+                    else
+                    {
+                        _velocity = Vector2.up * Decelerate(
+                            _velocity.y,
+                            Mathf.Abs(wallSlideSpeed / timeToWallSlideSpeed),
+                            -wallSlideSpeed);
+                    }
+                }
+                else
+                {
+                    _velocity = Vector2.down * wallSlideSpeed;
+                }
+            }
         }
     }
 

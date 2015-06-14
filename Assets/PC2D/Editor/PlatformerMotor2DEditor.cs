@@ -50,6 +50,7 @@ public class PlatformerMotor2DEditor : Editor
 
     private SerializedProperty _allowWallSlideProp;
     private SerializedProperty _wallSlideSpeedProp;
+    private SerializedProperty _timeToWallSlideSpeedProp;
 
     private SerializedProperty _allowCornerGrabProp;
     private SerializedProperty _cornerJumpMultiplierProp;
@@ -121,6 +122,7 @@ public class PlatformerMotor2DEditor : Editor
 
         _allowWallSlideProp = serializedObject.FindProperty("allowWallSlide");
         _wallSlideSpeedProp = serializedObject.FindProperty("wallSlideSpeed");
+        _timeToWallSlideSpeedProp = serializedObject.FindProperty("timeToWallSlideSpeed");
 
         _allowCornerGrabProp = serializedObject.FindProperty("allowCornerGrab");
         _cornerJumpMultiplierProp = serializedObject.FindProperty("cornerJumpMultiplier");
@@ -301,6 +303,7 @@ public class PlatformerMotor2DEditor : Editor
             if (_allowWallSlideProp.hasMultipleDifferentValues || _allowWallSlideProp.boolValue)
             {
                 EditorGUILayout.PropertyField(_wallSlideSpeedProp, new GUIContent("Wall Slide Speed"));
+                EditorGUILayout.PropertyField(_timeToWallSlideSpeedProp, new GUIContent("Time to Wall Slide Speed"));
             }
 
             EditorGUILayout.Separator();
@@ -409,6 +412,13 @@ public class PlatformerMotor2DEditor : Editor
                 (_gravityMultiplierProp.floatValue * Physics2D.gravity.y)));
 
         sb.AppendFormat("\nWill hit fall speed cap during jump: {0}", (GetJumpSpeed() >= _maxFallSpeedProp.floatValue));
+
+        if (_timeToWallSlideSpeedProp.floatValue != 0 && _allowWallSlideProp.boolValue)
+        {
+            sb.AppendFormat(
+                "\nWall slide acceleration: {0}",
+                _wallSlideSpeedProp.floatValue / _timeToWallSlideSpeedProp.floatValue);
+        }
 
 
         return sb.ToString();
