@@ -1041,43 +1041,10 @@ public class PlatformerMotor2D : MonoBehaviour
             // Handle jumping.
             HandlePreJumping();
 
-            // Finally, any wall interactions.
+            // Any wall interactions.
             HandlePreWallInteraction();
 
-            // If we are falling fast then multiply the gravityMultiplier.
-            if (IsInAir() && !_jumping.ignoreGravity)
-            {
-                if (fallFast)
-                {
-                    _velocity.y +=
-                        fastFallGravityMultiplier *
-                        GetDeltaTime() *
-                       Physics2D.gravity.y;
-
-                    if (_velocity.y <= 0)
-                    {
-                        motorState = MotorState.FallingFast;
-                    }
-                }
-                else
-                {
-                    if (_dashing.gravityEnabledTimer <= 0)
-                    {
-                        _velocity.y +=
-                            gravityMultiplier *
-                            GetDeltaTime() *
-                            Physics2D.gravity.y;
-                    }
-
-                    if (_velocity.y <= 0)
-                    {
-                        motorState = MotorState.Falling;
-                    }
-                }
-            }
-
-            // Check speeds.
-            ClampFallSpeed();
+            HandleFalling();
         }
     }
 
@@ -1805,6 +1772,71 @@ public class PlatformerMotor2D : MonoBehaviour
         }
     }
 
+    private void HandleFalling()
+    {
+        // If we are falling fast then multiply the gravityMultiplier.
+        if (IsInAir() && !_jumping.ignoreGravity)
+        {
+            if (fallFast)
+            {
+                if (_velocity.y == -maxFastFallSpeed)
+                {
+                    return;
+                }
+
+                if (_velocity.y > -maxFastFallSpeed)
+                {
+                    _velocity.y = Accelerate(
+                        _velocity.y,
+                        fastFallGravityMultiplier * Physics2D.gravity.y,
+                        -maxFastFallSpeed);
+                }
+                else
+                {
+                    _velocity.y = Decelerate(
+                        _velocity.y,
+                        Mathf.Abs(fastFallGravityMultiplier * Physics.gravity.y),
+                        -maxFastFallSpeed);
+                }
+
+                if (_velocity.y <= 0)
+                {
+                    motorState = MotorState.FallingFast;
+                }
+            }
+            else
+            {
+                if (_dashing.gravityEnabledTimer <= 0)
+                {
+                    if (_velocity.y == -maxFallSpeed)
+                    {
+                        return;
+                    }
+
+                    if (_velocity.y > -maxFallSpeed)
+                    {
+                        _velocity.y = Accelerate(
+                            _velocity.y,
+                            gravityMultiplier * Physics2D.gravity.y,
+                            -maxFallSpeed);
+                    }
+                    else
+                    {
+                        _velocity.y = Decelerate(
+                            _velocity.y,
+                            Mathf.Abs(gravityMultiplier * Physics.gravity.y),
+                            -maxFallSpeed);
+                    }
+                }
+
+                if (_velocity.y <= 0)
+                {
+                    motorState = MotorState.Falling;
+                }
+            }
+        }
+    }
+
     private void ApplyMovement()
     {
         float speed;
@@ -2206,33 +2238,6 @@ public class PlatformerMotor2D : MonoBehaviour
         Collider2D col = Physics2D.OverlapArea(min, max, checkMask | movingPlatformLayerMask);
 
         return col == null;
-    }
-
-    private void ClampFallSpeed()
-    {
-        if (!IsGrounded())
-        {
-            float cappedFallSpeed;
-
-            if (fallFast)
-            {
-                cappedFallSpeed = -maxFastFallSpeed;
-
-                if (_velocity.y < cappedFallSpeed)
-                {
-                    _velocity.y = cappedFallSpeed;
-                }
-            }
-            else
-            {
-                cappedFallSpeed = -maxFallSpeed;
-
-                if (_velocity.y < cappedFallSpeed)
-                {
-                    _velocity.y = cappedFallSpeed;
-                }
-            }
-        }
     }
 
     private bool IsGrounded()
