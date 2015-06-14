@@ -108,6 +108,8 @@ The motor requires that a Collider2D be present on the GameObject or that a Coll
 
 **Wall Slide Speed** - The speed that the character will slide down the wall.
 
+**Time to Wall Slide Speed** - The time, in seconds, it takes for the character to go from 0 to Wall Slide Speed.
+
 ### Corner Grabs ###
 
 **Allow Corner Grab** - If corner grabbing is allowed. 
