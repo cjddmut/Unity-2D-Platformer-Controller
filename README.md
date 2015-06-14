@@ -374,12 +374,6 @@ void DisconnectFromPlatform()
 
 Decouples the motor from the platform. This could be useful for a platform that throw the motor in the air. Call this when when the motor should disconnect then set the appropriate velocity.
 
-```csharp
-void BuildCollisionMask()
-```
-
-Call this if the collision matrix has changed for the layer the collider is on during runtime. This updates the internal view.
-
 ## PlayerController2D
 
 The PlayerController2D script is a simple script that connects player input to the motor. This is set up as an example and it is encourage to write your own script that interacts with the motor.
