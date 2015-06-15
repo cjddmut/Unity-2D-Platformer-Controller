@@ -60,7 +60,7 @@ namespace  PC2D
                 }
             }
 
-            if (_motor.motorState == PlatformerMotor2D.MotorState.Clinging)
+            if (_motor.motorState == PlatformerMotor2D.MotorState.WallSticking)
             {
                 _motor.Jump();
             }

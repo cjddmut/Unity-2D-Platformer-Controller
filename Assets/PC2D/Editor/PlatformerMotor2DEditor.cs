@@ -1,207 +1,150 @@
-﻿using System.Text;
+﻿using System.Collections.Generic;
+using System.Text;
 using PC2D;
 using UnityEngine;
 using UnityEditor;
 
-/**
- * The motor has quite a lot of customizations that can be messed with to change its behavior. However, not
- * every option will do something depending on what is allowed. So this editor script will hide fields that
- * are no longer useful.
- **/
 [CustomEditor(typeof(PlatformerMotor2D))]
 [CanEditMultipleObjects]
 public class PlatformerMotor2DEditor : Editor
 {
-    // Gah! This is so unwieldy! I wanted to use reflection but I suspect then serializedObject.Update() and
-    // serializedObject.ApplyModifiedProperties() wouldn't work right. Though, I didn't verify.
+    private Dictionary<string, SerializedProperty> _properties = new Dictionary<string, SerializedProperty>();
+    private List<Property> _timingProperties = new List<Property>();
 
-    private SerializedProperty _maxGroundSpeedProp;
-    private SerializedProperty _timeToMaxGroundSpeedProp;
-    private SerializedProperty _groundStopDistanceProp;
-
-    private SerializedProperty _maxAirSpeedProp;
-    private SerializedProperty _timeToMaxAirSpeedProp;
-    private SerializedProperty _airStopDistanceProp;
-    private SerializedProperty _canChangeDirInAirProp;
-
-    private SerializedProperty _maxFallSpeedProp;
-    private SerializedProperty _maxFastFallSpeedProp;
-    private SerializedProperty _gravityMultiplierProp;
-    private SerializedProperty _fastFallGravityMultiplierProp;
-
-    private SerializedProperty _checkForSlopesProp;
-    private SerializedProperty _degreeAllowedForSlopesProp;
-    private SerializedProperty _changeSpeedOnSlopesProp;
-    private SerializedProperty _speedMultiplierOnSlopeProp;
-    private SerializedProperty _stickToGroundProp;
-    private SerializedProperty _distanceToCheckToStickProp;
-
-    private SerializedProperty _baseJumpHeightProp;
-    private SerializedProperty _extraJumpHeightProp;
-    private SerializedProperty _jumpAllowedGraceProp;
-    private SerializedProperty _numAirJumpsProp;
-
-    private SerializedProperty _allowWallJumpProp;
-    private SerializedProperty _wallJumpMultiplierProp;
-    private SerializedProperty _wallJumpDegreeProp;
-
-    private SerializedProperty _allowWallClingProp;
-    private SerializedProperty _wallClingDurationProp;
-
-    private SerializedProperty _allowWallSlideProp;
-    private SerializedProperty _wallSlideSpeedProp;
-    private SerializedProperty _timeToWallSlideSpeedProp;
-
-    private SerializedProperty _allowCornerGrabProp;
-    private SerializedProperty _cornerJumpMultiplierProp;
-    private SerializedProperty _cornerGrabDurationProp;
-    private SerializedProperty _cornerDistanceCheckProp;
-
-    private SerializedProperty _slideClingCooldownProp;
-
-    private SerializedProperty _allowDashProp;
-    private SerializedProperty _dashCooldownProp;
-    private SerializedProperty _dashDistanceProp;
-    private SerializedProperty _dashDurationProp;
-    private SerializedProperty _dashEasingFunctionProp;
-    private SerializedProperty _endDashDelay;
-
-    private SerializedProperty _staticEnvironmentCheckMaskProp;
-    
-    private SerializedProperty _movingPlatformMaskProp;
-    private SerializedProperty _additionalRaycastsPerSideProp;
-
-    private SerializedProperty _checkDistanceProp;
-    private SerializedProperty _distanceFromEnvironmentProp;
-    private SerializedProperty _wallInteractionThresholdProp;
-    private SerializedProperty _checkForOneWayPlatformsProp;
-    private SerializedProperty _numberOfIterationsAllowedProp;
-
-    private bool _showGeneral;
-    private bool _showMovement;
-    private bool _showSlopes;
-    private bool _showJumping;
-    private bool _showWallInteractions;
-    private bool _showDashing;
-    private bool _showInformation;
-
-    void OnEnable()
+    private class Property
     {
-        _maxGroundSpeedProp = serializedObject.FindProperty("maxGroundSpeed");
-        _timeToMaxGroundSpeedProp = serializedObject.FindProperty("timeToMaxGroundSpeed");
-        _groundStopDistanceProp = serializedObject.FindProperty("groundStopDistance");
+        public string name;
+        public string text;
 
-        _maxAirSpeedProp = serializedObject.FindProperty("maxAirSpeed");
-        _timeToMaxAirSpeedProp = serializedObject.FindProperty("timeToMaxAirSpeed");
-        _airStopDistanceProp = serializedObject.FindProperty("airStopDistance");
+        public Property(string n, string t)
+        {
+            name = n;
+            text = t;
+        }
+    }
 
-        _maxFallSpeedProp = serializedObject.FindProperty("maxFallSpeed");
-        _maxFastFallSpeedProp = serializedObject.FindProperty("maxFastFallSpeed");
-        _gravityMultiplierProp = serializedObject.FindProperty("gravityMultiplier");
-        _fastFallGravityMultiplierProp = serializedObject.FindProperty("fastFallGravityMultiplier");
+    private static bool _showGeneral;
+    private static bool _showMovement;
+    private static bool _showSlopes;
+    private static bool _showJumping;
+    private static bool _showWallInteractions;
+    private static bool _showDashing;
+    private static bool _showInformation;
 
-        _checkForSlopesProp = serializedObject.FindProperty("checkForSlopes");
-        _degreeAllowedForSlopesProp = serializedObject.FindProperty("degreeAllowedForSlopes");
-        _changeSpeedOnSlopesProp = serializedObject.FindProperty("changeSpeedOnSlopes");
-        _speedMultiplierOnSlopeProp = serializedObject.FindProperty("speedMultiplierOnSlope");
-        _stickToGroundProp = serializedObject.FindProperty("stickToGround");
-        _distanceToCheckToStickProp = serializedObject.FindProperty("distanceToCheckToStick");
+    #region Properties
+    private readonly Property STATIC_ENV_LAYER_MASK = new Property("staticEnvLayerMask", "Static Environment Layer Mask");
+    private readonly Property ENV_CHECK_DISTANCE = new Property("envCheckDistance", "Environment Check Distance");
+    private readonly Property MIN_DISTANCE_FROM_ENV = new Property("minDistanceFromEnv", "Minimum Distance from Environment");
+    private readonly Property NUM_OF_ITERATIONS = new Property("numOfIterations", "Number of Iterations");
+    private readonly Property ENABLE_ONE_WAY_PLATFORMS = new Property("enableOneWayPlatforms", "Enable One Way Platforms");
+    private readonly Property MOVING_PLATFORM_LAYER_MASK = new Property("movingPlatformLayerMask", "Moving Platforms Layer Mask");
+    private readonly Property RAYCASTS_PER_SIDE = new Property("additionalRaycastsPerSide", "Additional Raycasts per Side");
 
-        _baseJumpHeightProp = serializedObject.FindProperty("baseJumpHeight");
-        _extraJumpHeightProp = serializedObject.FindProperty("extraJumpHeight");
-        _jumpAllowedGraceProp = serializedObject.FindProperty("jumpAllowedGrace");
-        _numAirJumpsProp = serializedObject.FindProperty("numAirJumps");
-        _canChangeDirInAirProp = serializedObject.FindProperty("changeDirectionInAir");
+    private readonly Property GROUND_SPEED = new Property("groundSpeed", "Ground Speed");
+    private readonly Property TIME_TO_GROUND_SPEED = new Property("timeToGroundSpeed", "Time to Ground Speed");
+    private readonly Property GROUND_STOP_DISTANCE = new Property("groundStopDistance", "Ground Stop Distance");
 
-        _allowWallJumpProp = serializedObject.FindProperty("allowWallJump");
-        _wallJumpMultiplierProp = serializedObject.FindProperty("wallJumpMultiplier");
-        _wallJumpDegreeProp = serializedObject.FindProperty("wallJumpDegree");
+    private readonly Property AIR_SPEED = new Property("airSpeed", "Air Speed");
+    private readonly Property CHANGE_DIR_IN_AIR = new Property("changeDirectionInAir", "Enable Change Direction in Air");
+    private readonly Property TIME_TO_AIR_SPEED = new Property("timeToAirSpeed", "Time to Air Speed");
+    private readonly Property AIR_STOP_DISTANCE = new Property("airStopDistance", "Air Stop Distance");
 
-        _allowWallClingProp = serializedObject.FindProperty("allowWallCling");
-        _wallClingDurationProp = serializedObject.FindProperty("wallClingDuration");
+    private readonly Property FALL_SPEED = new Property("fallSpeed", "Fall Speed");
+    private readonly Property GRAVITY_MUTLIPLIER = new Property("gravityMultiplier", "Fall Gravity Multiplier");
+    private readonly Property FAST_FALL_SPEED = new Property("fastFallSpeed", "Fast Fall Speed");
 
-        _allowWallSlideProp = serializedObject.FindProperty("allowWallSlide");
-        _wallSlideSpeedProp = serializedObject.FindProperty("wallSlideSpeed");
-        _timeToWallSlideSpeedProp = serializedObject.FindProperty("timeToWallSlideSpeed");
+    private readonly Property FAST_FALL_GRAVITY_MULTIPLIER = new Property(
+        "fastFallGravityMultiplier", 
+        "Fast Fall Gravity Multiplier");
 
-        _allowCornerGrabProp = serializedObject.FindProperty("allowCornerGrab");
-        _cornerJumpMultiplierProp = serializedObject.FindProperty("cornerJumpMultiplier");
-        _cornerGrabDurationProp = serializedObject.FindProperty("cornerGrabDuration");
-        _cornerDistanceCheckProp = serializedObject.FindProperty("cornerDistanceCheck");
+    private readonly Property ENABLE_SLOPES = new Property("enableSlopes", "Enable Slopes");
 
-        _slideClingCooldownProp = serializedObject.FindProperty("slideClingCooldown");
+    private readonly Property ANGLE_ALLOWED_FOR_SLOPES = new Property(
+        "angleAllowedForMoving", 
+        "Angle (Degrees) Allowed For Moving");
 
-        _allowDashProp = serializedObject.FindProperty("allowDash");
-        _dashCooldownProp = serializedObject.FindProperty("dashCooldown");
-        _dashDistanceProp = serializedObject.FindProperty("dashDistance");
-        _dashDurationProp = serializedObject.FindProperty("dashDuration");
-        _dashEasingFunctionProp = serializedObject.FindProperty("dashEasingFunction");
-        _endDashDelay = serializedObject.FindProperty("endDashDelay");
+    private readonly Property CHANGE_SPEED_ON_SLOPES = new Property("changeSpeedOnSlopes", "Change Speed on Slopes");
+    private readonly Property SLOPES_SPEED_MULTIPLIER = new Property("speedMultiplierOnSlope", "Speed Multiplier on Slopes");
+    private readonly Property STICK_TO_GROUND = new Property("stickOnGround", "Stick to Ground");
+    private readonly Property STICK_CHECK_DISTANCE = new Property("distanceToCheckToStick", "Ground Check Distance to Stick");
 
-        _staticEnvironmentCheckMaskProp = serializedObject.FindProperty("checkMask");
+    private readonly Property JUMP_HEIGHT = new Property("jumpHeight", "Jump Height");
+    private readonly Property EXTRA_JUMP_HEIGHT = new Property("extraJumpHeight", "Extra Jump Height");
+    private readonly Property NUM_OF_AIR_JUMPS = new Property("numOfAirJumps", "Number of Air Jumps");
+    private readonly Property JUMP_WINDOW_WHEN_FALLING = new Property("jumpWindowWhenFalling", "Jump Window When Falling");
+    private readonly Property JUMP_WINDOW_WHEN_ACTIVATED = new Property("jumpWindowWhenActivated", "Jump Window When Activated");
 
-        _movingPlatformMaskProp = serializedObject.FindProperty("movingPlatformLayerMask");
-        _additionalRaycastsPerSideProp = serializedObject.FindProperty("additionalRaycastsPerSide");
+    private readonly Property ENABLE_WALL_JUMPS = new Property("enableWallJumps", "Enable Wall Jumps");
+    private readonly Property WALL_JUMP_MULTIPLIER = new Property("wallJumpMultiplier", "Wall Jump Multiplier");
+    private readonly Property WALL_JUMP_DEGREE = new Property("wallJumpAngle", "Wall Jump Angle (Degrees)");
 
-        _checkDistanceProp = serializedObject.FindProperty("checkDistance");
-        _distanceFromEnvironmentProp = serializedObject.FindProperty("distanceFromEnvironment");
-        _checkForOneWayPlatformsProp = serializedObject.FindProperty("checkForOneWayPlatforms");
-        _numberOfIterationsAllowedProp = serializedObject.FindProperty("numberOfIterationsAllowed");
+    private readonly Property ENABLE_WALL_STICKS = new Property("enableWallSticks", "Enable Wall Sticks");
+    private readonly Property WALL_STICK_DURATION = new Property("wallSticksDuration", "Wall Stick Duration");
 
-        _wallInteractionThresholdProp = serializedObject.FindProperty("wallInteractionThreshold");
+    private readonly Property ENABLE_WALL_SLIDES = new Property("enableWallSlides", "Enable Wall Slides");
+    private readonly Property WALL_SLIDE_SPEED = new Property("wallSlideSpeed", "Wall Slide Speed");
+    private readonly Property TIME_TO_WALL_SLIDE_SPEED = new Property("timeToWallSlideSpeed", "Time to Wall Slide Speed");
+
+    private readonly Property ENABLE_CORNER_GRABS = new Property("enableCornerGrabs", "Enable Corner Grabs");
+    private readonly Property CORNER_JUMP_MULTIPLIER = new Property("cornerJumpMultiplier", "Corner Jump Multiplier");
+    private readonly Property CORNER_GRAB_DURATION = new Property("cornerGrabDuration", "Corner Grab Duration");
+    private readonly Property CORNER_DISTANCE_CHECK = new Property("cornerDistanceCheck", "Distance Check for Corner Grab");
+
+    private readonly Property WALL_INTERACTION_IGNORE_MOVEMENT_DURATION = new Property(
+        "ignoreMovementAfterJump", 
+        "Ignore Movement After Jump Duration");
+
+    private readonly Property WALL_INTERACTION_COOLDOWN = new Property("wallInteractionCooldown", "Wall Interaction Cooldown");
+    private readonly Property WALL_INTERACTION_THRESHOLD = new Property("wallInteractionThreshold", "Wall Interaction Threshold");
+
+    private readonly Property ENABLE_DASHES = new Property("enableDashes", "Enable Dashes");
+    private readonly Property DASH_DISTANCE = new Property("dashDistance", "Dash Distance");
+    private readonly Property DASH_EASING_FUNCTION = new Property("dashEasingFunction", "Dash Easing Function");
+    private readonly Property DASH_DURATION = new Property("dashDuration", "Dash Duration");
+    private readonly Property DASH_COOLDOWN = new Property("dashCooldown", "Dash Cooldown");
+    private readonly Property END_DASH_DELAY = new Property("endDashNoGravityDuration", "Gravity Delay After Dash");
+    #endregion
+
+    private void OnEnable()
+    {
+        _properties.Clear();
+        SerializedProperty property = serializedObject.GetIterator();
+
+        while (property.NextVisible(true))
+        {
+            _properties[property.name] = property.Copy();
+        }
+
     }
 
     public override void OnInspectorGUI()
     {
         serializedObject.Update();
+        _timingProperties.Clear();
+
         GUIStyle boldStyle = new GUIStyle();
         boldStyle.fontStyle = FontStyle.Bold;
 
-        if (!Physics2D.raycastsStartInColliders &&
-            (_movingPlatformMaskProp.hasMultipleDifferentValues || _movingPlatformMaskProp.intValue != 0))
-        {
-            EditorGUILayout.HelpBox(
-                "'Raycasts Start in Colliders' in the Physics 2D settings needs to be checked on for moving platforms",
-                MessageType.Error,
-                true);
-        }
+        EditorGUILayout.Separator();
 
-        if (!_staticEnvironmentCheckMaskProp.hasMultipleDifferentValues && _staticEnvironmentCheckMaskProp.intValue == 0)
-        {
-            EditorGUILayout.HelpBox(
-                "Static Environment Layer Mask is required to be set!",
-                MessageType.Error,
-                true);
-        }
-
-        if (!_staticEnvironmentCheckMaskProp.hasMultipleDifferentValues && 
-            (_staticEnvironmentCheckMaskProp.intValue & (1 << ((PlatformerMotor2D)target).gameObject.layer)) != 0)
-        {
-            EditorGUILayout.HelpBox(
-                "The Static Environment Layer Mask should not include the layer the motor is on!",
-                MessageType.Error,
-                true);
-        }
-
-    EditorGUILayout.Separator();
         _showGeneral = EditorGUILayout.Foldout(_showGeneral, "General");
 
         if (_showGeneral)
         {
-            EditorGUILayout.PropertyField(_staticEnvironmentCheckMaskProp, new GUIContent("Static Environment Layer Mask"));
-            EditorGUILayout.PropertyField(_checkDistanceProp, new GUIContent("Environment Check Distance"));
-            EditorGUILayout.PropertyField(_distanceFromEnvironmentProp, new GUIContent("Minimum Distance From Env"));
+            DisplayRegularField(STATIC_ENV_LAYER_MASK);
+            DisplayRegularField(ENV_CHECK_DISTANCE);
+            DisplayRegularField(MIN_DISTANCE_FROM_ENV);
+            DisplayRegularField(NUM_OF_ITERATIONS);
+            DisplayRegularField(ENABLE_ONE_WAY_PLATFORMS);
 
-            EditorGUILayout.PropertyField(_numberOfIterationsAllowedProp, new GUIContent("Number of Iterations"));
-
-            EditorGUILayout.PropertyField(_checkForOneWayPlatformsProp, new GUIContent("Check for One Way Platforms"));
             EditorGUILayout.Separator();
-            EditorGUILayout.PropertyField(_movingPlatformMaskProp, new GUIContent("Moving Platform Layer Mask"));
 
-            if (_movingPlatformMaskProp.hasMultipleDifferentValues || _movingPlatformMaskProp.intValue != 0)
+            DisplayRegularField(MOVING_PLATFORM_LAYER_MASK);
+
+            if (_properties[MOVING_PLATFORM_LAYER_MASK.name].hasMultipleDifferentValues ||
+                _properties[MOVING_PLATFORM_LAYER_MASK.name].intValue != 0)
             {
-                EditorGUILayout.PropertyField(_additionalRaycastsPerSideProp,
-                    new GUIContent("Additional Raycasts Per Side"));
+                DisplayRegularField(RAYCASTS_PER_SIDE);
             }
 
             EditorGUILayout.Separator();
@@ -211,55 +154,28 @@ public class PlatformerMotor2DEditor : Editor
 
         if (_showMovement)
         {
-            EditorGUILayout.PropertyField(_maxGroundSpeedProp, new GUIContent("Ground Speed"));
-            EditorGUILayout.PropertyField(_timeToMaxGroundSpeedProp, new GUIContent("Time To Ground Speed"));
-            EditorGUILayout.PropertyField(_groundStopDistanceProp, new GUIContent("Ground Stop Distance"));
+            DisplayRateField(GROUND_SPEED);
+            DisplayAccelerationField(TIME_TO_GROUND_SPEED);
+            DisplayRegularField(GROUND_STOP_DISTANCE);
 
             EditorGUILayout.Separator();
 
-            EditorGUILayout.PropertyField(_maxAirSpeedProp, new GUIContent("Horizontal Air Speed"));
-            EditorGUILayout.PropertyField(_canChangeDirInAirProp, new GUIContent("Allow Direction Change In Air"));
 
-            if (_canChangeDirInAirProp.hasMultipleDifferentValues || _canChangeDirInAirProp.boolValue)
+            DisplayRateField(AIR_SPEED);
+            DisplayRegularField(CHANGE_DIR_IN_AIR);
+
+            if (_properties[CHANGE_DIR_IN_AIR.name].hasMultipleDifferentValues || _properties[CHANGE_DIR_IN_AIR.name].boolValue)
             {
-                EditorGUILayout.PropertyField(_timeToMaxAirSpeedProp, new GUIContent("Time To Air Speed"));
-                EditorGUILayout.PropertyField(_airStopDistanceProp, new GUIContent("Air Stop Distance"));
+                DisplayAccelerationField(TIME_TO_AIR_SPEED);
+                DisplayRegularField(AIR_STOP_DISTANCE);
             }
 
             EditorGUILayout.Separator();
 
-            EditorGUILayout.PropertyField(_maxFallSpeedProp, new GUIContent("Max Fall Speed"));
-            EditorGUILayout.PropertyField(_gravityMultiplierProp, new GUIContent("Gravity Multiplier"));
-
-            EditorGUILayout.PropertyField(_maxFastFallSpeedProp, new GUIContent("Max Fast Fall Speed"));
-            EditorGUILayout.PropertyField(_fastFallGravityMultiplierProp, new GUIContent("Fast Fall Gravity Multiplier"));
-            EditorGUILayout.Separator();
-        }
-
-        _showSlopes = EditorGUILayout.Foldout(_showSlopes, "Slopes");
-
-        if (_showSlopes)
-        {
-            EditorGUILayout.PropertyField(_checkForSlopesProp, new GUIContent("Check for Slopes"));
-
-            if (_checkForSlopesProp.hasMultipleDifferentValues || _checkForSlopesProp.boolValue)
-            {
-                EditorGUILayout.PropertyField(_degreeAllowedForSlopesProp, new GUIContent("Angle (Degree) Allowed"));
-                EditorGUILayout.PropertyField(_changeSpeedOnSlopesProp, new GUIContent("Change Speed on Slopes"));
-
-                if (_changeSpeedOnSlopesProp.hasMultipleDifferentValues || _changeSpeedOnSlopesProp.boolValue)
-                {
-                    EditorGUILayout.PropertyField(_speedMultiplierOnSlopeProp, new GUIContent("Speed Multiplier on Slopes"));
-                }
-
-                EditorGUILayout.PropertyField(_stickToGroundProp, new GUIContent("Stick to Ground"));
-
-                if (_stickToGroundProp.hasMultipleDifferentValues || _stickToGroundProp.boolValue)
-                {
-                    EditorGUILayout.PropertyField(_distanceToCheckToStickProp, new GUIContent("Distance to Check for Sticking"));
-                }
-
-            }
+            DisplayRateField(FALL_SPEED);
+            DisplayRegularField(GRAVITY_MUTLIPLIER);
+            DisplayRateField(FAST_FALL_SPEED);
+            DisplayRegularField(FAST_FALL_GRAVITY_MULTIPLIER);
 
             EditorGUILayout.Separator();
         }
@@ -268,10 +184,40 @@ public class PlatformerMotor2DEditor : Editor
 
         if (_showJumping)
         {
-            EditorGUILayout.PropertyField(_baseJumpHeightProp, new GUIContent("Base Jump Height"));
-            EditorGUILayout.PropertyField(_extraJumpHeightProp, new GUIContent("Held Extra Jump Height"));
-            EditorGUILayout.PropertyField(_jumpAllowedGraceProp, new GUIContent("Grace For Jump"));
-            EditorGUILayout.PropertyField(_numAirJumpsProp, new GUIContent("Air Jumps Allowed"));
+            DisplayRegularField(JUMP_HEIGHT);
+            DisplayRegularField(EXTRA_JUMP_HEIGHT);
+            DisplayRegularField(NUM_OF_AIR_JUMPS);
+            DisplayTimingField(JUMP_WINDOW_WHEN_FALLING);
+            DisplayTimingField(JUMP_WINDOW_WHEN_ACTIVATED);
+
+            EditorGUILayout.Separator();
+        }
+
+        _showSlopes = EditorGUILayout.Foldout(_showSlopes, "Slopes");
+
+        if (_showSlopes)
+        {
+            DisplayRegularField(ENABLE_SLOPES);
+
+            if (_properties[ENABLE_SLOPES.name].hasMultipleDifferentValues || _properties[ENABLE_SLOPES.name].boolValue)
+            {
+                DisplayRegularField(ANGLE_ALLOWED_FOR_SLOPES);
+                DisplayRegularField(CHANGE_SPEED_ON_SLOPES);
+
+                if (_properties[CHANGE_SPEED_ON_SLOPES.name].hasMultipleDifferentValues ||
+                    _properties[CHANGE_SPEED_ON_SLOPES.name].boolValue)
+                {
+                    DisplayRegularField(SLOPES_SPEED_MULTIPLIER);
+                }
+
+                DisplayRegularField(STICK_TO_GROUND);
+
+                if (_properties[STICK_TO_GROUND.name].hasMultipleDifferentValues || _properties[STICK_TO_GROUND.name].boolValue)
+                {
+                    DisplayRegularField(STICK_CHECK_DISTANCE);
+                }
+            }
+
             EditorGUILayout.Separator();
         }
 
@@ -279,52 +225,65 @@ public class PlatformerMotor2DEditor : Editor
 
         if (_showWallInteractions)
         {
-            EditorGUILayout.PropertyField(_allowWallJumpProp, new GUIContent("Allow Wall Jump"));
+            DisplayRegularField(ENABLE_WALL_JUMPS);
 
-            if (_allowWallJumpProp.hasMultipleDifferentValues || _allowWallJumpProp.boolValue)
+            if (_properties[ENABLE_WALL_JUMPS.name].hasMultipleDifferentValues || _properties[ENABLE_WALL_JUMPS.name].boolValue)
             {
-                EditorGUILayout.PropertyField(_wallJumpMultiplierProp, new GUIContent("Wall Jump Multiplier"));
-                EditorGUILayout.PropertyField(_wallJumpDegreeProp, new GUIContent("Wall Jump Angle"));
+                DisplayRegularField(WALL_JUMP_MULTIPLIER);
+                DisplayRegularField(WALL_JUMP_DEGREE);
             }
 
             EditorGUILayout.Separator();
 
-            EditorGUILayout.PropertyField(_allowWallClingProp, new GUIContent("Allow Wall Cling"));
+            DisplayRegularField(ENABLE_WALL_STICKS);
 
-            if (_allowWallClingProp.hasMultipleDifferentValues || _allowWallClingProp.boolValue)
+            if (_properties[ENABLE_WALL_STICKS.name].hasMultipleDifferentValues || _properties[ENABLE_WALL_STICKS.name].boolValue)
             {
-                EditorGUILayout.PropertyField(_wallClingDurationProp, new GUIContent("Wall Cling Duration"));
+                DisplayTimingField(WALL_STICK_DURATION);
             }
 
             EditorGUILayout.Separator();
 
-            EditorGUILayout.PropertyField(_allowWallSlideProp, new GUIContent("Allow Wall Slide"));
+            DisplayRegularField(ENABLE_WALL_SLIDES);
 
-            if (_allowWallSlideProp.hasMultipleDifferentValues || _allowWallSlideProp.boolValue)
+            if (_properties[ENABLE_WALL_SLIDES.name].hasMultipleDifferentValues || _properties[ENABLE_WALL_SLIDES.name].boolValue)
             {
-                EditorGUILayout.PropertyField(_wallSlideSpeedProp, new GUIContent("Wall Slide Speed"));
-                EditorGUILayout.PropertyField(_timeToWallSlideSpeedProp, new GUIContent("Time to Wall Slide Speed"));
+                DisplayRateField(WALL_SLIDE_SPEED);
+                DisplayAccelerationField(TIME_TO_WALL_SLIDE_SPEED);
             }
 
             EditorGUILayout.Separator();
 
-            EditorGUILayout.PropertyField(_allowCornerGrabProp, new GUIContent("Allow Corner Grab"));
+            DisplayRegularField(ENABLE_CORNER_GRABS);
 
-            if (_allowCornerGrabProp.hasMultipleDifferentValues || _allowCornerGrabProp.boolValue)
+            if (_properties[ENABLE_CORNER_GRABS.name].hasMultipleDifferentValues || _properties[ENABLE_CORNER_GRABS.name].boolValue)
             {
-                EditorGUILayout.PropertyField(_cornerGrabDurationProp, new GUIContent("Corner Grab Duration"));
-                EditorGUILayout.PropertyField(_cornerJumpMultiplierProp, new GUIContent("Corner Jump Multiplier"));
-                EditorGUILayout.PropertyField(_cornerDistanceCheckProp, new GUIContent("Corner Distance Check"));
+                DisplayTimingField(CORNER_GRAB_DURATION);
+                DisplayRegularField(CORNER_JUMP_MULTIPLIER);
+                DisplayRegularField(CORNER_DISTANCE_CHECK);
             }
 
             EditorGUILayout.Separator();
 
-            if ((_allowWallClingProp.hasMultipleDifferentValues || _allowWallClingProp.boolValue) ||
-                (_allowCornerGrabProp.hasMultipleDifferentValues || _allowCornerGrabProp.boolValue) ||
-                (_allowWallSlideProp.hasMultipleDifferentValues || _allowWallSlideProp.boolValue))
+            if ((_properties[ENABLE_WALL_JUMPS.name].hasMultipleDifferentValues || 
+                    _properties[ENABLE_WALL_JUMPS.name].boolValue) ||
+                (_properties[ENABLE_CORNER_GRABS.name].hasMultipleDifferentValues || 
+                    _properties[ENABLE_CORNER_GRABS.name].boolValue))
             {
-                EditorGUILayout.PropertyField(_wallInteractionThresholdProp, new GUIContent("Wall Interaction Threshold"));
-                EditorGUILayout.PropertyField(_slideClingCooldownProp, new GUIContent("Wall Interaction Cooldown"));
+                DisplayTimingField(WALL_INTERACTION_IGNORE_MOVEMENT_DURATION);
+            }
+
+            EditorGUILayout.Separator();
+
+            if ((_properties[ENABLE_WALL_STICKS.name].hasMultipleDifferentValues || 
+                    _properties[ENABLE_WALL_STICKS.name].boolValue) ||
+                (_properties[ENABLE_CORNER_GRABS.name].hasMultipleDifferentValues ||
+                    _properties[ENABLE_CORNER_GRABS.name].boolValue) ||
+                (_properties[ENABLE_WALL_SLIDES.name].hasMultipleDifferentValues || 
+                    _properties[ENABLE_WALL_SLIDES.name].boolValue))
+            {
+                DisplayTimingField(WALL_INTERACTION_COOLDOWN);
+                DisplayRegularField(WALL_INTERACTION_THRESHOLD);
             }
 
             EditorGUILayout.Separator();
@@ -334,15 +293,17 @@ public class PlatformerMotor2DEditor : Editor
 
         if (_showDashing)
         {
-            EditorGUILayout.PropertyField(_allowDashProp, new GUIContent("Allow Dashing"));
+            DisplayRegularField(ENABLE_DASHES);
 
-            if (_allowDashProp.hasMultipleDifferentValues || _allowDashProp.boolValue)
+            if (_properties[ENABLE_DASHES.name].hasMultipleDifferentValues || _properties[ENABLE_DASHES.name].boolValue)
             {
-                EditorGUILayout.PropertyField(_dashDistanceProp, new GUIContent("Dash Distance"));
-                EditorGUILayout.PropertyField(_dashDurationProp, new GUIContent("Dash Duration"));
-                EditorGUILayout.PropertyField(_dashCooldownProp, new GUIContent("Dash Cooldown"));
-                EditorGUILayout.PropertyField(_dashEasingFunctionProp, new GUIContent("Dash Easing Function"));
-                EditorGUILayout.PropertyField(_endDashDelay, new GUIContent("Gravity Delay After Dash"));
+                DisplayRegularField(DASH_DISTANCE);
+
+                DisplayTimingField(DASH_DURATION);
+                DisplayTimingField(DASH_COOLDOWN);
+
+                DisplayRegularField(DASH_EASING_FUNCTION);
+                DisplayTimingField(END_DASH_DELAY);
             }
 
             EditorGUILayout.Separator();
@@ -355,35 +316,141 @@ public class PlatformerMotor2DEditor : Editor
             if (_showInformation)
             {
                 EditorGUILayout.HelpBox(
-                    GetInformation(), 
-                    MessageType.Info, 
+                    GetInformation(),
+                    MessageType.Info,
                     true);
             }
         }
 
         CheckValues();
 
+        CheckAndDisplayInfo();
+
         serializedObject.ApplyModifiedProperties();
+    }
+
+    private void CheckAndDisplayInfo()
+    {
+        if (!Physics2D.raycastsStartInColliders &&
+            (_properties[MOVING_PLATFORM_LAYER_MASK.name].hasMultipleDifferentValues || 
+            _properties[MOVING_PLATFORM_LAYER_MASK.name].intValue != 0))
+        {
+            EditorGUILayout.HelpBox(
+                "'Raycasts Start in Colliders' in the Physics 2D settings needs to be checked on for moving platforms",
+                MessageType.Error,
+                true);
+        }
+
+        if (!_properties[STATIC_ENV_LAYER_MASK.name].hasMultipleDifferentValues && 
+            _properties[STATIC_ENV_LAYER_MASK.name].intValue == 0)
+        {
+            EditorGUILayout.HelpBox(
+                "Static Environment Layer Mask is required to be set!",
+                MessageType.Error,
+                true);
+        }
+
+        if (_properties[STATIC_ENV_LAYER_MASK.name].hasMultipleDifferentValues &&
+            (_properties[STATIC_ENV_LAYER_MASK.name].intValue & (1 << ((PlatformerMotor2D)target).gameObject.layer)) != 0)
+        {
+            EditorGUILayout.HelpBox(
+                "The Static Environment Layer Mask should not include the layer the motor is on!",
+                MessageType.Error,
+                true);
+        }
+
+
+        for (int i = 0; i < _timingProperties.Count; i++)
+        {
+            CheckAndDisplayTimingWarnings(_timingProperties[i]);
+        }
+    }
+
+
+    private void CheckAndDisplayTimingWarnings(Property property)
+    {
+        if (!_properties[property.name].hasMultipleDifferentValues &&
+            !Mathf.Approximately(_properties[property.name].floatValue / Time.fixedDeltaTime,
+                Mathf.Round(_properties[property.name].floatValue / Time.fixedDeltaTime)))
+        {
+            string msg = string.Format(
+                "'{0}' is not a multiple of the fixed time step ({1}). This results in an extra frame effectively making '{0}' {2} instead of {3}",
+                property.text,
+                Time.fixedDeltaTime,
+                Globals.GetFrameCount(_properties[property.name].floatValue) * Time.fixedDeltaTime,
+                _properties[property.name].floatValue);
+
+            EditorGUILayout.HelpBox(
+                msg,
+                MessageType.Warning,
+                true);
+        }
+    }
+
+    private void DisplayRegularField(Property property)
+    {
+        EditorGUILayout.PropertyField(_properties[property.name], new GUIContent(property.text));
+    }
+
+    private void DisplayRateField(Property property)
+    {
+        string frameRate = "-";
+
+        if (!_properties[property.name].hasMultipleDifferentValues)
+        {
+            frameRate = (_properties[property.name].floatValue * Time.fixedDeltaTime).ToString();
+        }
+
+        EditorGUILayout.PropertyField(_properties[property.name],
+            new GUIContent(string.Format("{0} ({1} Distance/Frame)", property.text, frameRate)));
+    }
+
+    private void DisplayTimingField(Property property)
+    {
+        _timingProperties.Add(property);
+
+        string frameCount = "-";
+
+        if (!_properties[property.name].hasMultipleDifferentValues)
+        {
+            frameCount = Globals.GetFrameCount(_properties[property.name].floatValue).ToString();
+        }
+
+        EditorGUILayout.PropertyField(_properties[property.name],
+            new GUIContent(string.Format("{0} ({1} Frames)", property.text, frameCount)));
+    }
+
+    private void DisplayAccelerationField(Property property)
+    {
+        string frameCount = "-";
+
+        if (!_properties[property.name].hasMultipleDifferentValues)
+        {
+            frameCount = (_properties[property.name].floatValue / Time.fixedDeltaTime).ToString();
+        }
+
+        EditorGUILayout.PropertyField(_properties[property.name],
+            new GUIContent(string.Format("{0} ({1} Frames)", property.text, frameCount)));
     }
 
     private void CheckValues()
     {
-        if (!_checkDistanceProp.hasMultipleDifferentValues &&
-            _checkDistanceProp.floatValue <= Globals.MINIMUM_DISTANCE_CHECK * 2)
+        if (!_properties[ENV_CHECK_DISTANCE.name].hasMultipleDifferentValues &&
+            _properties[ENV_CHECK_DISTANCE.name].floatValue <= Globals.MINIMUM_DISTANCE_CHECK * 2)
         {
-            _checkDistanceProp.floatValue = Globals.MINIMUM_DISTANCE_CHECK * 2;
+            _properties[ENV_CHECK_DISTANCE.name].floatValue = Globals.MINIMUM_DISTANCE_CHECK * 2;
         }
 
-        if (!_distanceFromEnvironmentProp.hasMultipleDifferentValues &&
-            _distanceFromEnvironmentProp.floatValue <= Globals.MINIMUM_DISTANCE_CHECK)
+        if (!_properties[MIN_DISTANCE_FROM_ENV.name].hasMultipleDifferentValues &&
+            _properties[MIN_DISTANCE_FROM_ENV.name].floatValue <= Globals.MINIMUM_DISTANCE_CHECK)
         {
-            _distanceFromEnvironmentProp.floatValue = Globals.MINIMUM_DISTANCE_CHECK;
+            _properties[MIN_DISTANCE_FROM_ENV.name].floatValue = Globals.MINIMUM_DISTANCE_CHECK;
         }
 
-        if (!_numberOfIterationsAllowedProp.hasMultipleDifferentValues &&
-            _numberOfIterationsAllowedProp.intValue < 0)
+        if (!_properties[NUM_OF_ITERATIONS.name].hasMultipleDifferentValues &&
+            _properties[NUM_OF_ITERATIONS.name].intValue < 0)
         {
-            _numberOfIterationsAllowedProp.intValue = 1;
+            _properties[NUM_OF_ITERATIONS.name].intValue = 1;
         }
     }
 
@@ -393,31 +460,55 @@ public class PlatformerMotor2DEditor : Editor
 
         sb.AppendFormat("Approx jump distance: {0}", GetJumpDistance());
 
-        if (_timeToMaxGroundSpeedProp.floatValue != 0)
+        if (_properties[TIME_TO_GROUND_SPEED.name].floatValue != 0)
         {
             sb.AppendFormat(
-                "\nMax ground acceleration: {0}", 
-                _maxGroundSpeedProp.floatValue / _timeToMaxGroundSpeedProp.floatValue);
+                "\nGround acceleration: {0}",
+                _properties[GROUND_SPEED.name].floatValue / _properties[TIME_TO_GROUND_SPEED.name].floatValue);
         }
 
-        if (_timeToMaxAirSpeedProp.floatValue != 0 && _canChangeDirInAirProp.boolValue)
+        if (_properties[GROUND_STOP_DISTANCE.name].floatValue != 0)
         {
             sb.AppendFormat(
-                "\nMax air acceleration: {0}", 
-                _maxAirSpeedProp.floatValue / _timeToMaxAirSpeedProp.floatValue);
+                "\nTime to stop on ground: {0}",
+                GetTimeToDistance(
+                    _properties[GROUND_STOP_DISTANCE.name].floatValue, 
+                    _properties[GROUND_SPEED.name].floatValue));
         }
 
-        sb.AppendFormat("\nApprox single jump duration (up & down): {0}", 
-            Mathf.Sqrt(-8 * (_baseJumpHeightProp.floatValue + _extraJumpHeightProp.floatValue) / 
-                (_gravityMultiplierProp.floatValue * Physics2D.gravity.y)));
+        if (_properties[TIME_TO_AIR_SPEED.name].floatValue != 0 && _properties[CHANGE_DIR_IN_AIR.name].boolValue)
+        {
+            sb.AppendFormat(
+                "\nMax air acceleration: {0}",
+                _properties[AIR_SPEED.name].floatValue / _properties[TIME_TO_AIR_SPEED.name].floatValue);
+        }
 
-        sb.AppendFormat("\nWill hit fall speed cap during jump: {0}", (GetJumpSpeed() >= _maxFallSpeedProp.floatValue));
+        if (_properties[AIR_STOP_DISTANCE.name].floatValue != 0 && _properties[CHANGE_DIR_IN_AIR.name].boolValue)
+        {
+            sb.AppendFormat(
+                "\nTime to stop on ground: {0}",
+                GetTimeToDistance(
+                    _properties[AIR_STOP_DISTANCE.name].floatValue,
+                    _properties[AIR_SPEED.name].floatValue));
+        }
 
-        if (_timeToWallSlideSpeedProp.floatValue != 0 && _allowWallSlideProp.boolValue)
+        sb.AppendFormat("\nApprox single jump duration (up & down): {0}",
+            Mathf.Sqrt(-8 * (_properties[JUMP_HEIGHT.name].floatValue + _properties[EXTRA_JUMP_HEIGHT.name].floatValue) /
+                (_properties[GRAVITY_MUTLIPLIER.name].floatValue * Physics2D.gravity.y)));
+
+        sb.AppendFormat(
+            "\nWill hit fall speed cap during jump: {0}", 
+            (GetTotalJumpSpeed() >= _properties[FALL_SPEED.name].floatValue));
+
+        sb.AppendFormat(
+            "\nFrames needed to get reach extra jump height: {0}",
+            (_properties[EXTRA_JUMP_HEIGHT.name].floatValue / GetBaseJumpSpeed()) / Time.fixedDeltaTime);
+
+        if (_properties[TIME_TO_WALL_SLIDE_SPEED.name].floatValue != 0 && _properties[ENABLE_WALL_SLIDES.name].boolValue)
         {
             sb.AppendFormat(
                 "\nWall slide acceleration: {0}",
-                _wallSlideSpeedProp.floatValue / _timeToWallSlideSpeedProp.floatValue);
+                _properties[WALL_SLIDE_SPEED.name].floatValue / _properties[TIME_TO_WALL_SLIDE_SPEED.name].floatValue);
         }
 
 
@@ -426,17 +517,30 @@ public class PlatformerMotor2DEditor : Editor
 
     private float GetJumpDistance()
     {
-        return _maxAirSpeedProp.floatValue * 2 *
+        return _properties[AIR_SPEED.name].floatValue * 2 *
                Mathf.Sqrt(2 *
-                    (_baseJumpHeightProp.floatValue +
-                    _extraJumpHeightProp.floatValue) /
+                    (_properties[JUMP_HEIGHT.name].floatValue +
+                    _properties[EXTRA_JUMP_HEIGHT.name].floatValue) /
                     (((PlatformerMotor2D)target).gravityMultiplier *
                     Mathf.Abs(Physics2D.gravity.y)));
     }
 
-    private float GetJumpSpeed()
+    private float GetBaseJumpSpeed()
     {
-        return Mathf.Sqrt(-2 * (_baseJumpHeightProp.floatValue + _extraJumpHeightProp.floatValue)  * 
-            _gravityMultiplierProp.floatValue * Physics2D.gravity.y);
+        return Mathf.Sqrt(-2 * ((_properties[JUMP_HEIGHT.name].floatValue) *
+            _properties[GRAVITY_MUTLIPLIER.name].floatValue * Physics2D.gravity.y));
+    }
+
+    private float GetTotalJumpSpeed()
+    {
+        return Mathf.Sqrt(-2 * ((_properties[JUMP_HEIGHT.name].floatValue + _properties[EXTRA_JUMP_HEIGHT.name].floatValue) *
+            _properties[GRAVITY_MUTLIPLIER.name].floatValue * Physics2D.gravity.y));
+    }
+
+    private float GetTimeToDistance(float distance, float maxSpeed)
+    {
+        float deceleration = (maxSpeed * maxSpeed) / (2 * distance);
+
+        return Mathf.Sqrt(2 * distance / deceleration);
     }
 }

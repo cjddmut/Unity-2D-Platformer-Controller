@@ -1,4 +1,6 @@
-﻿namespace PC2D
+﻿using UnityEngine;
+
+namespace PC2D
 {
     public class Input
     {
@@ -20,5 +22,19 @@
         public const string PACKAGE_NAME = "PC2D";
 
         public const float MINIMUM_DISTANCE_CHECK = 0.01f;
+
+        public static int GetFrameCount(float time)
+        {
+            float frames = time / Time.fixedDeltaTime;
+            int roundedFrames = Mathf.RoundToInt(frames);
+
+            if (Mathf.Approximately(frames, roundedFrames))
+            {
+                return roundedFrames;
+            }
+
+            return Mathf.CeilToInt(frames);
+
+        }
     }
 }
