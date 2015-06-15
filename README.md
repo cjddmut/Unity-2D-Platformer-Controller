@@ -18,11 +18,15 @@ If you'd like the most up to date version (which is the most cool), then pull th
 
 For immediate player support, drop the Basic Player Controller prefab into the scene and set the Static Environment Layer Mask field. For more complicated interaction, interface with PlatformerMotor2D's members and methods.
 
+## Upgrading
+
+When upgrading take a note of your current motor values before upgrading. There is no guarantee made that variables names won't change and if they do then the old values will be lost in the inspector.
+
 ## Requirements of PlatformerMotor2D
 
-### Collider2D ###
+### BoxCollider2D ###
 
-The motor requires that a Collider2D be present on the GameObject or that a Collider2D is specified to the motor through the colliderToUse property. The motor uses the bounds of the Collider2D to understand where to check for contact with surfaces.
+The motor requires that a Collider2D be present on the GameObject. The motor uses the bounds of the Collider2D to understand where to check for contact with surfaces.
 
 ## PlatformerMotor2D Inspector Properties
 
@@ -36,7 +40,7 @@ The motor requires that a Collider2D be present on the GameObject or that a Coll
 
 **Number of Iterations** - The number of iterations the motor can take to resolve the final position during a tick. Lower numbers mean more performant but at a cost of potential position loss. 2 iterations will likely cover most cases (unless the time step is really long).
 
-**Check for One Way Platforms** - Should the motor check for one way platforms? Uncheck this if there aren't any, the motor will be more efficient. This will only have an effect if the motor's collider can't collide with its own layer. If it can then setting this to false won't help, one way platforms or not.
+**Enable for One Way Platforms** - Should the motor check for one way platforms? Uncheck this if there aren't any, the motor will be more efficient. This will only have an effect if the motor's collider can't collide with its own layer. If it can then setting this to false won't help, one way platforms or not.
 
 **Moving Platform Layer Mask** - What layer contains moving platforms. The motor uses this knowledge to grab a MovingPlatformMotor2D component from the platforms. This requires that 'Raycasts Start in Colliders' is true in the Physics 2D settings. If there aren't any moving platforms then make sure this value is 'Nothing' (or 0). The motor will be more efficient.
 
@@ -52,25 +56,37 @@ The motor requires that a Collider2D be present on the GameObject or that a Coll
 
 **Allow Direction Change In Air** - If true, then the motor's x velocity can be changed while in air. If false, then the motor's x velocity cannot be changed when in the air.
 
-**Horizontal Air Speed** - Maximum speed the motor will move horizontally while in the air.
+**Air Speed** - Maximum speed the motor will move horizontally while in the air.
 
 **Time to Air Speed** - The time, in seconds, it will take to reach air speed. This is used to calculate acceleration.
 
 **Air Stop Distance** - If at full air speed, how far will the motor 'skid' to a stop.
 
-**Max Fall Speed** - Maximum fall speed (only y axis when negative).
+**Fall Speed** - Maximum fall speed (only y axis when negative).
 
 **Gravity Multiplier** - Gravity multiplier to the Physics2D.gravity setting. Works like RigidBody2D's gravityScale.
 
-**Max Fast Fall Speed** - Maximum fall speed when falling fast.
+**Fast Fall Speed** - Maximum fall speed when falling fast.
 
 **Fast Fall Gravity Multiplier** - Gravity multiplier when falling fast.
 
+### Jumping ###
+
+**Jump Height** - The height, in Unity units, that the motor will jump to.
+
+**Extra Jump Height** - If the motor is informed that the jump is held then this is the additional height the character will jump.
+
+**Air Jumps Allowed** - This sets the number of air jumps the character is allowed to perform. Setting it to 0 will disable air jumping altogether.
+
+**Jump Window When Falling** - The time in seconds that a jump will be allowed after it become invalid. This would be like allowing a jump even though the player has technically walked off the edge. Setting this to a low value (such as 0.1) can feel like a better experience for the player. If undesired then just set to 0.
+
+**Jump Window When Activated** - How long the motor should remember that Jump() was called and activate a jump if it becomes valid in that time. This means that a player could press jump before they actually hit the ground and the motor will allow it to occur.
+
 ### Slopes ###
 
-**Check for Slopes** - Should the motor check for slopes? If there aren't any slopes to walk/up down or slide down then uncheck this. The motor will be more efficient.
+**Enable Slopes** - Should the motor check for slopes? If there aren't any slopes to walk/up down or slide down then uncheck this. The motor will be more efficient.
 
-**Angle (Degree) Allowed** - This is the degree of the slope the motor can walk on. 0 means only on flat ground where as 50 would mean any slope up to and including 50 degrees.
+**Angle (Degrees) Allowed For Moving** - This is the degree of the slope the motor can walk on. 0 means only on flat ground where as 50 would mean any slope up to and including 50 degrees.
 
 **Change Speed on Slopes** - Should the motor slow down on steeper slopes. The speed is based off of Max Ground Speed and the angle of the slope. If false then the motor always moves at Max Ground Speed on any allowed slope.
 
@@ -78,41 +94,27 @@ The motor requires that a Collider2D be present on the GameObject or that a Coll
 
 **Stick to Ground** - This tells the motor to try to always stay on the ground when moving down slopes or up over slopes. For example, if this is false and the motor moves forward on a plane that then slopes down, the motor will fall onto the slope. If this is true then the motor will stay connected to the ground.
 
-**Distance to Check for Sticking** - The motor ray casts down to see if there is ground to stick to. This value tells the motor how far to check. Increase this if the motor isn't sticking properly. Be cautious having this value too large as it may make the motor stick to grounds that aren't intended.
+**Ground Check Distance for Sticking** - The motor ray casts down to see if there is ground to stick to. This value tells the motor how far to check. Increase this if the motor isn't sticking properly. Be cautious having this value too large as it may make the motor stick to grounds that aren't intended.
 
-### Jumping ###
+### Wall Interactions ###
 
-**Base Jump Height** - The height, in Unity units, that the motor will jump to.
-
-**Held Extra Jump Height** - If the motor is informed that the jump is held then this is the additional height the character will jump.
-
-**Grace For Jump** - The time in seconds that a jump will be allowed after it become invalid. This would be like allowing a jump even though the player has technically walked off the edge. Setting this to a low value (such as 0.1) can feel like a better experience for the player. If undesired then just set to 0.
-
-**Air Jumps Allowed** - This sets the number of air jumps the character is allowed to perform. Setting it to 0 will disable air jumping altogether.
-
-**Allow Wall Jump** - If jumping off the wall is allowed.
+**Enable Wall Jumps** - If jumping off the wall is allowed.
 
 **Wall Jump Multiplier** - The base jump speed is calculated from Base Jump and Extra Jump Height. The multiplier multiplies the result. Leave at 1 for no change.
 
-**Wall Jump Angle** - The angle (in degrees) of the wall jump. 0 is along the wall normal and 90 is straight up.
+**Wall Jump Angle (Degrees)** - The angle (in degrees) of the wall jump. 0 is along the wall normal and 90 is straight up.
 
-### Wall Cling ###
+**Enable Wall Sticks** - If the motor should stick to walls.
 
-**Allow Wall Cling** - If the motor should cling to the walls (sticking in place).
+**Wall Stick Duration** - The time, in seconds, that the motor will stick to walls. A large value (say 1000000) is effectively infinite.
 
-**Wall Cling Duration** - The time, in seconds, that the motor will stick to walls. A large value (say 1000000) is effectively infinite.
-
-### Wall Slide ###
-
-**Allow Wall Slide** - If the motor should consider any wall sliding calculations. Wall sliding is when the character would slow down while 'sliding' down the wall.
+**Enable Wall Slides** - If the motor should consider any wall sliding calculations. Wall sliding is when the character would slow down while 'sliding' down the wall.
 
 **Wall Slide Speed** - The speed that the character will slide down the wall.
 
 **Time to Wall Slide Speed** - The time, in seconds, it takes for the character to go from 0 to Wall Slide Speed.
 
-### Corner Grabs ###
-
-**Allow Corner Grab** - If corner grabbing is allowed. 
+**Enable Corner Grabs** - If corner grabbing is allowed. 
 
 **Corner Grab Duration** - The time, in seconds, that the motor will stick to corners.
 
@@ -120,7 +122,7 @@ The motor requires that a Collider2D be present on the GameObject or that a Coll
 
 **Corner Distance Check** - A corner is considered grabbed if the upper corners of the collider do not intersect with the environment but the sides do. The value changes the consideration for box checks dimensions.
 
-### General Wall Interactions ###
+**Ignore Movement After Jump Duration** - How long the motor should ignore horizontal input movement after a wall jump or corner jump. This can allow better feeling wall jumps.
 
 **Wall Interaction Threshold** - The input threshold for wall clings, corner grabs, and slides. Could be set to higher to prevent unwanted sticking to walls.
 
@@ -128,7 +130,7 @@ The motor requires that a Collider2D be present on the GameObject or that a Coll
 
 ### Dashing ###
 
-**Allow Dashing** - Is dashing allowed?
+**Enable Dashes** - Is dashing allowed?
 
 **Dash Distance** - The distance covered by the dash.
 
@@ -174,7 +176,7 @@ enum MotorState
     FallingFast,
     WallSliding,
     OnCorner,
-    Clinging,
+    WallSticking,
     Dashing,
     Frozen,
     Slipping
@@ -282,11 +284,6 @@ MovingPlatformMotor2D connectedPlatform
 ```
 
 Returns the moving platform that the motor is coupled with. If null then no moving platform.
-
-```csharp
-Collider2D colliderToUse
-```
-Set this to use a specific collider for checks instead of grabbing the collider from gameObject.collider2D.
 
 ```csharp
 Action onDash
