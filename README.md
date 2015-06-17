@@ -205,10 +205,10 @@ public enum CollidedSurface
 State information on what the motor believes itself to be colliding against. These are flags so any number may be turned on.
 
 ```csharp
-bool facingLeft // Readonly
+bool facingLeft
 ```
 
-Since the motor needs to know the facing of the object, this information is made available to anyone else who might need it.
+The direction the motor is facing. 
 
 ```csharp
 bool onSlope // Readonly
@@ -363,7 +363,14 @@ forces the motor to dash along a specified direction.
 void EndDash()
 ```
 
+
 Call to end dash immediately.
+
+```csharp
+void ResetDashCooldown()
+```
+
+Resets the current dash cooldown.
 
 ```csharp
 void DisconnectFromPlatform()
