@@ -1814,7 +1814,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 }
                 else
                 {
-                    _velocity = Vector2.down * wallSlideSpeed;
+                    _velocity = -Vector2.up * wallSlideSpeed;
                 }
             }
         }
@@ -2017,7 +2017,7 @@ public class PlatformerMotor2D : MonoBehaviour
             _collidedNormals[DIRECTION_LEFT] == Vector2.right ||
             HasFlag(CollidedSurface.RightWall) &&
             _velocity.x > 0 &&
-            _collidedNormals[DIRECTION_RIGHT] == Vector2.left ||
+            _collidedNormals[DIRECTION_RIGHT] == -Vector2.right ||
             (HasFlag(CollidedSurface.SlopeRight) && _velocity.x > 0 || HasFlag(CollidedSurface.SlopeLeft) && _velocity.x < 0) &&
             Vector2.Dot(Vector2.up, slopeNormal) < _dotAllowedForSlopes)
         {
@@ -2570,7 +2570,7 @@ public class PlatformerMotor2D : MonoBehaviour
         RaycastHit2D closestHit;
 
         // Left
-        if (forceCheck || Vector2.Dot(vecToCheck, Vector2.left) >= 0)
+        if (forceCheck || Vector2.Dot(vecToCheck, -Vector2.right) >= 0)
         {
             closestHit = GetClosestHit(_collider2D.bounds.center, Vector3.left, envCheckDistance);
 
@@ -2631,7 +2631,7 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         if (forceCheck ||
-            Vector2.Dot(vecToCheck, Vector2.down) >= 0 ||
+            Vector2.Dot(vecToCheck, -Vector2.up) >= 0 ||
             onSlope ||
             (HasFlag(CollidedSurface.Ground) && motorState != MotorState.Jumping))
         {
