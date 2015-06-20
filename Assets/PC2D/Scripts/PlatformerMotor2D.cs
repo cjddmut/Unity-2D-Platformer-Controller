@@ -1144,6 +1144,7 @@ public class PlatformerMotor2D : MonoBehaviour
     private void UpdateState(bool forceSurroundingsCheck)
     {
         bool currentOnSlope = onSlope;
+        Vector2 currentSlopeNormal = slopeNormal;
 
         collidingAgainst = CheckSurroundings(forceSurroundingsCheck);
 
@@ -1161,8 +1162,8 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         if (stickOnGround &&
-            !onSlope &&
             currentOnSlope &&
+            (currentSlopeNormal != slopeNormal || !onSlope) &&
             HasFlag(CollidedSurface.Ground) &&
             Vector2.Dot(_velocity, Vector2.up) > -NEAR_ZERO)
         {
