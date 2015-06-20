@@ -1145,6 +1145,8 @@ public class PlatformerMotor2D : MonoBehaviour
     {
         bool currentOnSlope = onSlope;
         Vector2 currentSlopeNormal = slopeNormal;
+        bool wasGrounded = IsGrounded();
+        bool wasSlipping = IsSlipping();
 
         collidingAgainst = CheckSurroundings(forceSurroundingsCheck);
 
@@ -1161,11 +1163,13 @@ public class PlatformerMotor2D : MonoBehaviour
             return;
         }
 
-        if (stickOnGround &&
-            currentOnSlope &&
-            (currentSlopeNormal != slopeNormal || !onSlope) &&
-            HasFlag(CollidedSurface.Ground) &&
-            Vector2.Dot(_velocity, Vector2.up) > -NEAR_ZERO)
+        // If we've moved on to a new slope (or to no slope from a slope) then we update our velocity vector to match
+        if (wasGrounded &&
+            velocity != Vector2.zero &&
+            (HasFlag(CollidedSurface.Ground) || HasFlag(CollidedSurface.SlopeLeft) || HasFlag(CollidedSurface.SlopeRight)) &&
+            motorState != MotorState.Jumping &&
+            ((currentOnSlope && ((currentSlopeNormal != slopeNormal) || !onSlope)) ||
+             currentOnSlope != onSlope))
         {
             // With our velocity pointing upwards, IsGrounded will return false. Since we want to stick to environments
             // this will fix our velocity.
@@ -1175,7 +1179,6 @@ public class PlatformerMotor2D : MonoBehaviour
             GetSpeedAndMaxSpeedOnGround(out speed, out maxSpeed);
             velocity = GetMovementDir(velocity.x) * Mathf.Abs(speed);
         }
-
 
         HandleFalling();
 
@@ -1616,7 +1619,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 // Normal jump.
                 if (IsSlipping())
                 {
-                    _velocity += _collidedNormals[DIRECTION_DOWN] * CalculateSpeedNeeded(_jumping.height);
+                    _velocity = slopeNormal * CalculateSpeedNeeded(_jumping.height);
                 }
                 else
                 {
@@ -1934,7 +1937,7 @@ public class PlatformerMotor2D : MonoBehaviour
         {
             if (IsGrounded())
             {
-                if (IsSlipping() && Vector2.Dot(GetMovementDir(normalizedXMovement), GetDownSlopeDir()) <=  NEAR_ZERO)
+                if (IsSlipping() && Vector2.Dot(GetMovementDir(normalizedXMovement), GetDownSlopeDir()) <= NEAR_ZERO)
                 {
                     // Don't allow walking up a slope that we slide down.
                     _velocity = GetMovementDir(_velocity.x) * _velocity.magnitude;
@@ -2056,11 +2059,16 @@ public class PlatformerMotor2D : MonoBehaviour
             _collidedNormals[DIRECTION_LEFT] == Vector2.right ||
             HasFlag(CollidedSurface.RightWall) &&
             _velocity.x > 0 &&
-            _collidedNormals[DIRECTION_RIGHT] == -Vector2.right ||
+            _collidedNormals[DIRECTION_RIGHT] == -Vector2.right)
+        {
+            _velocity.x = 0;
+        }
+
+        if (enableSlopes &&
             (HasFlag(CollidedSurface.SlopeRight) && _velocity.x > 0 || HasFlag(CollidedSurface.SlopeLeft) && _velocity.x < 0) &&
             Vector2.Dot(Vector2.up, slopeNormal) < _dotAllowedForSlopes)
         {
-            _velocity.x = 0;
+            velocity = Vector3.Project(velocity, slopeNormal);
         }
     }
 
@@ -2216,6 +2224,7 @@ public class PlatformerMotor2D : MonoBehaviour
         float distance = toNewPos.magnitude;
 
         RaycastHit2D hit = GetClosestHit(_collider2D.bounds.center, toNewPos / distance, distance);
+
 
         _previousLoc = _collider2D.bounds.center;
 
