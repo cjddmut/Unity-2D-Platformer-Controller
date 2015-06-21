@@ -1149,7 +1149,7 @@ public class PlatformerMotor2D : MonoBehaviour
             (_collider2D.bounds.center - curPos).magnitude / (targetPos - curPos).magnitude);
     }
 
-    private void UpdateSurroundingsAndDash(bool forceCheck)
+    private void UpdateSurroundings(bool forceCheck)
     {
         bool currentOnSlope = onSlope;
         Vector2 currentSlopeNormal = slopeNormal;
@@ -1239,7 +1239,7 @@ public class PlatformerMotor2D : MonoBehaviour
             EndDash();
         }
 
-        UpdateSurroundingsAndDash(forceSurroundingsCheck);
+        UpdateSurroundings(forceSurroundingsCheck);
 
         if (motorState == MotorState.Dashing)
         {
@@ -1258,8 +1258,6 @@ public class PlatformerMotor2D : MonoBehaviour
                 {
                     onLanded();
                 }
-
-                _velocity.y = 0;
             }
         }
 
@@ -1295,6 +1293,15 @@ public class PlatformerMotor2D : MonoBehaviour
             else
             {
                 motorState = MotorState.OnGround;
+
+                if (onSlope)
+                {
+                    velocity = Vector3.Project(velocity, GetDownSlopeDir());
+                }
+                else
+                {
+                    _velocity.y = 0;
+                }
             }
         }
         else if (motorState == MotorState.OnGround || motorState == MotorState.Slipping)
@@ -1605,6 +1612,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 {
                     _movingPlatformState.platform = null;
                     _velocity.y = -fastFallSpeed;
+                    collidingAgainst &= ~CollidedSurface.Ground;
                 }
             }
             else
@@ -1613,6 +1621,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 {
                     _movingPlatformState.platform = null;
                     _velocity.y = -fallSpeed;
+                    collidingAgainst &= ~CollidedSurface.Ground;
                 }
             }
         }
@@ -2754,7 +2763,8 @@ public class PlatformerMotor2D : MonoBehaviour
             float distance = envCheckDistance;
             bool forceDistanceFromEnv = false;
 
-            if (stickOnGround &&
+            if (enableSlopes &&
+                stickOnGround &&
                 (motorState == MotorState.OnGround || motorState == MotorState.Slipping) &&
                 surfaces == CollidedSurface.None)
             {

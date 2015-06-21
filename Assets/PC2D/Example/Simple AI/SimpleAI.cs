@@ -7,9 +7,11 @@ namespace  PC2D
     {
         public float distanceCheckForJump;
         public float heightToFallFast;
+        public float delayForWallJump;
 
-        private float movement;
         private PlatformerMotor2D _motor;
+
+        public float movement { get; private set; }
 
         // Use this for initialization
         void Start()
@@ -62,7 +64,7 @@ namespace  PC2D
 
             if (_motor.motorState == PlatformerMotor2D.MotorState.WallSticking)
             {
-                _motor.Jump();
+                StartCoroutine(DelayWallJump());
             }
 
             if (_motor.motorState == PlatformerMotor2D.MotorState.Falling)
@@ -92,6 +94,12 @@ namespace  PC2D
                     
                 }
             }
+        }
+
+        private IEnumerator DelayWallJump()
+        {
+            yield return new WaitForSeconds(delayForWallJump);
+            _motor.Jump();
         }
     }
 }
