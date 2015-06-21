@@ -64,6 +64,10 @@ public class PlatformerMotor2DEditor : Editor
         "Angle (Degrees) Allowed For Moving");
 
     private readonly Property CHANGE_SPEED_ON_SLOPES = new Property("changeSpeedOnSlopes", "Change Speed on Slopes");
+    private readonly Property MIN_SPEED_TO_MOVE_UP_SLIPPERY_SLOPE = new Property(
+        "minimumSpeedToMoveUpSlipperySlope", 
+        "Minimum Speed to Move Up Slippery Slope");
+
     private readonly Property SLOPES_SPEED_MULTIPLIER = new Property("speedMultiplierOnSlope", "Speed Multiplier on Slopes");
     private readonly Property STICK_TO_GROUND = new Property("stickOnGround", "Stick to Ground");
     private readonly Property STICK_CHECK_DISTANCE = new Property("distanceToCheckToStick", "Ground Check Distance to Stick");
@@ -202,6 +206,7 @@ public class PlatformerMotor2DEditor : Editor
             if (_properties[ENABLE_SLOPES.name].hasMultipleDifferentValues || _properties[ENABLE_SLOPES.name].boolValue)
             {
                 DisplayRegularField(ANGLE_ALLOWED_FOR_SLOPES);
+                DisplayRegularField(MIN_SPEED_TO_MOVE_UP_SLIPPERY_SLOPE);
                 DisplayRegularField(CHANGE_SPEED_ON_SLOPES);
 
                 if (_properties[CHANGE_SPEED_ON_SLOPES.name].hasMultipleDifferentValues ||

@@ -146,6 +146,12 @@ public class PlatformerMotor2D : MonoBehaviour
     public float angleAllowedForMoving = 50;
 
     /// <summary>
+    /// The speed necessary to try running up a slope that's too steep. If speed is less than the minimum then the motor's
+    /// velocity is zeroed out and the motor can't try to run up the slope. 
+    /// </summary>
+    public float minimumSpeedToMoveUpSlipperySlope = 7.5f;
+
+    /// <summary>
     /// Should the speed of the motor change depending of the angle of the slope. This only impacts walking on slopes, not
     /// while sliding.
     /// </summary>
@@ -170,7 +176,7 @@ public class PlatformerMotor2D : MonoBehaviour
     /// to check. This needs to be high enough to account for the distance placed by the motor speed but should be smaller than
     /// the difference between environment heights. Play around until a nice value is found.
     /// </summary>
-    public float distanceToCheckToStick = 0.2f;
+    public float distanceToCheckToStick = 0.4f;
 
     /// <summary>
     /// If wall jumps are allowed.
@@ -760,6 +766,8 @@ public class PlatformerMotor2D : MonoBehaviour
     private Rigidbody2D _rigidbody2D;
     private float _distanceToBoundsCorner;
     private float _savedTimeScale;
+    private Vector2 _disallowedSlopeNormal;
+    private Vector2 _previousMoveDir;
 
     // This is the unconverted motor velocity. This ignores slopes. It is converted into the appropriate vector before
     // moving.
@@ -1141,25 +1149,39 @@ public class PlatformerMotor2D : MonoBehaviour
             (_collider2D.bounds.center - curPos).magnitude / (targetPos - curPos).magnitude);
     }
 
-    private void UpdateState(bool forceSurroundingsCheck)
+    private void UpdateSurroundingsAndDash(bool forceCheck)
     {
         bool currentOnSlope = onSlope;
         Vector2 currentSlopeNormal = slopeNormal;
         bool wasGrounded = IsGrounded();
         bool wasSlipping = IsSlipping();
 
-        collidingAgainst = CheckSurroundings(forceSurroundingsCheck);
-
-        // Since this is in UpdateState, we can end dashing if the timer is at 0.
-        if (motorState == MotorState.Dashing && _dashing.dashingFrames <= 0)
+        if (forceCheck)
         {
-            EndDash();
+            collidingAgainst = CheckSurroundings(true);
+        }
+        else
+        {
+            // We may not need to check at all!
+            if (velocity == Vector2.zero && normalizedXMovement == 0)
+            {
+                // No state change but if we are next to a slope we can't walk up then we should reset it to be handled.
+                if (_disallowedSlopeNormal != Vector2.zero)
+                {
+                    // we update to the last disallowed slope normal then as well. This will be worked out.
+                    onSlope = true;
+                    slopeNormal = _disallowedSlopeNormal;
+                }
+            }
+            else
+            {
+                collidingAgainst = CheckSurroundings(false);
+            }
         }
 
+        // If we are dashing then we can bail.
         if (motorState == MotorState.Dashing)
         {
-            // Still dashing, nothing else matters.
-            _dashing.distanceDashed += (_collider2D.bounds.center - _previousLoc).magnitude;
             return;
         }
 
@@ -1168,27 +1190,75 @@ public class PlatformerMotor2D : MonoBehaviour
             velocity != Vector2.zero &&
             (HasFlag(CollidedSurface.Ground) || HasFlag(CollidedSurface.SlopeLeft) || HasFlag(CollidedSurface.SlopeRight)) &&
             motorState != MotorState.Jumping &&
-            ((currentOnSlope && ((currentSlopeNormal != slopeNormal) || !onSlope)) ||
+            ((currentOnSlope && ((currentSlopeNormal != _disallowedSlopeNormal) || !onSlope)) ||
              currentOnSlope != onSlope))
         {
+
             // With our velocity pointing upwards, IsGrounded will return false. Since we want to stick to environments
             // this will fix our velocity.
             float speed;
             float maxSpeed;
 
             GetSpeedAndMaxSpeedOnGround(out speed, out maxSpeed);
+
             velocity = GetMovementDir(velocity.x) * Mathf.Abs(speed);
+        }
+
+        _disallowedSlopeNormal = Vector2.zero;
+
+        if (wasGrounded &&
+            !wasSlipping &&
+            IsSlipping())
+        {
+            Vector2 moveDir = _previousMoveDir;
+
+            if (velocity != Vector2.zero)
+            {
+                moveDir = GetMovementDir(velocity.x);
+                _previousMoveDir = moveDir;
+            }
+
+            // We weren't slipping but now we are, are we trying to go up a slope?
+            if (Vector2.Dot(GetDownSlopeDir(), moveDir) < 0 && 
+                velocity.sqrMagnitude < minimumSpeedToMoveUpSlipperySlope * minimumSpeedToMoveUpSlipperySlope)
+            {
+                // Don't allow.
+                velocity = Vector3.Project(velocity, slopeNormal);
+                _disallowedSlopeNormal = slopeNormal;
+                slopeNormal = currentSlopeNormal;
+                onSlope = currentOnSlope;
+            }
+        }
+    }
+
+    private void UpdateState(bool forceSurroundingsCheck)
+    {
+        // Since this is in UpdateState, we can end dashing if the timer is at 0.
+        if (motorState == MotorState.Dashing && _dashing.dashingFrames <= 0)
+        {
+            EndDash();
+        }
+
+        UpdateSurroundingsAndDash(forceSurroundingsCheck);
+
+        if (motorState == MotorState.Dashing)
+        {
+            // Still dashing, nothing else matters.
+            _dashing.distanceDashed += (_collider2D.bounds.center - _previousLoc).magnitude;
+            return;
         }
 
         HandleFalling();
 
         if (HasFlag(CollidedSurface.Ground))
         {
-            if ((motorState == MotorState.Falling ||
-                motorState == MotorState.FallingFast) &&
-                onLanded != null)
+            if (motorState == MotorState.Falling || motorState == MotorState.FallingFast)
             {
-                onLanded();
+                if (onLanded != null)
+                {
+                    onLanded();
+                }
+
                 _velocity.y = 0;
             }
         }
@@ -1639,8 +1709,8 @@ public class PlatformerMotor2D : MonoBehaviour
                 }
             }
             else if (enableWallJumps &&
-                (_jumping.lastValidJump == JumpState.JumpType.LeftWall && _jumping.jumpGraceFrames >= 0) ||
-                PressingIntoLeftWall())
+                ((_jumping.lastValidJump == JumpState.JumpType.LeftWall && _jumping.jumpGraceFrames >= 0) ||
+                PressingIntoLeftWall()))
             {
                 // If jump was pressed as we or before we entered the wall then just jump away.
                 _velocity = _wallJumpVector * CalculateSpeedNeeded(_jumping.height) * wallJumpMultiplier;
@@ -1658,8 +1728,8 @@ public class PlatformerMotor2D : MonoBehaviour
                 }
             }
             else if (enableWallJumps &&
-                (_jumping.lastValidJump == JumpState.JumpType.RightWall && _jumping.jumpGraceFrames >= 0) ||
-                PressingIntoRightWall())
+                ((_jumping.lastValidJump == JumpState.JumpType.RightWall && _jumping.jumpGraceFrames >= 0) ||
+                PressingIntoRightWall()))
             {
 
                 _velocity = _wallJumpVector * CalculateSpeedNeeded(_jumping.height) * wallJumpMultiplier;
@@ -2064,11 +2134,13 @@ public class PlatformerMotor2D : MonoBehaviour
             _velocity.x = 0;
         }
 
-        if (enableSlopes &&
-            (HasFlag(CollidedSurface.SlopeRight) && _velocity.x > 0 || HasFlag(CollidedSurface.SlopeLeft) && _velocity.x < 0) &&
-            Vector2.Dot(Vector2.up, slopeNormal) < _dotAllowedForSlopes)
+        if (IsGrounded() &&
+            _disallowedSlopeNormal != Vector2.zero &&
+            (_disallowedSlopeNormal.x < 0 && _velocity.x > 0 ||
+             _disallowedSlopeNormal.x > 0 && _velocity.x < 0) &&
+            velocity.sqrMagnitude < minimumSpeedToMoveUpSlipperySlope * minimumSpeedToMoveUpSlipperySlope)
         {
-            velocity = Vector3.Project(velocity, slopeNormal);
+            velocity = Vector2.zero;
         }
     }
 
@@ -2078,7 +2150,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
         if (onSlope)
         {
-            speed = Vector3.Project(_velocity, moveDir).magnitude * Mathf.Sign(_velocity.x);
+            speed = velocity.magnitude * Mathf.Sign(_velocity.x);
             Vector3 slopeDir = GetDownSlopeDir();
 
             if (IsSlipping() && Vector2.Dot(moveDir, slopeDir) > NEAR_ZERO)
@@ -2607,12 +2679,6 @@ public class PlatformerMotor2D : MonoBehaviour
             if (vecToCheck == Vector2.zero)
             {
                 vecToCheck = Vector3.right * normalizedXMovement;
-
-                if (vecToCheck == Vector2.zero)
-                {
-                    // No update.
-                    return collidingAgainst;
-                }
             }
         }
 
@@ -2734,10 +2800,44 @@ public class PlatformerMotor2D : MonoBehaviour
                 if ((surfaces & CollidedSurface.SlopeLeft) != CollidedSurface.None &&
                     (surfaces & CollidedSurface.SlopeRight) != CollidedSurface.None)
                 {
-                    // Both sides sloping? Maybe if we fell down a 'V'? Don't consider us on a slope but on the ground
-                    surfaces &= ~(CollidedSurface.SlopeLeft | CollidedSurface.SlopeRight);
-                    surfaces |= CollidedSurface.Ground;
-                    _collidedNormals[DIRECTION_DOWN] = Vector2.up;
+                    // Both sides are sloping if we can stand on a slope then we consider the least steep slope.
+                    float leftDot = Vector2.Dot(Vector2.up, leftNormal);
+                    float rightDot = Vector2.Dot(Vector2.up, rightNormal);
+
+                    if (leftDot < _dotAllowedForSlopes && rightDot < _dotAllowedForSlopes)
+                    {
+                        // Would slip down both, consider just standing up.
+                        surfaces &= ~(CollidedSurface.SlopeLeft | CollidedSurface.SlopeRight);
+                        surfaces |= CollidedSurface.Ground;
+                        _collidedNormals[DIRECTION_DOWN] = Vector2.up;
+                    }
+                    else if (leftDot >= _dotAllowedForSlopes && rightDot >= _dotAllowedForSlopes)
+                    {
+                        onSlope = true;
+
+                        if (facingLeft)
+                        {
+                            slopeNormal = leftNormal;
+                            surfaces &= ~CollidedSurface.SlopeRight;
+                        }
+                        else
+                        {
+                            slopeNormal = rightNormal;
+                            surfaces &= ~CollidedSurface.SlopeLeft;
+                        }
+                    }
+                    else if (leftDot >= _dotAllowedForSlopes)
+                    {
+                        onSlope = true;
+                        slopeNormal = leftNormal;
+                        surfaces &= ~CollidedSurface.SlopeRight;
+                    }
+                    else
+                    {
+                        onSlope = true;
+                        slopeNormal = rightNormal;
+                        surfaces &= ~CollidedSurface.SlopeLeft;
+                    }
                 }
                 else if ((surfaces & CollidedSurface.SlopeRight) != CollidedSurface.None)
                 {
