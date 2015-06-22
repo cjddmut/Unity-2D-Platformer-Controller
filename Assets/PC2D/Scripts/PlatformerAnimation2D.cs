@@ -37,7 +37,9 @@ namespace PC2D
             {
                 _isJumping = true;
                 _animator.Play("Jump");
-                visualChild.transform.Rotate(Vector3.back, jumpRotationSpeed * Time.deltaTime);
+
+                Vector3 rotateDir = _motor.velocity.x < 0 ? Vector3.forward : Vector3.back;
+                visualChild.transform.Rotate(rotateDir, jumpRotationSpeed * Time.deltaTime);
             }
             else
             {
@@ -76,36 +78,34 @@ namespace PC2D
                 }
             }
 
-            if (!_isJumping)
+            // Facing
+            float valueCheck;
+
+            if (_ai != null)
             {
-                // Facing
-                float valueCheck;
+                valueCheck = _ai.movement;
+            }
+            else
+            {
+                valueCheck = UnityEngine.Input.GetAxisRaw(PC2D.Input.HORIZONTAL);
+            }
 
-                if (_ai != null)
-                {
-                    valueCheck = _ai.movement;
-                }
-                else
-                {
-                    valueCheck = UnityEngine.Input.GetAxisRaw(PC2D.Input.HORIZONTAL);
-                }
+            if (_motor.motorState == PlatformerMotor2D.MotorState.Slipping ||
+                _motor.motorState == PlatformerMotor2D.MotorState.Dashing ||
+                _motor.motorState == PlatformerMotor2D.MotorState.Jumping)
+            {
+                valueCheck = _motor.velocity.x;
+            }
 
-                if (_motor.motorState == PlatformerMotor2D.MotorState.Slipping ||
-                    _motor.motorState == PlatformerMotor2D.MotorState.Dashing)
-                {
-                    valueCheck = _motor.velocity.x;
-                }
-
-                if (valueCheck >= 0.1f)
-                {
-                    transform.localScale = Vector3.one;
-                }
-                else if (valueCheck <= -0.1f)
-                {
-                    Vector3 newScale = Vector3.one;
-                    newScale.x = -1;
-                    transform.localScale = newScale;
-                }
+            if (valueCheck >= 0.1f)
+            {
+                visualChild.transform.localScale = Vector3.one;
+            }
+            else if (valueCheck <= -0.1f)
+            {
+                Vector3 newScale = Vector3.one;
+                newScale.x = -1;
+                visualChild.transform.localScale = newScale;
             }
         }
     }

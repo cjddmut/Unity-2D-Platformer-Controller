@@ -924,7 +924,6 @@ public class PlatformerMotor2D : MonoBehaviour
         _distanceToBoundsCorner = (_collider2D.bounds.max - _collider2D.bounds.center).magnitude;
 
         _bottomRight = new Vector2(1, -1).normalized;
-        _toTransform = transform.position - _collider2D.bounds.center;
 
         SetSlopeDegreeAllowed();
     }
@@ -999,15 +998,12 @@ public class PlatformerMotor2D : MonoBehaviour
             SetSlopeDegreeAllowed();
         }
 
-        if (_collider2D.bounds != _prevColliderBounds)
-        {
-            _toTransform = transform.position - _collider2D.bounds.center;
-        }
-
         if (_collider2D.bounds.size != _prevColliderBounds.size)
         {
             _distanceToBoundsCorner = _collider2D.bounds.extents.magnitude;
         }
+
+        _toTransform = transform.position - _collider2D.bounds.center;
     }
 
     private void UpdateTimers()
