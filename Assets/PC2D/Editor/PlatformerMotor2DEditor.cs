@@ -93,7 +93,8 @@ public class PlatformerMotor2DEditor : Editor
     private readonly Property CORNER_JUMP_MULTIPLIER = new Property("cornerJumpMultiplier", "Corner Jump Multiplier");
     private readonly Property CORNER_GRAB_DURATION = new Property("cornerGrabDuration", "Corner Grab Duration");
     private readonly Property CORNER_DISTANCE_CHECK = new Property("cornerDistanceCheck", "Distance Check for Corner Grab");
-
+    private readonly Property CORNER_VALID_SIZE = new Property("cornerValidSize", "Valid Corner Grab Area");
+    
     private readonly Property WALL_INTERACTION_IGNORE_MOVEMENT_DURATION = new Property(
         "ignoreMovementAfterJump", 
         "Ignore Movement After Jump Duration");
@@ -266,6 +267,7 @@ public class PlatformerMotor2DEditor : Editor
                 DisplayTimingField(CORNER_GRAB_DURATION);
                 DisplayRegularField(CORNER_JUMP_MULTIPLIER);
                 DisplayRegularField(CORNER_DISTANCE_CHECK);
+                DisplayRegularField(CORNER_VALID_SIZE);
             }
 
             EditorGUILayout.Separator();
