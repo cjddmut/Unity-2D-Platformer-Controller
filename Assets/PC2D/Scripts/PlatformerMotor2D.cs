@@ -239,6 +239,11 @@ public class PlatformerMotor2D : MonoBehaviour
     /// This is the size of the corner check. This can be tweaked with if corner grabs are not working correctly.
     /// </summary>
     public float cornerDistanceCheck = 0.2f;
+    
+    /// <summary>
+	/// This is the size of a valid corner check from the top of the motor collider down.
+	/// </summary>
+	public float cornerValidSize = 0.2f;
 
     /// <summary>
     /// After a corner or wall jump, this is how longer horizontal input is ignored.
@@ -2383,28 +2388,37 @@ public class PlatformerMotor2D : MonoBehaviour
         Vector2 min = box.min;
         Vector2 max = box.max;
 
+		Vector2 grabMin = box.min;
+		Vector2 grabMax = box.max;
+
         // New min y is always at the current max y.
         min.y = max.y;
         max.y += cornerDistanceCheck;
 
+		grabMax.y = min.y;
+		grabMin.y = grabMax.y - cornerValidSize;
+
         if (PressingIntoLeftWall())
         {
-            max.x = min.x;
+            max.x = grabMax.x = min.x;
             min.x -= cornerDistanceCheck;
+			grabMin.x -= cornerDistanceCheck;
         }
         else if (PressingIntoRightWall())
         {
-            min.x = max.x;
+			min.x = grabMin.x = max.x;
             max.x += cornerDistanceCheck;
+			grabMax.x += cornerDistanceCheck;
         }
         else
         {
             return false;
         }
-
+	
         Collider2D col = Physics2D.OverlapArea(min, max, staticEnvLayerMask | movingPlatformLayerMask);
-
-        return col == null;
+		Collider2D grabCol = Physics2D.OverlapArea(grabMin, grabMax, staticEnvLayerMask | movingPlatformLayerMask);
+	
+        return (col == null) && (grabCol != null);
     }
 
     private bool IsGrounded()
@@ -2918,6 +2932,22 @@ public class PlatformerMotor2D : MonoBehaviour
             min.x = max.x;
             max.x += cornerDistanceCheck;
             Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
+        
+            // Draw valid corner grab area
+			Gizmos.color = Color.yellow;
+			min = box.min;
+			max = box.max;
+			min.y = max.y - cornerValidSize;
+			min.x = max.x;
+			max.x += cornerDistanceCheck;
+			Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
+
+			min = box.min;
+			max = box.max;
+			min.y = max.y - cornerValidSize;
+			max.x = min.x;
+			min.x -= cornerDistanceCheck;
+			Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
         }
 
         // Show the distance that it will take for the motor to stop on the ground and air.
