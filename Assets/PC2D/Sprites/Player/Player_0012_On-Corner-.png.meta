@@ -1,6 +1,6 @@
 fileFormatVersion: 2
-guid: 6e1b72573dc8bf342ad5b82005310c2e
-timeCreated: 1434846859
+guid: 949437fefae80bb428f32147a44883fc
+timeCreated: 1435192945
 licenseType: Free
 TextureImporter:
   fileIDToRecycleName: {}
@@ -49,7 +49,7 @@ TextureImporter:
   buildTargetSettings: []
   spriteSheet:
     sprites: []
-  spritePackingTag: PC2D
+  spritePackingTag: PC2S
   userData: 
   assetBundleName: 
   assetBundleVariant: 

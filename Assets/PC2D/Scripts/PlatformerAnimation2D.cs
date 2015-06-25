@@ -14,17 +14,18 @@ namespace PC2D
         public GameObject visualChild;
 
         private PlatformerMotor2D _motor;
-        private SimpleAI _ai;
         private Animator _animator;
         private bool _isJumping;
+        private bool _currentFacingLeft;
 
         // Use this for initialization
         void Start()
         {
             _motor = GetComponent<PlatformerMotor2D>();
-            _ai = GetComponent<SimpleAI>();
             _animator = visualChild.GetComponent<Animator>();
             _animator.Play("Idle");
+
+            _motor.onJump += SetCurrentFacingLeft;
         }
 
         // Update is called once per frame
@@ -38,7 +39,16 @@ namespace PC2D
                 _isJumping = true;
                 _animator.Play("Jump");
 
-                Vector3 rotateDir = _motor.velocity.x < 0 ? Vector3.forward : Vector3.back;
+                if (_motor.velocity.x <= -0.1f)
+                {
+                    _currentFacingLeft = true;
+                }
+                else if (_motor.velocity.x >= 0.1f)
+                {
+                    _currentFacingLeft = false;
+                }
+
+                Vector3 rotateDir = _currentFacingLeft ? Vector3.forward : Vector3.back;
                 visualChild.transform.Rotate(rotateDir, jumpRotationSpeed * Time.deltaTime);
             }
             else
@@ -52,10 +62,13 @@ namespace PC2D
                     _animator.Play("Fall");
                 }
                 else if (_motor.motorState == PlatformerMotor2D.MotorState.WallSliding ||
-                         _motor.motorState == PlatformerMotor2D.MotorState.WallSticking ||
-                        _motor.motorState == PlatformerMotor2D.MotorState.OnCorner)
+                         _motor.motorState == PlatformerMotor2D.MotorState.WallSticking)
                 {
                     _animator.Play("Cling");
+                }
+                else if (_motor.motorState == PlatformerMotor2D.MotorState.OnCorner)
+                {
+                    _animator.Play("On Corner");
                 }
                 else if (_motor.motorState == PlatformerMotor2D.MotorState.Slipping)
                 {
@@ -79,16 +92,7 @@ namespace PC2D
             }
 
             // Facing
-            float valueCheck;
-
-            if (_ai != null)
-            {
-                valueCheck = _ai.movement;
-            }
-            else
-            {
-                valueCheck = UnityEngine.Input.GetAxisRaw(PC2D.Input.HORIZONTAL);
-            }
+            float valueCheck = _motor.normalizedXMovement;
 
             if (_motor.motorState == PlatformerMotor2D.MotorState.Slipping ||
                 _motor.motorState == PlatformerMotor2D.MotorState.Dashing ||
@@ -107,6 +111,11 @@ namespace PC2D
                 newScale.x = -1;
                 visualChild.transform.localScale = newScale;
             }
+        }
+
+        private void SetCurrentFacingLeft()
+        {
+            _currentFacingLeft = _motor.facingLeft;
         }
     }
 }

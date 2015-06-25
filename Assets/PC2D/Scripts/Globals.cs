@@ -14,7 +14,7 @@ namespace PC2D
     public class Globals
     {
         // Input threshold in order to take effect. Arbitarily set.
-        public const float INPUT_THRESHOLD = 0.1f;
+        public const float INPUT_THRESHOLD = 0.5f;
         public const float FAST_FALL_THRESHOLD = 0.5f;
 
         public const int ENV_MASK = 0x100;

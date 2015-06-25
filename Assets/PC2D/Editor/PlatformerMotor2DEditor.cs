@@ -54,18 +54,18 @@ public class PlatformerMotor2DEditor : Editor
     private readonly Property FAST_FALL_SPEED = new Property("fastFallSpeed", "Fast Fall Speed");
 
     private readonly Property FAST_FALL_GRAVITY_MULTIPLIER = new Property(
-        "fastFallGravityMultiplier", 
+        "fastFallGravityMultiplier",
         "Fast Fall Gravity Multiplier");
 
     private readonly Property ENABLE_SLOPES = new Property("enableSlopes", "Enable Slopes");
 
     private readonly Property ANGLE_ALLOWED_FOR_SLOPES = new Property(
-        "angleAllowedForMoving", 
+        "angleAllowedForMoving",
         "Angle (Degrees) Allowed For Moving");
 
     private readonly Property CHANGE_SPEED_ON_SLOPES = new Property("changeSpeedOnSlopes", "Change Speed on Slopes");
     private readonly Property MIN_SPEED_TO_MOVE_UP_SLIPPERY_SLOPE = new Property(
-        "minimumSpeedToMoveUpSlipperySlope", 
+        "minimumSpeedToMoveUpSlipperySlope",
         "Minimum Speed to Move Up Slippery Slope");
 
     private readonly Property SLOPES_SPEED_MULTIPLIER = new Property("speedMultiplierOnSlope", "Speed Multiplier on Slopes");
@@ -94,9 +94,9 @@ public class PlatformerMotor2DEditor : Editor
     private readonly Property CORNER_GRAB_DURATION = new Property("cornerGrabDuration", "Corner Grab Duration");
     private readonly Property CORNER_DISTANCE_CHECK = new Property("cornerDistanceCheck", "Distance Check for Corner Grab");
     private readonly Property CORNER_VALID_SIZE = new Property("cornerValidSize", "Valid Corner Grab Area");
-    
+
     private readonly Property WALL_INTERACTION_IGNORE_MOVEMENT_DURATION = new Property(
-        "ignoreMovementAfterJump", 
+        "ignoreMovementAfterJump",
         "Ignore Movement After Jump Duration");
 
     private readonly Property WALL_INTERACTION_COOLDOWN = new Property("wallInteractionCooldown", "Wall Interaction Cooldown");
@@ -272,9 +272,9 @@ public class PlatformerMotor2DEditor : Editor
 
             EditorGUILayout.Separator();
 
-            if ((_properties[ENABLE_WALL_JUMPS.name].hasMultipleDifferentValues || 
+            if ((_properties[ENABLE_WALL_JUMPS.name].hasMultipleDifferentValues ||
                     _properties[ENABLE_WALL_JUMPS.name].boolValue) ||
-                (_properties[ENABLE_CORNER_GRABS.name].hasMultipleDifferentValues || 
+                (_properties[ENABLE_CORNER_GRABS.name].hasMultipleDifferentValues ||
                     _properties[ENABLE_CORNER_GRABS.name].boolValue))
             {
                 DisplayTimingField(WALL_INTERACTION_IGNORE_MOVEMENT_DURATION);
@@ -282,11 +282,11 @@ public class PlatformerMotor2DEditor : Editor
 
             EditorGUILayout.Separator();
 
-            if ((_properties[ENABLE_WALL_STICKS.name].hasMultipleDifferentValues || 
+            if ((_properties[ENABLE_WALL_STICKS.name].hasMultipleDifferentValues ||
                     _properties[ENABLE_WALL_STICKS.name].boolValue) ||
                 (_properties[ENABLE_CORNER_GRABS.name].hasMultipleDifferentValues ||
                     _properties[ENABLE_CORNER_GRABS.name].boolValue) ||
-                (_properties[ENABLE_WALL_SLIDES.name].hasMultipleDifferentValues || 
+                (_properties[ENABLE_WALL_SLIDES.name].hasMultipleDifferentValues ||
                     _properties[ENABLE_WALL_SLIDES.name].boolValue))
             {
                 DisplayTimingField(WALL_INTERACTION_COOLDOWN);
@@ -339,7 +339,7 @@ public class PlatformerMotor2DEditor : Editor
     private void CheckAndDisplayInfo()
     {
         if (!Physics2D.raycastsStartInColliders &&
-            (_properties[MOVING_PLATFORM_LAYER_MASK.name].hasMultipleDifferentValues || 
+            (_properties[MOVING_PLATFORM_LAYER_MASK.name].hasMultipleDifferentValues ||
             _properties[MOVING_PLATFORM_LAYER_MASK.name].intValue != 0))
         {
             EditorGUILayout.HelpBox(
@@ -348,7 +348,7 @@ public class PlatformerMotor2DEditor : Editor
                 true);
         }
 
-        if (!_properties[STATIC_ENV_LAYER_MASK.name].hasMultipleDifferentValues && 
+        if (!_properties[STATIC_ENV_LAYER_MASK.name].hasMultipleDifferentValues &&
             _properties[STATIC_ENV_LAYER_MASK.name].intValue == 0)
         {
             EditorGUILayout.HelpBox(
@@ -357,15 +357,14 @@ public class PlatformerMotor2DEditor : Editor
                 true);
         }
 
-        if (_properties[STATIC_ENV_LAYER_MASK.name].hasMultipleDifferentValues &&
+        if (!_properties[STATIC_ENV_LAYER_MASK.name].hasMultipleDifferentValues &&
             (_properties[STATIC_ENV_LAYER_MASK.name].intValue & (1 << ((PlatformerMotor2D)target).gameObject.layer)) != 0)
         {
             EditorGUILayout.HelpBox(
-                "The Static Environment Layer Mask should not include the layer the motor is on!",
+                "The Static Environment Layer Mask can not include the layer the motor is on!",
                 MessageType.Error,
                 true);
         }
-
 
         for (int i = 0; i < _timingProperties.Count; i++)
         {
@@ -479,7 +478,7 @@ public class PlatformerMotor2DEditor : Editor
             sb.AppendFormat(
                 "\nTime to stop on ground: {0}",
                 GetTimeToDistance(
-                    _properties[GROUND_STOP_DISTANCE.name].floatValue, 
+                    _properties[GROUND_STOP_DISTANCE.name].floatValue,
                     _properties[GROUND_SPEED.name].floatValue));
         }
 
@@ -504,7 +503,7 @@ public class PlatformerMotor2DEditor : Editor
                 (_properties[GRAVITY_MUTLIPLIER.name].floatValue * Physics2D.gravity.y)));
 
         sb.AppendFormat(
-            "\nWill hit fall speed cap during jump: {0}", 
+            "\nWill hit fall speed cap during jump: {0}",
             (GetTotalJumpSpeed() >= _properties[FALL_SPEED.name].floatValue));
 
         sb.AppendFormat(

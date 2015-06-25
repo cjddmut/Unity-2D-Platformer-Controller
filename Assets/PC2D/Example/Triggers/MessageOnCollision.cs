@@ -2,18 +2,30 @@
 
 public class MessageOnCollision : MonoBehaviour
 {
+    public Color triggerColor;
+
+    private Color _originalColor;
+
+    void Start()
+    {
+        _originalColor = GetComponent<SpriteRenderer>().color;
+    }
+
     void OnTriggerEnter2D(Collider2D o)
     {
+        GetComponent<SpriteRenderer>().color = triggerColor;
         Debug.Log(gameObject.name + " OnTriggerEnter with " + o.name);
     }
 
     void OnTriggerStay2D(Collider2D o)
     {
+        GetComponent<SpriteRenderer>().color = triggerColor;
         Debug.Log(gameObject.name + " OnTriggerStay with " + o.name);
     }
 
     void OnTriggerExit2D(Collider2D o)
     {
+        GetComponent<SpriteRenderer>().color = _originalColor;
         Debug.Log(gameObject.name + " OnTriggerExit with " + o.name);
     }
 
