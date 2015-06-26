@@ -241,9 +241,11 @@ public class PlatformerMotor2D : MonoBehaviour
     public float cornerDistanceCheck = 0.2f;
 
     /// <summary>
-    /// This is the size of a valid corner check from the top of the motor collider down.
+    /// This is the size of a valid check (normalized to collider height) that will consider wall interactions valid.
+    /// Starts from the top of the collider and moves down.
     /// </summary>
-    public float cornerValidSize = 0.2f;
+    [Range(0.1f, 1f)]
+    public float normalizedValidWallInteraction = 0.2f;
 
     /// <summary>
     /// After a corner or wall jump, this is how longer horizontal input is ignored.
@@ -773,6 +775,7 @@ public class PlatformerMotor2D : MonoBehaviour
     private float _savedTimeScale;
     private Vector2 _disallowedSlopeNormal;
     private Vector2 _previousMoveDir;
+    private bool _isValidWallInteraction;
 
     // This is the unconverted motor velocity. This ignores slopes. It is converted into the appropriate vector before
     // moving.
@@ -1249,6 +1252,8 @@ public class PlatformerMotor2D : MonoBehaviour
             return;
         }
 
+        CheckWallInteractionValidity();
+
         if (HasFlag(CollidedSurface.Ground))
         {
             if (motorState == MotorState.Falling || motorState == MotorState.FallingFast)
@@ -1500,6 +1505,43 @@ public class PlatformerMotor2D : MonoBehaviour
         }
     }
 
+    private void CheckWallInteractionValidity()
+    {
+        _isValidWallInteraction = false;
+
+        if (!enableWallSlides && !enableCornerGrabs && !enableWallSticks)
+        {
+            // Don't need the unnecessary check!
+            return;
+        }
+
+        Vector2 min = _collider2D.bounds.min;
+        Vector2 max = _collider2D.bounds.max;
+
+        if (HasFlag(CollidedSurface.LeftWall) && 
+            _collidedNormals[DIRECTION_LEFT] == Vector2.right &&
+            normalizedXMovement < 0)
+        {
+            max.x = _collider2D.bounds.center.x;
+            min.x = min.x - envCheckDistance;
+        }
+        else if (HasFlag(CollidedSurface.RightWall) &&
+                 _collidedNormals[DIRECTION_RIGHT] == -Vector2.right &&
+                 normalizedXMovement > 0)
+        {
+            min.x = _collider2D.bounds.center.x;
+            max.x = max.x + envCheckDistance;
+        }
+        else
+        {
+            return;
+        }
+
+        min.y = max.y - _collider2D.bounds.size.y * normalizedValidWallInteraction;
+
+        _isValidWallInteraction = Physics2D.OverlapArea(min, max, staticEnvLayerMask | movingPlatformLayerMask) != null;
+    }
+
     private void SetLastJumpType()
     {
         if (motorState == MotorState.OnGround)
@@ -1720,7 +1762,7 @@ public class PlatformerMotor2D : MonoBehaviour
             }
             else if (enableWallJumps &&
                 ((_jumping.lastValidJump == JumpState.JumpType.LeftWall && _jumping.jumpGraceFrames >= 0) ||
-                PressingIntoLeftWall()))
+                (_isValidWallInteraction && PressingIntoLeftWall())))
             {
                 // If jump was pressed as we or before we entered the wall then just jump away.
                 _velocity = _wallJumpVector * CalculateSpeedNeeded(_jumping.height) * wallJumpMultiplier;
@@ -1739,7 +1781,7 @@ public class PlatformerMotor2D : MonoBehaviour
             }
             else if (enableWallJumps &&
                 ((_jumping.lastValidJump == JumpState.JumpType.RightWall && _jumping.jumpGraceFrames >= 0) ||
-                PressingIntoRightWall()))
+                (_isValidWallInteraction && PressingIntoRightWall())))
             {
 
                 _velocity = _wallJumpVector * CalculateSpeedNeeded(_jumping.height) * wallJumpMultiplier;
@@ -1834,7 +1876,7 @@ public class PlatformerMotor2D : MonoBehaviour
         {
             if (motorState == MotorState.OnCorner)
             {
-                if (!CheckIfAtCorner())
+                if (!_isValidWallInteraction || !CheckIfAtCorner())
                 {
                     motorState = MotorState.Falling;
                 }
@@ -1846,7 +1888,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
             if (motorState == MotorState.WallSticking)
             {
-                if (!(PressingIntoLeftWall() || PressingIntoRightWall()))
+                if (!_isValidWallInteraction || !(PressingIntoLeftWall() || PressingIntoRightWall()))
                 {
                     motorState = MotorState.Falling;
                 }
@@ -1882,7 +1924,7 @@ public class PlatformerMotor2D : MonoBehaviour
         // Corner grab?
         if (enableCornerGrabs)
         {
-            if (_velocity.y <= 0 && CheckIfAtCorner() && _wallInfo.canHangAgain)
+            if (_isValidWallInteraction && _velocity.y <= 0 && CheckIfAtCorner() && _wallInfo.canHangAgain)
             {
                 _wallInfo.cornerHangFrames = GetFrameCount(cornerGrabDuration);
                 _wallInfo.canHangAgain = false;
@@ -1895,7 +1937,7 @@ public class PlatformerMotor2D : MonoBehaviour
         // Wall Sticks
         if (enableWallSticks)
         {
-            if (_velocity.y <= 0 && (PressingIntoLeftWall() || PressingIntoRightWall()) && _wallInfo.canHangAgain)
+            if (_isValidWallInteraction && _velocity.y <= 0 && (PressingIntoLeftWall() || PressingIntoRightWall()) && _wallInfo.canHangAgain)
             {
                 _wallInfo.stickFrames = GetFrameCount(wallSticksDuration);
                 _velocity = Vector2.zero;
@@ -1906,7 +1948,8 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         // Wall slide?
-        if (enableWallSlides &&
+        if (_isValidWallInteraction && 
+            enableWallSlides &&
             motorState != MotorState.WallSticking &&
             motorState != MotorState.OnCorner)
         {
@@ -2388,27 +2431,19 @@ public class PlatformerMotor2D : MonoBehaviour
         Vector2 min = box.min;
         Vector2 max = box.max;
 
-        Vector2 grabMin = box.min;
-        Vector2 grabMax = box.max;
-
         // New min y is always at the current max y.
         min.y = max.y;
         max.y += cornerDistanceCheck;
 
-        grabMax.y = min.y;
-        grabMin.y = grabMax.y - cornerValidSize;
-
         if (PressingIntoLeftWall())
         {
-            max.x = grabMax.x = min.x;
+            max.x = min.x;
             min.x -= cornerDistanceCheck;
-            grabMin.x -= cornerDistanceCheck;
         }
         else if (PressingIntoRightWall())
         {
-            min.x = grabMin.x = max.x;
+            min.x = max.x;
             max.x += cornerDistanceCheck;
-            grabMax.x += cornerDistanceCheck;
         }
         else
         {
@@ -2416,9 +2451,8 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         Collider2D col = Physics2D.OverlapArea(min, max, staticEnvLayerMask | movingPlatformLayerMask);
-        Collider2D grabCol = Physics2D.OverlapArea(grabMin, grabMax, staticEnvLayerMask | movingPlatformLayerMask);
 
-        return (col == null) && (grabCol != null);
+        return (col == null);
     }
 
     private bool IsGrounded()
@@ -2937,14 +2971,14 @@ public class PlatformerMotor2D : MonoBehaviour
             Gizmos.color = Color.yellow;
             min = box.min;
             max = box.max;
-            min.y = max.y - cornerValidSize;
+            min.y = max.y - box.size.y * normalizedValidWallInteraction;
             min.x = max.x;
             max.x += cornerDistanceCheck;
             Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
 
             min = box.min;
             max = box.max;
-            min.y = max.y - cornerValidSize;
+            min.y = max.y - box.size.y * normalizedValidWallInteraction;
             max.x = min.x;
             min.x -= cornerDistanceCheck;
             Gizmos.DrawWireCube(new Vector2((min.x + max.x) / 2, (min.y + max.y) / 2), new Vector2(max.x - min.x, min.y - max.y));
