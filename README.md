@@ -124,6 +124,8 @@ The motor requires that a Collider2D be present on the GameObject. The motor use
 
 **Ignore Movement After Jump Duration** - How long the motor should ignore horizontal input movement after a wall jump or corner jump. This can allow better feeling wall jumps.
 
+**Valid Normalized Interaction Area** - This is the size of a valid check (normalized to collider height) that will consider wall interactions valid. Starts from the top of the collider and moves down.
+
 **Wall Interaction Threshold** - The input threshold for wall clings, corner grabs, and slides. Could be set to higher to prevent unwanted sticking to walls.
 
 **Wall Interaction Cooldown** - Cooldown for allowing slides, clings, and corner grabs. This may be necessary if the motor can slide down a vertical moving platform. If they don't exist then this can be 0.
