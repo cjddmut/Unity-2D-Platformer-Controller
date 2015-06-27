@@ -1834,7 +1834,9 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private bool PressingIntoLeftWall()
     {
-        if (_movingPlatformState.isOnPlatform && _movingPlatformState.stuckToWall == CollidedSurface.LeftWall && normalizedXMovement < -wallInteractionThreshold)
+        if (_movingPlatformState.isOnPlatform && 
+            _movingPlatformState.stuckToWall == CollidedSurface.LeftWall && 
+            normalizedXMovement < -wallInteractionThreshold)
         {
             return true;
         }
@@ -1844,7 +1846,9 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private bool PressingIntoRightWall()
     {
-        if (_movingPlatformState.isOnPlatform && _movingPlatformState.stuckToWall == CollidedSurface.RightWall && normalizedXMovement > wallInteractionThreshold)
+        if (_movingPlatformState.isOnPlatform && 
+            _movingPlatformState.stuckToWall == CollidedSurface.RightWall && 
+            normalizedXMovement > wallInteractionThreshold)
         {
             return true;
         }
@@ -2060,7 +2064,9 @@ public class PlatformerMotor2D : MonoBehaviour
         {
             if (IsGrounded())
             {
-                if (IsSlipping() && Vector2.Dot(GetMovementDir(normalizedXMovement), GetDownSlopeDir()) <= NEAR_ZERO)
+                Vector2 moveDir = GetMovementDir(normalizedXMovement);
+
+                if (IsSlipping() && Vector2.Dot(moveDir, GetDownSlopeDir()) <= NEAR_ZERO)
                 {
                     // Don't allow walking up a slope that we slide down.
                     _velocity = GetMovementDir(_velocity.x) * _velocity.magnitude;
@@ -2087,16 +2093,48 @@ public class PlatformerMotor2D : MonoBehaviour
                         speed > 0 &&
                         normalizedXMovement < 0)
                     {
+                        float deceleration  = (maxSpeed * maxSpeed) / (2 * groundStopDistance);
+
+                        if (onSlope && changeSpeedOnSlopes)
+                        {
+                            float factor = (speedMultiplierOnSlope * (1 - Vector2.Dot(slopeNormal, Vector2.up)));
+
+                            if (moveDir.y > 0)
+                            {
+                                deceleration /= factor;
+                            }
+                            else
+                            {
+                                deceleration *= factor;
+                            }
+                        }
+
                         speed = Decelerate(
                             speed,
-                            (maxSpeed * maxSpeed) / (2 * groundStopDistance),
+                            deceleration,
                             normalizedXMovement * maxSpeed);
                     }
                     else
                     {
+                        float acceleration = normalizedXMovement * (maxSpeed / timeToGroundSpeed);
+
+                        if (onSlope && changeSpeedOnSlopes)
+                        {
+                            float factor = (speedMultiplierOnSlope * (1 - Vector2.Dot(slopeNormal, Vector2.up)));
+
+                            if (moveDir.y < 0)
+                            {
+                                acceleration /= factor;
+                            }
+                            else
+                            {
+                                acceleration *= factor;
+                            }
+                        }
+
                         speed = Accelerate(
                             speed,
-                            normalizedXMovement * (maxSpeed / timeToGroundSpeed),
+                            acceleration,
                             normalizedXMovement * maxSpeed);
                     }
                 }
@@ -2151,7 +2189,23 @@ public class PlatformerMotor2D : MonoBehaviour
 
                     if (groundStopDistance > 0)
                     {
-                        speed = Decelerate(speed, (groundSpeed * groundSpeed) / (2 * groundStopDistance * speedMultiplierOnSlope), 0);
+                        float deceleration = (groundSpeed * groundSpeed) / (2 * groundStopDistance);
+
+                        if (onSlope && changeSpeedOnSlopes)
+                        {
+                            float factor = (speedMultiplierOnSlope * (1 - Vector2.Dot(slopeNormal, Vector2.up)));
+
+                            if (GetMovementDir(_velocity.x).y > 0)
+                            {
+                                deceleration /= factor;
+                            }
+                            else
+                            {
+                                deceleration *= factor;
+                            }
+                        }
+
+                        speed = Decelerate(speed, deceleration, 0);
                     }
                     else
                     {
