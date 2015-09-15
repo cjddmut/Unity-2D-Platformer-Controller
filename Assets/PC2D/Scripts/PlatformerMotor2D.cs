@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using PC2D;
 using UnityEngine;
 
@@ -13,7 +13,7 @@ public class PlatformerMotor2D : MonoBehaviour
     public LayerMask staticEnvLayerMask;
 
     /// <summary>
-    /// How far out the motor will check for the environment mask. This value can be tweaked if jump checks are not firing when 
+    /// How far out the motor will check for the environment mask. This value can be tweaked if jump checks are not firing when
     /// wanted.
     /// </summary>
     public float envCheckDistance = 0.02f;
@@ -35,6 +35,12 @@ public class PlatformerMotor2D : MonoBehaviour
     /// false won't help, one way platforms or not.
     /// </summary>
     public bool enableOneWayPlatforms = true;
+
+    /// <summary>
+    /// if enableOneWayPlatforms is disabled how the motor should treat OWP?
+    /// when both are disabled, OWP are ignored from collisions.
+    /// </summary>
+    public bool oneWayPlatformsAreWalls = true;
 
     /// <summary>
     /// The layer that contains moving platforms. If there are no moving platforms then make sure this has no layers (value of 0).
@@ -73,7 +79,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
     /// <summary>
     /// If true, then the player can change x direction while jumping. If false, then
-    /// the x velocity when leaving the ground will be held while in the air 
+    /// the x velocity when leaving the ground will be held while in the air
     /// </summary>
     public bool changeDirectionInAir = true;
 
@@ -109,6 +115,11 @@ public class PlatformerMotor2D : MonoBehaviour
     /// faster acceleration while falling.
     /// </summary>
     public float fastFallGravityMultiplier = 8f;
+
+    /// <summary>
+    /// Maximum horizontal/vertical speed of the motor while climb a ladder
+    /// </summary>
+    public float ladderSpeed = 5f;
 
     /// <summary>
     /// The height the motor will jump when a jump command is issued.
@@ -147,7 +158,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
     /// <summary>
     /// The speed necessary to try running up a slope that's too steep. If speed is less than the minimum then the motor's
-    /// velocity is zeroed out and the motor can't try to run up the slope. 
+    /// velocity is zeroed out and the motor can't try to run up the slope.
     /// </summary>
     public float minimumSpeedToMoveUpSlipperySlope = 7.5f;
 
@@ -354,7 +365,8 @@ public class PlatformerMotor2D : MonoBehaviour
         WallSticking,
         Dashing,
         Frozen,
-        Slipping
+        Slipping,
+        FreedomState
     }
 
     /// <summary>
@@ -373,10 +385,44 @@ public class PlatformerMotor2D : MonoBehaviour
     }
 
     /// <summary>
-    /// Set the x movement direction. This is multiplied by the max speed. -1 is full left, 1 is full right. Higher numbers will 
+    /// The surfaces the motor may be colliding against.
+    /// </summary>
+    [Flags]
+    public enum CollidedArea
+    {
+        None = 0x0,
+        Restricted = 0x01,
+        FreedomArea = 0x02,
+        Ladder = 0x04 // maybe 0x06
+    }
+
+    /// <summary>
+    /// Zone in the ladder, to handle input properly
+    /// </summary>
+    public enum LadderZone {
+        Top,
+        Bottom,
+        Middle
+    };
+
+    public LadderZone ladderZone { get; private set; }
+
+    private Bounds ladderArea;
+    private Bounds ladderBottomArea;
+    private Bounds ladderTopArea;
+
+    /// <summary>
+    /// Set the x movement direction. This is multiplied by the max speed. -1 is full left, 1 is full right. Higher numbers will
     /// result in faster speed.
     /// </summary>
     public float normalizedXMovement { get; set; }
+
+    /// <summary>
+    /// Set the y movement direction. This is multiplied by the max speed. -1 is full left, 1 is full right. Higher numbers will
+    /// result in faster speed.
+    /// Only used for ladders
+    /// </summary>
+    public float normalizedYMovement { get; set; }
 
     /// <summary>
     /// Set the time scale for the motor. This is independent of the global time scale. Negative values are not supported.
@@ -444,7 +490,13 @@ public class PlatformerMotor2D : MonoBehaviour
     public CollidedSurface collidingAgainst { get; private set; }
 
     /// <summary>
-    /// Since the motor needs to know the facing of the object, this information is made available to anyone else who might need 
+    /// The Areas the motor is currently in.
+    /// </summary>
+    public CollidedArea inArea { get; private set; }
+
+
+    /// <summary>
+    /// Since the motor needs to know the facing of the object, this information is made available to anyone else who might need
     /// it.
     /// </summary>
     public bool facingLeft { get; set; }
@@ -548,9 +600,9 @@ public class PlatformerMotor2D : MonoBehaviour
     }
 
     /// <summary>
-    /// Setting frozen to true will put the motor in a 'frozen' state. All information will be saved and set once unfrozen 
+    /// Setting frozen to true will put the motor in a 'frozen' state. All information will be saved and set once unfrozen
     /// (the motor also reduces gravity to 0).
-    /// 
+    ///
     /// Note: This isn't a way to turn off the motor. To turn off the motor, simply set the script to disabled.
     /// </summary>
     public bool frozen
@@ -597,7 +649,7 @@ public class PlatformerMotor2D : MonoBehaviour
     public Vector2 slopeNormal { get; private set; }
 
     /// <summary>
-    /// Call this to have the GameObject try to jump, once called it will be handled in the FixedUpdate tick. The y axis is 
+    /// Call this to have the GameObject try to jump, once called it will be handled in the FixedUpdate tick. The y axis is
     /// considered jump.
     /// </summary>
     public void Jump()
@@ -750,10 +802,143 @@ public class PlatformerMotor2D : MonoBehaviour
         }
     }
 
+    //
+    // freedom area
+    //
+
+    public void FreedomAreaEnter()
+    {
+        inArea |= CollidedArea.FreedomArea;
+    }
+
+    public bool IsOnFreedomArea()
+    {
+        return (inArea & CollidedArea.FreedomArea) == CollidedArea.FreedomArea;
+    }
+
+    public void FreedomAreaExit()
+    {
+        inArea &= ~CollidedArea.FreedomArea;
+        // leaving a freedom area also implies that cannot be a ladder
+        inArea &= ~CollidedArea.Ladder;
+
+        // leave freedom state, and start falling
+        if (motorState == MotorState.FreedomState)
+        {
+            FreedomStateExit();
+        }
+    }
+
+    //
+    // Ladder specific
+    //
+
+    public void LadderAreaEnter(Bounds area, float topHeight = 0, float bottomHeight = 0)
+    {
+        inArea |= CollidedArea.Ladder;
+        inArea |= CollidedArea.FreedomArea;
+
+        ladderArea = area;
+
+        // top - 8
+        // bottom + 8
+
+        ladderTopArea = new Bounds(
+            new Vector3(area.center.x, area.center.y + area.extents.y - topHeight * 0.5f, 0),
+            new Vector3(area.size.x, topHeight, 100)
+        );
+
+        ladderBottomArea = new Bounds(
+            new Vector3(area.center.x, area.center.y - area.extents.y + bottomHeight * 0.5f, 0),
+            new Vector3(area.size.x, bottomHeight, 100)
+        );
+    }
+
+    public bool IsOnLadder()
+    {
+        return (inArea & CollidedArea.Ladder) == CollidedArea.Ladder;
+    }
+
+    public void LadderAreaExit()
+    {
+        inArea &= ~CollidedArea.Ladder;
+        // I may leave a freedomArea, i may not... exitFreedomArea must be called
+
+        ladderBottomArea = new Bounds(Vector3.zero, Vector3.zero);
+        ladderTopArea = new Bounds(Vector3.zero, Vector3.zero);
+        ladderArea = new Bounds(Vector3.zero, Vector3.zero);
+    }
+
+    public void SetLadderZone(LadderZone z) {
+        ladderZone = z;
+    }
+
+    //
+    // restricted area
+    //
+
+    public void SetRestrictedArea(Bounds b, bool disableTop = false)
+    {
+        _restrictedArea = b;
+
+        _restrictedAreaTR = b.center + b.extents;
+        _restrictedAreaBL = b.center - b.extents;
+
+        if (disableTop) {
+            _restrictedAreaTR.y = Mathf.Infinity;
+        }
+    }
+
+    public void ClearRestrictedArea()
+    {
+        _restrictedAreaTR.x = Mathf.Infinity;
+        _restrictedAreaTR.y = Mathf.Infinity;
+        _restrictedAreaBL.x = -Mathf.Infinity;
+        _restrictedAreaBL.y = -Mathf.Infinity;
+    }
+
+
+    public void EnableRestrictedArea()
+    {
+        if (!(
+        _restrictedAreaTR.x == Mathf.Infinity &&
+        _restrictedAreaTR.y == Mathf.Infinity &&
+        _restrictedAreaBL.x == -Mathf.Infinity &&
+        _restrictedAreaBL.y == -Mathf.Infinity))
+        {
+            inArea |= CollidedArea.Restricted;
+        }
+    }
+
+    public bool IsRestricted()
+    {
+        return (inArea & CollidedArea.Restricted) == CollidedArea.Restricted;
+    }
+
+    public void DisableRestrictedArea() {
+        inArea &= ~CollidedArea.Restricted;
+    }
+
+    // When enter freedom state velocity is reset, so no inertia
+    public void FreedomStateEnter()
+    {
+        motorState = MotorState.FreedomState;
+        _velocity.y = 0;
+        _velocity.x = 0;
+    }
+
+    public void FreedomStateExit()
+    {
+        motorState = MotorState.Falling;
+    }
+
     #endregion
 
     #region Private
 
+    private Vector2 _restrictedAreaTR;
+    private Bounds _restrictedArea;
+    private Vector2 _restrictedAreaBL;
     private Vector2 _wallJumpVector;
     private float _ignoreMovementFrames;
     private bool _frozen;
@@ -934,6 +1119,8 @@ public class PlatformerMotor2D : MonoBehaviour
         _bottomRight = new Vector2(1, -1).normalized;
 
         SetSlopeDegreeAllowed();
+
+        ladderZone = LadderZone.Bottom;
     }
 
     private void OnEnable()
@@ -1195,7 +1382,7 @@ public class PlatformerMotor2D : MonoBehaviour
             (HasFlag(CollidedSurface.Ground) || HasFlag(CollidedSurface.SlopeLeft) || HasFlag(CollidedSurface.SlopeRight)) &&
             motorState != MotorState.Jumping &&
             ((currentOnSlope && ((currentSlopeNormal != _disallowedSlopeNormal) || !onSlope)) ||
-             currentOnSlope != onSlope))
+            currentOnSlope != onSlope))
         {
 
             // With our velocity pointing upwards, IsGrounded will return false. Since we want to stick to environments
@@ -1345,6 +1532,19 @@ public class PlatformerMotor2D : MonoBehaviour
                 _iterationBounds[(_iterationsUsed++) + 2] = _collider2D.bounds;
             }
         }
+        // check ladder zone
+        if(ladderBottomArea.Contains(_collider2D.bounds.center))
+        {
+            ladderZone = LadderZone.Bottom;
+        }
+        else if(ladderTopArea.Contains(_collider2D.bounds.center))
+        {
+            ladderZone = LadderZone.Top;
+        }
+        else if (ladderArea.Contains(_collider2D.bounds.center))
+        {
+            ladderZone = LadderZone.Middle;
+        }
     }
 
     private float UpdateMotor(float deltaTime)
@@ -1368,7 +1568,6 @@ public class PlatformerMotor2D : MonoBehaviour
         {
             UpdateState(true);
         }
-
         // Phase Two: Update internal representation of velocity
         UpdateVelocity();
 
@@ -1435,7 +1634,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
         RaycastAndSeparate(
             (new Vector3(_collider2D.bounds.max.x, _collider2D.bounds.min.y) - _collider2D.bounds.center) /
-                _distanceToBoundsCorner,
+            _distanceToBoundsCorner,
             _distanceToBoundsCorner + _distanceFromEnvCorner);
 
         RaycastAndSeparate(
@@ -1444,7 +1643,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
         RaycastAndSeparate(
             (new Vector3(_collider2D.bounds.min.x, _collider2D.bounds.max.y) - _collider2D.bounds.center) /
-                _distanceToBoundsCorner,
+            _distanceToBoundsCorner,
             _distanceToBoundsCorner + _distanceFromEnvCorner);
 
         // These are more expensive...they only need to be done if piece of environment smaller (width/height) than the motor
@@ -1469,7 +1668,7 @@ public class PlatformerMotor2D : MonoBehaviour
             Vector2 dir = new Vector2(
                 _collider2D.bounds.max.x,
                 Mathf.Lerp(_collider2D.bounds.min.y, _collider2D.bounds.max.y,
-                    (float)(i + 1) / (additionalRaycastsPerSide + 1))) - (Vector2)_collider2D.bounds.center;
+                (float)(i + 1) / (additionalRaycastsPerSide + 1))) - (Vector2)_collider2D.bounds.center;
 
             float distance = dir.magnitude;
 
@@ -1518,7 +1717,7 @@ public class PlatformerMotor2D : MonoBehaviour
         Vector2 min = _collider2D.bounds.min;
         Vector2 max = _collider2D.bounds.max;
 
-        if (HasFlag(CollidedSurface.LeftWall) && 
+        if (HasFlag(CollidedSurface.LeftWall) &&
             _collidedNormals[DIRECTION_LEFT] == Vector2.right &&
             normalizedXMovement < 0)
         {
@@ -1720,7 +1919,7 @@ public class PlatformerMotor2D : MonoBehaviour
             _currentWallJumpDegree = wallJumpAngle;
         }
 
-        // If we're currently jumping and the jump button is still held down ignore gravity to allow us to achieve the extra 
+        // If we're currently jumping and the jump button is still held down ignore gravity to allow us to achieve the extra
         // height.
         if (motorState == MotorState.Jumping && _jumping.held && _jumping.allowExtraFrames > 0)
         {
@@ -1834,8 +2033,8 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private bool PressingIntoLeftWall()
     {
-        if (_movingPlatformState.isOnPlatform && 
-            _movingPlatformState.stuckToWall == CollidedSurface.LeftWall && 
+        if (_movingPlatformState.isOnPlatform &&
+            _movingPlatformState.stuckToWall == CollidedSurface.LeftWall &&
             normalizedXMovement < -wallInteractionThreshold)
         {
             return true;
@@ -1846,8 +2045,8 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private bool PressingIntoRightWall()
     {
-        if (_movingPlatformState.isOnPlatform && 
-            _movingPlatformState.stuckToWall == CollidedSurface.RightWall && 
+        if (_movingPlatformState.isOnPlatform &&
+            _movingPlatformState.stuckToWall == CollidedSurface.RightWall &&
             normalizedXMovement > wallInteractionThreshold)
         {
             return true;
@@ -1906,7 +2105,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
         if (HasFlag(CollidedSurface.Ground))
         {
-            if (motorState == MotorState.WallSliding)
+            if (motorState == MotorState.WallSliding || motorState == MotorState.FreedomState)
             {
                 _velocity.y = 0;
             }
@@ -1952,7 +2151,7 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         // Wall slide?
-        if (_isValidWallInteraction && 
+        if (_isValidWallInteraction &&
             enableWallSlides &&
             motorState != MotorState.WallSticking &&
             motorState != MotorState.OnCorner)
@@ -1991,8 +2190,13 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private void HandleFalling()
     {
+        // while in freedom state, motor has no "gravity"
+        if (motorState == MotorState.FreedomState)
+        {
+            return;
+        }
         // If we are falling fast then multiply the gravityMultiplier.
-        if (IsInAir() && !_jumping.ignoreGravity)
+        else if (IsInAir() && !_jumping.ignoreGravity)
         {
             if (fallFast)
             {
@@ -2059,8 +2263,14 @@ public class PlatformerMotor2D : MonoBehaviour
         float speed;
         float maxSpeed;
 
+        // ladder check
+        if (IsOnLadder() && motorState == MotorState.FreedomState)
+        {
+            _velocity.x = normalizedXMovement * ladderSpeed;
+            _velocity.y = normalizedYMovement * ladderSpeed;
+        }
         // PERF: Optimal math out the window in favor of ease of figuring out, can resolve later if a problem.
-        if (Mathf.Abs(normalizedXMovement) > 0)
+        else if (Mathf.Abs(normalizedXMovement) > 0)
         {
             if (IsGrounded())
             {
@@ -2077,7 +2287,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
                 if (timeToGroundSpeed > 0)
                 {
-                    // If we're moving faster than our normalizedXMovement * groundSpeed then decelerate rather than 
+                    // If we're moving faster than our normalizedXMovement * groundSpeed then decelerate rather than
                     // accelerate.
                     //
                     // Or if we are trying to move in the direction opposite of where we are facing.
@@ -2244,7 +2454,7 @@ public class PlatformerMotor2D : MonoBehaviour
         if (IsGrounded() &&
             _disallowedSlopeNormal != Vector2.zero &&
             (_disallowedSlopeNormal.x < 0 && _velocity.x > 0 ||
-             _disallowedSlopeNormal.x > 0 && _velocity.x < 0) &&
+                _disallowedSlopeNormal.x > 0 && _velocity.x < 0) &&
             velocity.sqrMagnitude < minimumSpeedToMoveUpSlipperySlope * minimumSpeedToMoveUpSlipperySlope)
         {
             velocity = Vector2.zero;
@@ -2415,6 +2625,15 @@ public class PlatformerMotor2D : MonoBehaviour
         {
             transform.position = _toTransform + newPos;
         }
+
+        // at the end if there is a restricted area, force the motor inside
+        // TODO handle rotation, unrotate transform.position, check, rotate
+        if (IsRestricted()) {
+            Vector2 pos;
+            pos.x = Mathf.Clamp(transform.position.x, _restrictedAreaBL.x, _restrictedAreaTR.x);
+            pos.y = Mathf.Clamp(transform.position.y, _restrictedAreaBL.y, _restrictedAreaTR.y);
+            transform.position = pos;
+        }
     }
 
     private Vector3 GetMovementDir(float speed)
@@ -2514,7 +2733,7 @@ public class PlatformerMotor2D : MonoBehaviour
         return (HasFlag(CollidedSurface.Ground) || onSlope) &&
                motorState != MotorState.Jumping &&
                (onSlope && Vector2.Dot(_velocity, slopeNormal) <= NEAR_ZERO ||
-                Vector2.Dot(_velocity, Vector2.up) <= NEAR_ZERO);
+               Vector2.Dot(_velocity, Vector2.up) <= NEAR_ZERO);
     }
 
     private bool IsSlipping()
@@ -2602,7 +2821,7 @@ public class PlatformerMotor2D : MonoBehaviour
         bool useBox = true,
         bool checkWereTouching = false)
     {
-        if (!enableOneWayPlatforms)
+        if (!enableOneWayPlatforms && oneWayPlatformsAreWalls)
         {
             // This is much easier if we don't care about one way platforms.
             if (useBox)
@@ -2647,15 +2866,18 @@ public class PlatformerMotor2D : MonoBehaviour
             if (_hits[i].collider.usedByEffector &&
                 _hits[i].collider.GetComponent<PlatformEffector2D>().useOneWay)
             {
+                // ignore OWP ?
+                if (!oneWayPlatformsAreWalls) continue;
+
                 bool isTouching = false;
 
                 // You'd think OverlapArea would be sufficient but doesn't
                 // appear to necessarily reliably return the expected colliders
                 // So we box cast a distance of 0 instead.
                 int numOfNoDistanceHits = GetNearbyHitsBox(
-                        direction,
-                        0f,
-                        false);
+                    direction,
+                    0f,
+                    false);
 
                 for (int j = 0; j < numOfNoDistanceHits; j++)
                 {
@@ -2764,6 +2986,10 @@ public class PlatformerMotor2D : MonoBehaviour
         {
 
             surfaces |= CollidedSurface.Ground;
+            if (motorState == MotorState.FreedomState) {
+                FreedomStateExit();
+                DisableRestrictedArea();
+            }
 
             if (_collider2D.bounds.center.y - closestHit.centroid.y < minDistanceFromEnv || forceDistance)
             {
@@ -2847,7 +3073,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 if (closestHit.centroid.x - _collider2D.bounds.center.x < minDistanceFromEnv)
                 {
                     transform.position += (minDistanceFromEnv -
-                        (closestHit.centroid.x - _collider2D.bounds.center.x)) * Vector3.left;
+                                          (closestHit.centroid.x - _collider2D.bounds.center.x)) * Vector3.left;
                 }
             }
         }
@@ -2977,6 +3203,26 @@ public class PlatformerMotor2D : MonoBehaviour
 
     void OnDrawGizmosSelected()
     {
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireCube(ladderTopArea.center, ladderTopArea.size);
+        Gizmos.DrawWireCube(ladderBottomArea.center, ladderBottomArea.size);
+
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireCube(_restrictedArea.center, _restrictedArea.size);
+
+/*
+        Gizmos.DrawLine(
+            new Vector3(_restrictedAreaTR.x, _restrictedAreaTR.y, 100),
+            new Vector3(_restrictedAreaBL.x, _restrictedAreaBL.y, 100)
+        );
+        Gizmos.DrawLine(
+            new Vector3(_restrictedAreaBL.x, _restrictedAreaTR.y, 100),
+            new Vector3(_restrictedAreaTR.x, _restrictedAreaBL.y, 100)
+        );
+*/
+
+        Gizmos.color = Color.white;
+
         // Ground check.
         Bounds box = GetComponent<Collider2D>().bounds;
         Vector2 min;

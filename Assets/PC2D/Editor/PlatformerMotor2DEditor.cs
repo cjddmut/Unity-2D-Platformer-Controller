@@ -57,6 +57,10 @@ public class PlatformerMotor2DEditor : Editor
         "fastFallGravityMultiplier",
         "Fast Fall Gravity Multiplier");
 
+    private readonly Property LADDER_SPEED = new Property(
+        "ladderSpeed",
+        "Ladder Speed");
+
     private readonly Property ENABLE_SLOPES = new Property("enableSlopes", "Enable Slopes");
 
     private readonly Property ANGLE_ALLOWED_FOR_SLOPES = new Property(
@@ -181,6 +185,10 @@ public class PlatformerMotor2DEditor : Editor
             DisplayRegularField(GRAVITY_MUTLIPLIER);
             DisplayRateField(FAST_FALL_SPEED);
             DisplayRegularField(FAST_FALL_GRAVITY_MULTIPLIER);
+
+            EditorGUILayout.Separator();
+
+            DisplayRegularField(LADDER_SPEED);
 
             EditorGUILayout.Separator();
         }
