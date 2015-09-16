@@ -5,12 +5,20 @@ namespace PC2D
 {
     public class MotorMonitor : MonoBehaviour
     {
-        public Text fallText;
-        public Text motorStateText;
-        public Text prevMotorStateText;
-        public Text collidingAgainst;
-        public Text ladderZone;
-        public Text restrictedArea;
+        public Color textColor = Color.white;
+        public string title = "";
+        public int titleFontSize = 20;
+        public string instructions = "Keyboard\nMove: WASD\nJump: Space\nDash: Left Ctrl\n\nXBox Controller\nMove: Left Joystick\nJump: A\nDash: X";
+        public int instructionsFontSize = 18;
+        public int debugFontSize = 15;
+        public int padding = 25;
+
+        private string fallText;
+        private string motorStateText;
+        private string prevMotorStateText;
+        private string extra;
+
+        private GUIStyle guiStyle = new GUIStyle();
 
         public PlatformerMotor2D motorToWatch;
 
@@ -22,8 +30,8 @@ namespace PC2D
             {
                 if (_savedMotorState != value)
                 {
-                    prevMotorStateText.text = string.Format("Prev Motor State: {0}", _savedMotorState);
-                    motorStateText.text = string.Format("Motor State: {0}", value);
+                    prevMotorStateText = string.Format("Prev Motor State: {0}", _savedMotorState);
+                    motorStateText = string.Format("Motor State: {0}", value);
                 }
                 _savedMotorState = value;
             }
@@ -33,13 +41,39 @@ namespace PC2D
         void Start()
         {
             motorToWatch.onLanded += OnFallFinished;
-            fallText.color = Color.white;
+            //fallText.color = Color.white;
+        }
+
+        void OnGUI() {
+            guiStyle.normal.textColor = textColor;
+
+            GUILayout.BeginArea(new Rect(padding, padding, Screen.width - padding * 2, Screen.height - padding * 2));
+            if (title.Length != 0) {
+                guiStyle.fontSize = titleFontSize;
+                GUILayout.Label(title, guiStyle);
+                GUILayout.Space(titleFontSize);
+            }
+
+            if (instructions.Length != 0) {
+                guiStyle.fontSize = instructionsFontSize;
+                GUILayout.Label(instructions, guiStyle);
+                GUILayout.Space(instructionsFontSize);
+            }
+
+            guiStyle.fontSize = debugFontSize;
+            GUILayout.Label(
+                fallText + "\n" +
+                motorStateText + "\n" +
+                prevMotorStateText + "\n" +
+                extra
+            , guiStyle);
+            GUILayout.EndArea();
         }
 
         public void OnFallFinished()
         {
-            fallText.text = string.Format("Fall Distance: {0:F}", motorToWatch.amountFallen);
-            fallText.color = Color.green;
+            fallText = string.Format("Fall Distance: {0:F}", motorToWatch.amountFallen);
+            //fallText.color = Color.green;
             _justFellTimer = 0.5f;
         }
 
@@ -53,12 +87,31 @@ namespace PC2D
                 _justFellTimer -= Time.deltaTime;
                 if (_justFellTimer <= 0)
                 {
-                    fallText.color = Color.white;
+                    //fallText.color = Color.white;
                 }
             }
 
             MotorState = motorToWatch.motorState;
-            collidingAgainst.text = string.Format("Colliding Against: {0}", motorToWatch.collidingAgainst);
+
+            extra = string.Format(
+                "Colliding Against: {0}\n" +
+                "inArea: {8}\n" +
+                "Ladder Zone: {1}\n" +
+                "Restricted? {2}\n" +
+                "OneWayPlatforms? {3}\n" +
+                "oneWayPlatformsAreWalls? {4}\n" +
+                "normalizedMovement ({5:F} {6:F})\n" +
+                "velocity {7}\n",
+                motorToWatch.collidingAgainst,
+                motorToWatch.ladderZone,
+                motorToWatch.IsRestricted(),
+                motorToWatch.enableOneWayPlatforms,
+                motorToWatch.oneWayPlatformsAreWalls,
+                motorToWatch.normalizedXMovement,
+                motorToWatch.normalizedYMovement,
+                motorToWatch.velocity,
+                motorToWatch.inArea
+            );
 
             if (ladderZone != null)
             {
