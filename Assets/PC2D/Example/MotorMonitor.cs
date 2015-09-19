@@ -59,9 +59,16 @@ namespace PC2D
 
             MotorState = motorToWatch.motorState;
             collidingAgainst.text = string.Format("Colliding Against: {0}", motorToWatch.collidingAgainst);
-            ladderZone.text = string.Format("Ladder Zone: {0}", motorToWatch.ladderZone);
-            restrictedArea.text = string.Format("restricted: {0} OWP: {1} Solid? {2}", motorToWatch.IsRestricted(), motorToWatch.enableOneWayPlatforms, motorToWatch.oneWayPlatformsAreWalls);
 
+            if (ladderZone != null)
+            {
+                ladderZone.text = string.Format("Ladder Zone: {0}", motorToWatch.ladderZone);
+            }
+
+            if (restrictedArea != null)
+            {
+                restrictedArea.text = string.Format("restricted: {0} OWP: {1} Solid? {2}", motorToWatch.IsRestricted(), motorToWatch.enableOneWayPlatforms, motorToWatch.oneWayPlatformsAreWalls);
+            }
         }
     }
 }
