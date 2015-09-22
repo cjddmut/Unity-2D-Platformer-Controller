@@ -1,6 +1,7 @@
 using UnityEngine;
 
-namespace PC2D {
+namespace PC2D
+{
     public class LadderBody : SpriteDebug
     {
         public bool enableRestrictedArea = true;
@@ -13,7 +14,7 @@ namespace PC2D {
         {
             base.OnTriggerEnter2D(o);
 
-            PlatformerMotor2D motor = o.GetComponent<PlatformerMotor2D> ();
+            PlatformerMotor2D motor = o.GetComponent<PlatformerMotor2D>();
             if (motor)
             {
                 // some games could want to enable auto bottom/top detection based on
@@ -35,7 +36,7 @@ namespace PC2D {
         {
             base.OnTriggerStay2D(o);
 
-            PlatformerMotor2D motor = o.GetComponent<PlatformerMotor2D> ();
+            PlatformerMotor2D motor = o.GetComponent<PlatformerMotor2D>();
             if (motor)
             {
                 motor.LadderAreaEnter(_sprite.bounds, topHeight, bottomHeight);
@@ -46,11 +47,12 @@ namespace PC2D {
         {
             base.OnTriggerExit2D(o);
 
-            PlatformerMotor2D motor = o.GetComponent<PlatformerMotor2D> ();
+            PlatformerMotor2D motor = o.GetComponent<PlatformerMotor2D>();
             if (motor)
             {
                 motor.FreedomAreaExit();
-                if (enableRestrictedArea) {
+                if (enableRestrictedArea)
+                {
                     motor.DisableRestrictedArea();
                     motor.ClearRestrictedArea();
                 }

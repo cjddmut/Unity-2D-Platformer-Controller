@@ -399,17 +399,14 @@ public class PlatformerMotor2D : MonoBehaviour
     /// <summary>
     /// Zone in the ladder, to handle input properly
     /// </summary>
-    public enum LadderZone {
+    public enum LadderZone
+    {
         Top,
         Bottom,
         Middle
-    };
+    }
 
     public LadderZone ladderZone { get; private set; }
-
-    private Bounds ladderArea;
-    private Bounds ladderBottomArea;
-    private Bounds ladderTopArea;
 
     /// <summary>
     /// Set the x movement direction. This is multiplied by the max speed. -1 is full left, 1 is full right. Higher numbers will
@@ -838,17 +835,17 @@ public class PlatformerMotor2D : MonoBehaviour
         inArea |= CollidedArea.Ladder;
         inArea |= CollidedArea.FreedomArea;
 
-        ladderArea = area;
+        _ladderArea = area;
 
         // top - 8
         // bottom + 8
 
-        ladderTopArea = new Bounds(
+        _ladderTopArea = new Bounds(
             new Vector3(area.center.x, area.center.y + area.extents.y - topHeight * 0.5f, 0),
             new Vector3(area.size.x, topHeight, 100)
         );
 
-        ladderBottomArea = new Bounds(
+        _ladderBottomArea = new Bounds(
             new Vector3(area.center.x, area.center.y - area.extents.y + bottomHeight * 0.5f, 0),
             new Vector3(area.size.x, bottomHeight, 100)
         );
@@ -864,12 +861,13 @@ public class PlatformerMotor2D : MonoBehaviour
         inArea &= ~CollidedArea.Ladder;
         // I may leave a freedomArea, i may not... exitFreedomArea must be called
 
-        ladderBottomArea = new Bounds(Vector3.zero, Vector3.zero);
-        ladderTopArea = new Bounds(Vector3.zero, Vector3.zero);
-        ladderArea = new Bounds(Vector3.zero, Vector3.zero);
+        _ladderBottomArea = new Bounds(Vector3.zero, Vector3.zero);
+        _ladderTopArea = new Bounds(Vector3.zero, Vector3.zero);
+        _ladderArea = new Bounds(Vector3.zero, Vector3.zero);
     }
 
-    public void SetLadderZone(LadderZone z) {
+    public void SetLadderZone(LadderZone z)
+    {
         ladderZone = z;
     }
 
@@ -884,7 +882,8 @@ public class PlatformerMotor2D : MonoBehaviour
         _restrictedAreaTR = b.center + b.extents;
         _restrictedAreaBL = b.center - b.extents;
 
-        if (disableTop) {
+        if (disableTop)
+        {
             _restrictedAreaTR.y = Mathf.Infinity;
         }
     }
@@ -900,11 +899,10 @@ public class PlatformerMotor2D : MonoBehaviour
 
     public void EnableRestrictedArea()
     {
-        if (!(
-        _restrictedAreaTR.x == Mathf.Infinity &&
-        _restrictedAreaTR.y == Mathf.Infinity &&
-        _restrictedAreaBL.x == -Mathf.Infinity &&
-        _restrictedAreaBL.y == -Mathf.Infinity))
+        if (!(_restrictedAreaTR.x == Mathf.Infinity &&
+              _restrictedAreaTR.y == Mathf.Infinity &&
+              _restrictedAreaBL.x == -Mathf.Infinity &&
+              _restrictedAreaBL.y == -Mathf.Infinity))
         {
             inArea |= CollidedArea.Restricted;
         }
@@ -915,7 +913,8 @@ public class PlatformerMotor2D : MonoBehaviour
         return (inArea & CollidedArea.Restricted) == CollidedArea.Restricted;
     }
 
-    public void DisableRestrictedArea() {
+    public void DisableRestrictedArea()
+    {
         inArea &= ~CollidedArea.Restricted;
     }
 
@@ -985,6 +984,10 @@ public class PlatformerMotor2D : MonoBehaviour
     // Iteration Debug
     private int _iterationsUsed;
     private Bounds[] _iterationBounds;
+
+    private Bounds _ladderArea;
+    private Bounds _ladderBottomArea;
+    private Bounds _ladderTopArea;
 
     // Contains the various jump variables, this is for organization.
     private class JumpState
@@ -1087,8 +1090,6 @@ public class PlatformerMotor2D : MonoBehaviour
     private const int DIRECTION_UP = 1;
     private const int DIRECTION_LEFT = 2;
     private const int DIRECTION_RIGHT = 3;
-
-    private const string FROZEN_SET_WHILE_DISABLED = "PC2D: PlatformerMotor2D.frozen set when motor is disabled, ignoring.";
 
     private Collider2D _collider2D { get; set; }
 
@@ -1533,15 +1534,15 @@ public class PlatformerMotor2D : MonoBehaviour
             }
         }
         // check ladder zone
-        if(ladderBottomArea.Contains(_collider2D.bounds.center))
+        if (_ladderBottomArea.Contains(_collider2D.bounds.center))
         {
             ladderZone = LadderZone.Bottom;
         }
-        else if(ladderTopArea.Contains(_collider2D.bounds.center))
+        else if (_ladderTopArea.Contains(_collider2D.bounds.center))
         {
             ladderZone = LadderZone.Top;
         }
-        else if (ladderArea.Contains(_collider2D.bounds.center))
+        else if (_ladderArea.Contains(_collider2D.bounds.center))
         {
             ladderZone = LadderZone.Middle;
         }
@@ -2195,9 +2196,10 @@ public class PlatformerMotor2D : MonoBehaviour
         {
             return;
         }
-        // If we are falling fast then multiply the gravityMultiplier.
-        else if (IsInAir() && !_jumping.ignoreGravity)
+        
+        if (IsInAir() && !_jumping.ignoreGravity)
         {
+            // If we are falling fast then multiply the gravityMultiplier.
             if (fallFast)
             {
                 if (_velocity.y == -fastFallSpeed)
@@ -2303,7 +2305,7 @@ public class PlatformerMotor2D : MonoBehaviour
                         speed > 0 &&
                         normalizedXMovement < 0)
                     {
-                        float deceleration  = (maxSpeed * maxSpeed) / (2 * groundStopDistance);
+                        float deceleration = (maxSpeed * maxSpeed) / (2 * groundStopDistance);
 
                         if (onSlope && changeSpeedOnSlopes)
                         {
@@ -2486,11 +2488,15 @@ public class PlatformerMotor2D : MonoBehaviour
             {
                 if (moveDir.y > 0)
                 {
-                    maxSpeed = groundSpeed * Vector3.Dot(Vector3.right * Mathf.Sign(moveDir.x), moveDir) * speedMultiplierOnSlope;
+                    maxSpeed = groundSpeed * 
+                        Vector3.Dot(Vector3.right * Mathf.Sign(moveDir.x), moveDir) * 
+                        speedMultiplierOnSlope;
                 }
                 else
                 {
-                    maxSpeed = groundSpeed * (2f - Vector3.Dot(Vector3.right * Mathf.Sign(moveDir.x), moveDir) * speedMultiplierOnSlope);
+                    maxSpeed = groundSpeed * 
+                        (2f - Vector3.Dot(Vector3.right * Mathf.Sign(moveDir.x), moveDir) * 
+                        speedMultiplierOnSlope);
                 }
             }
             else
@@ -2628,7 +2634,8 @@ public class PlatformerMotor2D : MonoBehaviour
 
         // at the end if there is a restricted area, force the motor inside
         // TODO handle rotation, unrotate transform.position, check, rotate
-        if (IsRestricted()) {
+        if (IsRestricted())
+        {
             Vector2 pos;
             pos.x = Mathf.Clamp(transform.position.x, _restrictedAreaBL.x, _restrictedAreaTR.x);
             pos.y = Mathf.Clamp(transform.position.y, _restrictedAreaBL.y, _restrictedAreaTR.y);
@@ -2986,7 +2993,8 @@ public class PlatformerMotor2D : MonoBehaviour
         {
 
             surfaces |= CollidedSurface.Ground;
-            if (motorState == MotorState.FreedomState) {
+            if (motorState == MotorState.FreedomState)
+            {
                 FreedomStateExit();
                 DisableRestrictedArea();
             }
@@ -3204,22 +3212,11 @@ public class PlatformerMotor2D : MonoBehaviour
     void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;
-        Gizmos.DrawWireCube(ladderTopArea.center, ladderTopArea.size);
-        Gizmos.DrawWireCube(ladderBottomArea.center, ladderBottomArea.size);
+        Gizmos.DrawWireCube(_ladderTopArea.center, _ladderTopArea.size);
+        Gizmos.DrawWireCube(_ladderBottomArea.center, _ladderBottomArea.size);
 
         Gizmos.color = Color.red;
         Gizmos.DrawWireCube(_restrictedArea.center, _restrictedArea.size);
-
-/*
-        Gizmos.DrawLine(
-            new Vector3(_restrictedAreaTR.x, _restrictedAreaTR.y, 100),
-            new Vector3(_restrictedAreaBL.x, _restrictedAreaBL.y, 100)
-        );
-        Gizmos.DrawLine(
-            new Vector3(_restrictedAreaBL.x, _restrictedAreaTR.y, 100),
-            new Vector3(_restrictedAreaTR.x, _restrictedAreaBL.y, 100)
-        );
-*/
 
         Gizmos.color = Color.white;
 

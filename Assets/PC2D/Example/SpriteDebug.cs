@@ -1,6 +1,7 @@
 using UnityEngine;
 
-namespace PC2D {
+namespace PC2D
+{
     public class SpriteDebug : MonoBehaviour
     {
         public bool debug = false;
@@ -11,7 +12,7 @@ namespace PC2D {
 
         public virtual void Start()
         {
-            _sprite = GetComponent<SpriteRenderer> ();
+            _sprite = GetComponent<SpriteRenderer>();
 
             if (!debug)
             {
@@ -25,7 +26,8 @@ namespace PC2D {
 
         public virtual void OnTriggerEnter2D(Collider2D o)
         {
-            if (debug) {
+            if (debug)
+            {
                 _sprite.color = triggerColor;
             }
         }
@@ -36,7 +38,8 @@ namespace PC2D {
 
         public virtual void OnTriggerExit2D(Collider2D o)
         {
-            if (debug) {
+            if (debug)
+            {
                 _sprite.color = _originalColor;
             }
         }
