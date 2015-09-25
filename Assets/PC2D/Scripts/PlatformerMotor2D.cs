@@ -924,10 +924,12 @@ public class PlatformerMotor2D : MonoBehaviour
         motorState = MotorState.FreedomState;
         _velocity.y = 0;
         _velocity.x = 0;
+        ignoreGravity = true;
     }
 
     public void FreedomStateExit()
     {
+        ignoreGravity = false;
         motorState = MotorState.Falling;
     }
 
@@ -1002,8 +1004,6 @@ public class PlatformerMotor2D : MonoBehaviour
         public bool force;
         public float height;
 
-        public bool ignoreGravity;
-
         public float jumpGraceFrames;
         public bool jumpTypeChanged;
 
@@ -1037,6 +1037,8 @@ public class PlatformerMotor2D : MonoBehaviour
         private JumpType _lastValidJump;
     }
     private JumpState _jumping = new JumpState();
+
+    private bool ignoreGravity;
 
     // Contains the various dash variables.
     private class DashState
@@ -1912,8 +1914,6 @@ public class PlatformerMotor2D : MonoBehaviour
             _jumping.pressed = true;
         }
 
-        _jumping.ignoreGravity = false;
-
         if (_currentWallJumpDegree != wallJumpAngle)
         {
             _wallJumpVector = Quaternion.AngleAxis(wallJumpAngle, Vector3.forward) * Vector3.right;
@@ -1924,7 +1924,9 @@ public class PlatformerMotor2D : MonoBehaviour
         // height.
         if (motorState == MotorState.Jumping && _jumping.held && _jumping.allowExtraFrames > 0)
         {
-            _jumping.ignoreGravity = true;
+            ignoreGravity = true;
+        } else if (ignoreGravity) {
+            ignoreGravity = false;
         }
 
         // Jump?
@@ -2191,13 +2193,12 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private void HandleFalling()
     {
-        // while in freedom state, motor has no "gravity"
-        if (motorState == MotorState.FreedomState)
+        if (ignoreGravity)
         {
             return;
         }
-        
-        if (IsInAir() && !_jumping.ignoreGravity)
+
+        if (IsInAir() && !ignoreGravity)
         {
             // If we are falling fast then multiply the gravityMultiplier.
             if (fallFast)
@@ -2488,14 +2489,14 @@ public class PlatformerMotor2D : MonoBehaviour
             {
                 if (moveDir.y > 0)
                 {
-                    maxSpeed = groundSpeed * 
-                        Vector3.Dot(Vector3.right * Mathf.Sign(moveDir.x), moveDir) * 
+                    maxSpeed = groundSpeed *
+                        Vector3.Dot(Vector3.right * Mathf.Sign(moveDir.x), moveDir) *
                         speedMultiplierOnSlope;
                 }
                 else
                 {
-                    maxSpeed = groundSpeed * 
-                        (2f - Vector3.Dot(Vector3.right * Mathf.Sign(moveDir.x), moveDir) * 
+                    maxSpeed = groundSpeed *
+                        (2f - Vector3.Dot(Vector3.right * Mathf.Sign(moveDir.x), moveDir) *
                         speedMultiplierOnSlope);
                 }
             }
