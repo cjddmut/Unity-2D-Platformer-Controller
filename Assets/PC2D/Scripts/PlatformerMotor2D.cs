@@ -937,6 +937,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
     #region Private
 
+    private LayerMask _collisionMask;
     private Vector2 _restrictedAreaTR;
     private Bounds _restrictedArea;
     private Vector2 _restrictedAreaBL;
@@ -1124,6 +1125,7 @@ public class PlatformerMotor2D : MonoBehaviour
         SetSlopeDegreeAllowed();
 
         ladderZone = LadderZone.Bottom;
+        _collisionMask = staticEnvLayerMask | movingPlatformLayerMask;
     }
 
     private void OnEnable()
@@ -1617,7 +1619,7 @@ public class PlatformerMotor2D : MonoBehaviour
         Bounds checkBounds = _collider2D.bounds;
         checkBounds.extents += Vector3.one * minDistanceFromEnv;
 
-        Collider2D col = Physics2D.OverlapArea(checkBounds.min, checkBounds.max, staticEnvLayerMask | movingPlatformLayerMask);
+        Collider2D col = Physics2D.OverlapArea(checkBounds.min, checkBounds.max, _collisionMask);
 
         if (col != null)
         {
@@ -1741,7 +1743,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
         min.y = max.y - _collider2D.bounds.size.y * normalizedValidWallInteraction;
 
-        _isValidWallInteraction = Physics2D.OverlapArea(min, max, staticEnvLayerMask | movingPlatformLayerMask) != null;
+        _isValidWallInteraction = Physics2D.OverlapArea(min, max, _collisionMask) != null;
     }
 
     private void SetLastJumpType()
@@ -1905,6 +1907,11 @@ public class PlatformerMotor2D : MonoBehaviour
     private bool IsMovingPlatform(GameObject obj)
     {
         return ((0x1 << obj.layer) & movingPlatformLayerMask) != 0;
+    }
+
+    private bool IsStatic(GameObject obj)
+    {
+        return ((0x1 << obj.layer) & staticEnvLayerMask) != 0;
     }
 
     private void HandlePreJumping()
@@ -2731,7 +2738,7 @@ public class PlatformerMotor2D : MonoBehaviour
             return false;
         }
 
-        Collider2D col = Physics2D.OverlapArea(min, max, staticEnvLayerMask | movingPlatformLayerMask);
+        Collider2D col = Physics2D.OverlapArea(min, max, _collisionMask);
 
         return (col == null);
     }
@@ -2761,7 +2768,7 @@ public class PlatformerMotor2D : MonoBehaviour
             direction,
             useExternalHits ? _hits : _hitsNoDistance,
             distance,
-            staticEnvLayerMask | movingPlatformLayerMask);
+            _collisionMask);
 
         if (num > _hits.Length)
         {
@@ -2782,7 +2789,7 @@ public class PlatformerMotor2D : MonoBehaviour
             direction,
             useExternalHits ? _hits : _hitsNoDistance,
             distance,
-            staticEnvLayerMask | movingPlatformLayerMask);
+            _collisionMask);
 
         return num;
     }
@@ -2798,7 +2805,7 @@ public class PlatformerMotor2D : MonoBehaviour
             direction,
             useExternalHits ? _hits : _hitsNoDistance,
             distance,
-            staticEnvLayerMask | movingPlatformLayerMask);
+            _collisionMask);
 
         if (num > _hits.Length)
         {
@@ -2817,7 +2824,7 @@ public class PlatformerMotor2D : MonoBehaviour
             direction,
             useExternalHits ? _hits : _hitsNoDistance,
             distance,
-            staticEnvLayerMask | movingPlatformLayerMask);
+            _collisionMask);
 
         return num;
     }
@@ -2840,10 +2847,10 @@ public class PlatformerMotor2D : MonoBehaviour
                     0f,
                     direction,
                     distance,
-                    staticEnvLayerMask | movingPlatformLayerMask);
+                    _collisionMask);
             }
 
-            return Physics2D.Raycast(origin, direction, distance, staticEnvLayerMask | movingPlatformLayerMask);
+            return Physics2D.Raycast(origin, direction, distance, _collisionMask);
         }
 
         // For one way platforms, things get interesting!
