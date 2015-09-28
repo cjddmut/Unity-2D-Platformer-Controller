@@ -1716,7 +1716,7 @@ public class PlatformerMotor2D : MonoBehaviour
             min.x = min.x - envCheckDistance;
         }
         else if (HasFlag(CollidedSurface.RightWall) &&
-                 _collidedNormals[DIRECTION_RIGHT] == -Vector2.right &&
+                 _collidedNormals[DIRECTION_RIGHT] == Vector2.left &&
                  normalizedXMovement > 0)
         {
             min.x = _collider2D.bounds.center.x;
@@ -1965,7 +1965,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
                 if (onWallJump != null)
                 {
-                    onWallJump(-Vector2.right);
+                    onWallJump(Vector2.left);
                 }
             }
             else if (_jumping.numAirJumps < numOfAirJumps)
@@ -2152,7 +2152,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 }
                 else
                 {
-                    _velocity = -Vector2.up * wallSlideSpeed;
+                    _velocity = Vector2.down * wallSlideSpeed;
                 }
             }
         }
@@ -2422,7 +2422,7 @@ public class PlatformerMotor2D : MonoBehaviour
             _collidedNormals[DIRECTION_LEFT] == Vector2.right ||
             HasFlag(CollidedSurface.RightWall) &&
             _velocity.x > 0 &&
-            _collidedNormals[DIRECTION_RIGHT] == -Vector2.right)
+            _collidedNormals[DIRECTION_RIGHT] == Vector2.left)
         {
             _velocity.x = 0;
         }
@@ -2541,7 +2541,7 @@ public class PlatformerMotor2D : MonoBehaviour
         if (!_dashing.dashWithDirection)
         {
             // We dash depending on our direction.
-            _dashing.dashDir = facingLeft ? -Vector2.right : Vector2.right;
+            _dashing.dashDir = facingLeft ? Vector2.left : Vector2.right;
         }
 
         _dashing.distanceDashed = 0;
@@ -2982,7 +2982,7 @@ public class PlatformerMotor2D : MonoBehaviour
         RaycastHit2D closestHit;
 
         // Left
-        if (forceCheck || Vector2.Dot(vecToCheck, -Vector2.right) >= -NEAR_ZERO)
+        if (forceCheck || Vector2.Dot(vecToCheck, Vector2.left) >= -NEAR_ZERO)
         {
             closestHit = GetClosestHit(_collider2D.bounds.center, Vector3.left, envCheckDistance);
 
@@ -3043,7 +3043,7 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         if (forceCheck ||
-            Vector2.Dot(vecToCheck, -Vector2.up) >= -NEAR_ZERO ||
+            Vector2.Dot(vecToCheck, Vector2.down) >= -NEAR_ZERO ||
             onSlope ||
             (HasFlag(CollidedSurface.Ground) && IsJumping()))
         {
@@ -3100,6 +3100,8 @@ public class PlatformerMotor2D : MonoBehaviour
                 {
                     // Both sides are sloping if we can stand on a slope then we consider the least steep slope.
                     float leftDot = Vector2.Dot(Vector2.up, leftNormal);
+                    Debug.Log("leftDot" + leftDot);
+                    Debug.Log("leftDot2" + leftNormal.y);
                     float rightDot = Vector2.Dot(Vector2.up, rightNormal);
 
                     if (leftDot < _dotAllowedForSlopes && rightDot < _dotAllowedForSlopes)
