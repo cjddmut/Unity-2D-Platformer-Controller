@@ -1250,26 +1250,26 @@ public class PlatformerMotor2D : MonoBehaviour
 
                 if (fallFast)
                 {
-                    float increaseBy = Vector2.Dot(Vector3.down, slopeDir) * fastFallGravityMultiplier *
+                    float increaseBy = -slopeDir.y * fastFallGravityMultiplier *
                         Mathf.Abs(Physics2D.gravity.y) * GetDeltaTime();
 
                     _velocity += slopeDir * increaseBy;
 
                     if (Vector2.Dot(GetMovementDir(_velocity.x), slopeDir) > NEAR_ZERO)
                     {
-                        _velocity = Vector2.ClampMagnitude(_velocity, Vector2.Dot(Vector3.down, slopeDir) * fastFallSpeed);
+                        _velocity = Vector2.ClampMagnitude(_velocity, -slopeDir.y * fastFallSpeed);
                     }
                 }
                 else
                 {
-                    float increaseBy = Vector2.Dot(Vector3.down, slopeDir) * gravityMultiplier *
+                    float increaseBy = -slopeDir.y * gravityMultiplier *
                         Mathf.Abs(Physics2D.gravity.y) * GetDeltaTime();
 
                     _velocity += slopeDir * increaseBy;
 
                     if (Vector2.Dot(GetMovementDir(_velocity.x), slopeDir) > NEAR_ZERO)
                     {
-                        _velocity = Vector2.ClampMagnitude(_velocity, Vector2.Dot(Vector3.down, slopeDir) * fallSpeed);
+                        _velocity = Vector2.ClampMagnitude(_velocity, -slopeDir.y * fallSpeed);
                     }
                 }
             }
@@ -2283,7 +2283,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
                         if (onSlope && changeSpeedOnSlopes)
                         {
-                            float factor = (speedMultiplierOnSlope * (1 - Vector2.Dot(slopeNormal, Vector2.up)));
+                            float factor = (speedMultiplierOnSlope * (1 - slopeNormal.y));
 
                             if (moveDir.y > 0)
                             {
@@ -2306,7 +2306,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
                         if (onSlope && changeSpeedOnSlopes)
                         {
-                            float factor = (speedMultiplierOnSlope * (1 - Vector2.Dot(slopeNormal, Vector2.up)));
+                            float factor = (speedMultiplierOnSlope * (1 - slopeNormal.y));
 
                             if (moveDir.y < 0)
                             {
@@ -2379,7 +2379,7 @@ public class PlatformerMotor2D : MonoBehaviour
 
                         if (onSlope && changeSpeedOnSlopes)
                         {
-                            float factor = (speedMultiplierOnSlope * (1 - Vector2.Dot(slopeNormal, Vector2.up)));
+                            float factor = (speedMultiplierOnSlope * (1 - slopeNormal.y));
 
                             if (GetMovementDir(_velocity.x).y > 0)
                             {
@@ -2454,7 +2454,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 }
                 else
                 {
-                    maxSpeed = Vector2.Dot(Vector3.down, slopeDir) * (fallFast ? fastFallSpeed : fallSpeed);
+                    maxSpeed = -slopeDir.y * (fallFast ? fastFallSpeed : fallSpeed);
                 }
             }
 
@@ -2767,14 +2767,12 @@ public class PlatformerMotor2D : MonoBehaviour
             }
         }
 
-        num = Physics2D.RaycastNonAlloc(
+        return Physics2D.RaycastNonAlloc(
             origin,
             direction,
             useExternalHits ? _hits : _hitsNoDistance,
             distance,
             _collisionMask);
-
-        return num;
     }
 
     private RaycastHit2D GetClosestHit(
@@ -2982,7 +2980,7 @@ public class PlatformerMotor2D : MonoBehaviour
         RaycastHit2D closestHit;
 
         // Left
-        if (forceCheck || Vector2.Dot(vecToCheck, Vector2.left) >= -NEAR_ZERO)
+        if (forceCheck || -vecToCheck.x >= -NEAR_ZERO)
         {
             closestHit = GetClosestHit(_collider2D.bounds.center, Vector3.left, envCheckDistance);
 
@@ -3003,7 +3001,7 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         // Ceiling
-        if (forceCheck || Vector2.Dot(vecToCheck, Vector2.up) >= -NEAR_ZERO)
+        if (forceCheck || vecToCheck.y >= -NEAR_ZERO)
         {
             closestHit = GetClosestHit(_collider2D.bounds.center, Vector3.up, envCheckDistance);
 
@@ -3022,7 +3020,7 @@ public class PlatformerMotor2D : MonoBehaviour
             }
         }
 
-        if (forceCheck || Vector2.Dot(vecToCheck, Vector2.right) >= -NEAR_ZERO)
+        if (forceCheck || vecToCheck.x >= -NEAR_ZERO)
         {
             // Right
             closestHit = GetClosestHit(_collider2D.bounds.center, Vector3.right, envCheckDistance);
@@ -3043,7 +3041,7 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         if (forceCheck ||
-            Vector2.Dot(vecToCheck, Vector2.down) >= -NEAR_ZERO ||
+            -vecToCheck.y >= -NEAR_ZERO ||
             onSlope ||
             (HasFlag(CollidedSurface.Ground) && IsJumping()))
         {
@@ -3099,10 +3097,8 @@ public class PlatformerMotor2D : MonoBehaviour
                     (surfaces & CollidedSurface.SlopeRight) != CollidedSurface.None)
                 {
                     // Both sides are sloping if we can stand on a slope then we consider the least steep slope.
-                    float leftDot = Vector2.Dot(Vector2.up, leftNormal);
-                    Debug.Log("leftDot" + leftDot);
-                    Debug.Log("leftDot2" + leftNormal.y);
-                    float rightDot = Vector2.Dot(Vector2.up, rightNormal);
+                    float leftDot = leftNormal.y;
+                    float rightDot = rightNormal.y;
 
                     if (leftDot < _dotAllowedForSlopes && rightDot < _dotAllowedForSlopes)
                     {
@@ -3397,7 +3393,7 @@ public class PlatformerMotor2D : MonoBehaviour
         return (HasFlag(CollidedSurface.Ground) || onSlope) &&
                !IsJumping() &&
                (onSlope && Vector2.Dot(_velocity, slopeNormal) <= NEAR_ZERO ||
-               Vector2.Dot(_velocity, Vector2.up) <= NEAR_ZERO);
+               _velocity.y <= NEAR_ZERO);
     }
 
     // on slope that cannot walk, will be forced to slip down
