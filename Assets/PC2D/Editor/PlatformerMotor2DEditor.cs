@@ -346,7 +346,7 @@ public class PlatformerMotor2DEditor : Editor
 
     private void CheckAndDisplayInfo()
     {
-        if (!Physics2D.raycastsStartInColliders &&
+        if (!Physics2D.queriesStartInColliders &&
             (_properties[MOVING_PLATFORM_LAYER_MASK.name].hasMultipleDifferentValues ||
             _properties[MOVING_PLATFORM_LAYER_MASK.name].intValue != 0))
         {

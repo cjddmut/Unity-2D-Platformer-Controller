@@ -1,7 +1,6 @@
 using System;
 using PC2D;
 using UnityEngine;
-using UnityEngine.Assertions;
 
 [RequireComponent(typeof(BoxCollider2D))]
 public class PlatformerMotor2D : MonoBehaviour
@@ -1046,7 +1045,7 @@ public class PlatformerMotor2D : MonoBehaviour
         return ((0x1 << obj.layer) & staticEnvLayerMask) != 0;
     }
 
-    #endregion
+#endregion
 
     #region Private
 
@@ -1923,7 +1922,7 @@ public class PlatformerMotor2D : MonoBehaviour
             }
             else
             {
-               amountJumpedFor += diffInPositions;
+                amountJumpedFor += diffInPositions;
             }
         }
     }
