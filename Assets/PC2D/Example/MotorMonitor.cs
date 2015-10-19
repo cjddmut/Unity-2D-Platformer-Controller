@@ -8,10 +8,11 @@ namespace PC2D
         public Color textColor = Color.white;
         public string title = "";
         public int titleFontSize = 20;
+        [TextArea(3,10)]
         public string instructions = "Keyboard\nMove: WASD\nJump: Space\nDash: Left Ctrl\n\nXBox Controller\nMove: Left Joystick\nJump: A\nDash: X";
         public int instructionsFontSize = 18;
         public int debugFontSize = 15;
-        public int padding = 25;
+        public Vector2 position = Vector2.zero;
 
         private string fallText;
         private string motorStateText;
@@ -47,14 +48,16 @@ namespace PC2D
         void OnGUI() {
             guiStyle.normal.textColor = textColor;
 
-            GUILayout.BeginArea(new Rect(padding, padding, Screen.width - padding * 2, Screen.height - padding * 2));
-            if (title.Length != 0) {
+            GUILayout.BeginArea(new Rect(position.x, position.y, Screen.width - position.x, Screen.height - position.y));
+            if (title.Length != 0)
+            {
                 guiStyle.fontSize = titleFontSize;
                 GUILayout.Label(title, guiStyle);
                 GUILayout.Space(titleFontSize);
             }
 
-            if (instructions.Length != 0) {
+            if (instructions.Length != 0)
+            {
                 guiStyle.fontSize = instructionsFontSize;
                 GUILayout.Label(instructions, guiStyle);
                 GUILayout.Space(instructionsFontSize);
@@ -112,16 +115,6 @@ namespace PC2D
                 motorToWatch.velocity,
                 motorToWatch.inArea
             );
-
-            if (ladderZone != null)
-            {
-                ladderZone.text = string.Format("Ladder Zone: {0}", motorToWatch.ladderZone);
-            }
-
-            if (restrictedArea != null)
-            {
-                restrictedArea.text = string.Format("restricted: {0} OWP: {1} Solid? {2}", motorToWatch.IsRestricted(), motorToWatch.enableOneWayPlatforms, motorToWatch.oneWayPlatformsAreWalls);
-            }
         }
     }
 }
