@@ -100,13 +100,13 @@ namespace PC2D
             {
                 valueCheck = _motor.velocity.x;
             }
-			
-			if (Mathf.Abs(valueCheck) >= 0.1f)
-			{
-				Vector3 newScale = visualChild.transform.localScale;
-				newScale.x = Mathf.Abs(newScale.x) * ((valueCheck > 0) ? 1.0f : -1.0f);
-				visualChild.transform.localScale = newScale;
-			}
+            
+            if (Mathf.Abs(valueCheck) >= 0.1f)
+            {
+                Vector3 newScale = visualChild.transform.localScale;
+                newScale.x = Mathf.Abs(newScale.x) * ((valueCheck > 0) ? 1.0f : -1.0f);
+                visualChild.transform.localScale = newScale;
+            }
         }
 
         private void SetCurrentFacingLeft()
