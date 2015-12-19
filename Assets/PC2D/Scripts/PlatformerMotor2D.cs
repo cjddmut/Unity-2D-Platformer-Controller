@@ -1,6 +1,8 @@
 using System;
+using System.Diagnostics;
 using PC2D;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 [RequireComponent(typeof(BoxCollider2D))]
 public class PlatformerMotor2D : MonoBehaviour
@@ -1045,7 +1047,7 @@ public class PlatformerMotor2D : MonoBehaviour
         return ((0x1 << obj.layer) & staticEnvLayerMask) != 0;
     }
 
-#endregion
+    #endregion
 
     #region Private
 
@@ -2718,6 +2720,8 @@ public class PlatformerMotor2D : MonoBehaviour
 
         RaycastHit2D hit = GetClosestHit(_collider2D.bounds.center, toNewPos / distance, distance);
 
+        //Debug.Log(enableSlopes + " " + _collider2D.bounds.center.x + " " + _collider2D.bounds.center.y + " " + (toNewPos / distance).x + " " + (toNewPos / distance).y + " " + distance);
+        //Debug.Log(hit.collider + " " + hit.centroid.x + " " + hit.centroid.y + " " + hit.normal.x + " " + hit.normal.y);
 
         _previousLoc = _collider2D.bounds.center;
 
@@ -3175,19 +3179,15 @@ public class PlatformerMotor2D : MonoBehaviour
             (HasFlag(CollidedSurface.Ground) && IsJumping()))
         {
             // Ground
-            float distance = envCheckDistance;
-            bool forceDistanceFromEnv = false;
+            surfaces |= CheckGround(envCheckDistance, false);
 
             if (enableSlopes &&
                 stickOnGround &&
                 (IsOnGround() || IsSlipping()) &&
                 surfaces == CollidedSurface.None)
             {
-                distance = distanceToCheckToStick;
-                forceDistanceFromEnv = true;
+                surfaces |= CheckGround(distanceToCheckToStick, true);
             }
-
-            surfaces |= CheckGround(distance, forceDistanceFromEnv);
         }
 
         onSlope = false;
