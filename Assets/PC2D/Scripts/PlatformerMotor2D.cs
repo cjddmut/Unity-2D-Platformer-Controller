@@ -1,8 +1,6 @@
 using System;
-using System.Diagnostics;
 using PC2D;
 using UnityEngine;
-using Debug = UnityEngine.Debug;
 
 [RequireComponent(typeof(BoxCollider2D))]
 public class PlatformerMotor2D : MonoBehaviour
@@ -1194,11 +1192,12 @@ public class PlatformerMotor2D : MonoBehaviour
 
     // Used for environment checks and one way platforms
     private static RaycastHit2D[] _hits = new RaycastHit2D[STARTING_ARRAY_SIZE];
-    private static RaycastHit2D[] _hitsNoDistance = new RaycastHit2D[STARTING_ARRAY_SIZE];
+    private static Collider2D[] _overlappingColliders = new Collider2D[STARTING_ARRAY_SIZE];
 
     private const float NEAR_ZERO = 0.0001f;
 
     private const float DISTANCE_TO_END_ITERATION = 0.001f;
+    private const float CHECK_TOUCHING_TRIM = 0.01f;
 
     private const int STARTING_ARRAY_SIZE = 4;
     private const float INCREASE_ARRAY_SIZE_MULTIPLIER = 2;
@@ -2720,9 +2719,6 @@ public class PlatformerMotor2D : MonoBehaviour
 
         RaycastHit2D hit = GetClosestHit(_collider2D.bounds.center, toNewPos / distance, distance);
 
-        //Debug.Log(enableSlopes + " " + _collider2D.bounds.center.x + " " + _collider2D.bounds.center.y + " " + (toNewPos / distance).x + " " + (toNewPos / distance).y + " " + distance);
-        //Debug.Log(hit.collider + " " + hit.centroid.x + " " + hit.centroid.y + " " + hit.normal.x + " " + hit.normal.y);
-
         _previousLoc = _collider2D.bounds.center;
 
         if (hit.collider != null)
@@ -2839,36 +2835,30 @@ public class PlatformerMotor2D : MonoBehaviour
 
     private int GetNearbyHitsBox(
         Vector2 direction,
-        float distance,
-        bool useExternalHits)
+        float distance)
     {
         int num = Physics2D.BoxCastNonAlloc(
             _collider2D.bounds.center,
             _collider2D.bounds.size,
             0f,
             direction,
-            useExternalHits ? _hits : _hitsNoDistance,
+            _hits,
             distance,
             _collisionMask);
 
-        if (num > _hits.Length)
+        if (num <= _hits.Length)
         {
-            if (useExternalHits)
-            {
-                _hits = new RaycastHit2D[(int)(INCREASE_ARRAY_SIZE_MULTIPLIER * _hits.Length)];
-            }
-            else
-            {
-                _hitsNoDistance = new RaycastHit2D[(int)(INCREASE_ARRAY_SIZE_MULTIPLIER * _hitsNoDistance.Length)];
-            }
+            return num;
         }
+
+        _hits = new RaycastHit2D[(int)(INCREASE_ARRAY_SIZE_MULTIPLIER * num)];
 
         num = Physics2D.BoxCastNonAlloc(
             _collider2D.bounds.center,
             _collider2D.bounds.size,
             0f,
             direction,
-            useExternalHits ? _hits : _hitsNoDistance,
+            _hits,
             distance,
             _collisionMask);
 
@@ -2878,33 +2868,49 @@ public class PlatformerMotor2D : MonoBehaviour
     private int GetNearbyHitsRay(
         Vector2 origin,
         Vector2 direction,
-        float distance,
-        bool useExternalHits)
+        float distance)
     {
         int num = Physics2D.RaycastNonAlloc(
             origin,
             direction,
-            useExternalHits ? _hits : _hitsNoDistance,
+            _hits,
             distance,
             _collisionMask);
 
-        if (num > _hits.Length)
+        if (num <= _hits.Length)
         {
-            if (useExternalHits)
-            {
-                _hits = new RaycastHit2D[(int)(INCREASE_ARRAY_SIZE_MULTIPLIER * _hits.Length)];
-            }
-            else
-            {
-                _hitsNoDistance = new RaycastHit2D[(int)(INCREASE_ARRAY_SIZE_MULTIPLIER * _hitsNoDistance.Length)];
-            }
+            return num;
         }
+
+        _hits = new RaycastHit2D[(int)(INCREASE_ARRAY_SIZE_MULTIPLIER * num)];
 
         return Physics2D.RaycastNonAlloc(
             origin,
             direction,
-            useExternalHits ? _hits : _hitsNoDistance,
+             _hits,
             distance,
+            _collisionMask);
+    }
+
+    private int GetOverlappingColliders()
+    {
+        int num = Physics2D.OverlapAreaNonAlloc(
+            _collider2D.bounds.min + new Vector3(CHECK_TOUCHING_TRIM, CHECK_TOUCHING_TRIM),
+            _collider2D.bounds.max + new Vector3(-CHECK_TOUCHING_TRIM, -CHECK_TOUCHING_TRIM),
+            _overlappingColliders,
+            _collisionMask);
+
+        if (num <= _overlappingColliders.Length)
+        {
+            return num;
+        }
+
+        _overlappingColliders = new Collider2D[(int)(INCREASE_ARRAY_SIZE_MULTIPLIER) * num];
+
+        return Physics2D.OverlapAreaNonAlloc(
+            _collider2D.bounds.min + new Vector3(CHECK_TOUCHING_TRIM, CHECK_TOUCHING_TRIM),
+            _collider2D.bounds.max + new Vector3(-CHECK_TOUCHING_TRIM, -CHECK_TOUCHING_TRIM),
+            _overlappingColliders,
             _collisionMask);
     }
 
@@ -2940,20 +2946,21 @@ public class PlatformerMotor2D : MonoBehaviour
         {
             numOfHits = GetNearbyHitsBox(
                 direction,
-                distance,
-                true);
+                distance);
         }
         else
         {
             numOfHits = GetNearbyHitsRay(
                 origin,
                 direction,
-                distance,
-                true);
+                distance);
         }
 
         RaycastHit2D closestHit = new RaycastHit2D();
         float closeBy = float.MaxValue;
+
+        bool haveGotOverlapping = false;
+        int numOfNoDistanceHits = 0;
 
         for (int i = 0; i < numOfHits; i++)
         {
@@ -2965,17 +2972,15 @@ public class PlatformerMotor2D : MonoBehaviour
 
                 bool isTouching = false;
 
-                // You'd think OverlapArea would be sufficient but doesn't
-                // appear to necessarily reliably return the expected colliders
-                // So we box cast a distance of 0 instead.
-                int numOfNoDistanceHits = GetNearbyHitsBox(
-                    direction,
-                    0f,
-                    false);
+                if (!haveGotOverlapping)
+                {
+                    numOfNoDistanceHits = GetOverlappingColliders();
+                    haveGotOverlapping = true;
+                }
 
                 for (int j = 0; j < numOfNoDistanceHits; j++)
                 {
-                    if (_hitsNoDistance[j].collider == _hits[i].collider)
+                    if (_overlappingColliders[j] == _hits[i].collider)
                     {
                         isTouching = true;
                         break;
@@ -2992,16 +2997,14 @@ public class PlatformerMotor2D : MonoBehaviour
                         mpMotor.transform.position = mpMotor.previousPosition;
                         bool wasTouching = false;
 
-                        numOfNoDistanceHits = GetNearbyHitsBox(
-                            direction,
-                            0f,
-                            false);
+                        numOfNoDistanceHits = GetOverlappingColliders();
+                        haveGotOverlapping = false;
 
                         mpMotor.transform.position = curPos;
 
                         for (int j = 0; j < numOfNoDistanceHits; j++)
                         {
-                            if (_hitsNoDistance[j].collider == _hits[i].collider)
+                            if (_overlappingColliders[j] == _hits[i].collider)
                             {
                                 wasTouching = true;
                                 break;
