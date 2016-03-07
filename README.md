@@ -17,6 +17,8 @@ If you'd like the most up to date version (which is the most cool), then pull th
 ## NOTE!!!!
 Unity 5.3 appears to change the behavior of ray/boxcasts which PC2D relies heavily on. Make sure Environment Check Distance and Minimum Distance From Env need to be increased from what they were in Unity 5.2 (default is 0.08 and 0.04). This isn't a perfect solution but allows it to work within Unity's physics system.
 
+Also I am no longer using the platformer controller in my own personal projects so it's not getting the personal testing it deserves. Please open up an issue if there are any problems.
+
 ## Setup
 
 For immediate player support, drop the Basic Player Controller prefab into the scene and set the Static Environment Layer Mask field. For more complicated interaction, interface with PlatformerMotor2D's members and methods.
