@@ -43,7 +43,7 @@ Transform:
   m_PrefabInternal: {fileID: 100100000}
   m_GameObject: {fileID: 100000}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 15.94, y: 5.18, z: 0}
+  m_LocalPosition: {x: 0.5, y: 1, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 482806}
@@ -74,7 +74,7 @@ BoxCollider2D:
   m_UsedByEffector: 0
   m_Offset: {x: 0, y: 0}
   serializedVersion: 2
-  m_Size: {x: 0.36, y: 0.88}
+  m_Size: {x: 0.32, y: 0.88}
 --- !u!95 &9585610
 Animator:
   serializedVersion: 3
@@ -116,9 +116,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   staticEnvLayerMask:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 256
   envCheckDistance: 0.08
-  minDistanceFromEnv: 0.01
+  minDistanceFromEnv: 0.04
   numOfIterations: 2
   enableOneWayPlatforms: 1
   oneWayPlatformsAreWalls: 1
@@ -143,30 +143,30 @@ MonoBehaviour:
   numOfAirJumps: 1
   jumpWindowWhenFalling: 0.2
   jumpWindowWhenActivated: 0.2
-  enableSlopes: 1
+  enableSlopes: 0
   angleAllowedForMoving: 80
   minimumSpeedToMoveUpSlipperySlope: 7.5
   changeSpeedOnSlopes: 0
   speedMultiplierOnSlope: 0.75
   stickOnGround: 0
-  distanceToCheckToStick: 0.5
-  enableWallJumps: 0
+  distanceToCheckToStick: 0.75
+  enableWallJumps: 1
   wallJumpMultiplier: 1
   wallJumpAngle: 70
-  enableWallSticks: 0
+  enableWallSticks: 1
   wallSticksDuration: 1
-  enableWallSlides: 0
+  enableWallSlides: 1
   wallSlideSpeed: 5
   timeToWallSlideSpeed: 3
   enableCornerGrabs: 1
-  cornerGrabDuration: 1
-  cornerJumpMultiplier: 1
+  cornerGrabDuration: 1000
+  cornerJumpMultiplier: 0.5
   cornerDistanceCheck: 0.2
   normalizedValidWallInteraction: 0.2
   ignoreMovementAfterJump: 0.2
   wallInteractionCooldown: 0.1
   wallInteractionThreshold: 0.75
-  enableDashes: 0
+  enableDashes: 1
   dashDistance: 3
   dashDuration: 0.2
   dashCooldown: 1
@@ -212,7 +212,7 @@ SpriteRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 2
   m_Sprite: {fileID: 21300000, guid: 9dd5e173032002b4c8f2b371312582f5, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0

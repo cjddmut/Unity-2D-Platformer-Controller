@@ -16,12 +16,12 @@ public class PlatformerMotor2D : MonoBehaviour
     /// How far out the motor will check for the environment mask. This value can be tweaked if jump checks are not firing when
     /// wanted.
     /// </summary>
-    public float envCheckDistance = 0.02f;
+    public float envCheckDistance = 0.04f;
 
     /// <summary>
     /// The distance the motor will separate itself from environment. This is useful to prevent the motor from catching on edges.
     /// </summary>
-    public float minDistanceFromEnv = 0.01f;
+    public float minDistanceFromEnv = 0.02f;
 
     /// <summary>
     /// The number of iterations the motor is allowed to make during the fixed update. Lower number will be more performant
@@ -923,98 +923,98 @@ public class PlatformerMotor2D : MonoBehaviour
     // Quering motor
     //
 
-    ///<sumary>
+    ///<summary>
     /// Is the motor Dashing?
-    ///</sumary>
+    ///</summary>
     public bool IsDashing()
     {
         return motorState == MotorState.Dashing;
     }
 
-    ///<sumary>
+    ///<summary>
     /// Is the motor Jumping? include walljumps and airjumps.
-    ///</sumary>
+    ///</summary>
     public bool IsJumping()
     {
         return motorState == MotorState.Jumping;
     }
 
-    ///<sumary>
+    ///<summary>
     /// is the motor Jumping? include walljumps and airjumps.
-    ///</sumary>
+    ///</summary>
     public bool IsUserHandled()
     {
         return motorState == MotorState.FreedomState;
     }
 
-    ///<sumary>
+    ///<summary>
     /// is the motor falling? do not include failling fast.
-    ///</sumary>
+    ///</summary>
     public bool IsFalling()
     {
         return motorState == MotorState.Falling;
     }
-    ///<sumary>
+    ///<summary>
     /// is the motor falling fast? do not include failling (normal).
-    ///</sumary>
+    ///</summary>
     public bool IsFallingFast()
     {
         return motorState == MotorState.FallingFast;
     }
-    ///<sumary>
+    ///<summary>
     /// is the motor stick to a wall?
     /// Use PressingIntoLeftWall, PressingIntoRightWall to know what wall.
-    ///</sumary>
+    ///</summary>
     public bool IsWallSticking()
     {
         return motorState == MotorState.WallSticking;
     }
-    ///<sumary>
+    ///<summary>
     /// Motor is standing onto something?
-    ///</sumary>
+    ///</summary>
     public bool IsOnGround()
     {
         return motorState == MotorState.OnGround;
     }
-    ///<sumary>
+    ///<summary>
     /// Motor is Slipping?
-    ///</sumary>
+    ///</summary>
     public bool IsSlipping()
     {
         return motorState == MotorState.Slipping;
     }
-    ///<sumary>
+    ///<summary>
     /// Motor is on corner?
-    ///</sumary>
+    ///</summary>
     public bool IsOnCorner()
     {
         return motorState == MotorState.OnCorner;
     }
-    ///<sumary>
+    ///<summary>
     /// Motor is sliding on wall?
-    ///</sumary>
+    ///</summary>
     public bool IsWallSliding()
     {
         return motorState == MotorState.WallSliding;
     }
-    ///<sumary>
+    ///<summary>
     /// Motor is in mid air?
-    ///</sumary>
+    ///</summary>
     public bool IsInAir()
     {
         // TODO dashing on mid-air should be considered?
         return IsJumping() || IsFalling() || IsFallingFast();
     }
-    ///<sumary>
+    ///<summary>
     /// Motor is sticking on a wall or on corner or slidding on a wall.
-    ///</sumary>
+    ///</summary>
     public bool IsOnWall()
     {
         return IsWallSliding() || IsOnCorner() || IsWallSticking();
     }
-    ///<sumary>
+    ///<summary>
     /// Motor is standing on the floor. Does not include Sliding
-    ///</sumary>
+    ///</summary>
     public bool IsGrounded()
     {
         return (HasFlag(CollidedSurface.Ground) || onSlope) &&
@@ -1023,23 +1023,23 @@ public class PlatformerMotor2D : MonoBehaviour
                _velocity.y <= NEAR_ZERO);
     }
 
-    ///<sumary>
+    ///<summary>
     // On slope that cannot walk motor will be forced to slip down.
-    ///</sumary>
+    ///</summary>
     public bool IsForceSlipping()
     {
         return onSlope && Vector3.Dot(Vector3.up, slopeNormal) < _dotAllowedForSlopes;
     }
-    ///<sumary>
+    ///<summary>
     // Given a game object return if this motor consider the object a moving platform.
-    ///</sumary>
+    ///</summary>
     public bool IsMovingPlatform(GameObject obj)
     {
         return ((0x1 << obj.layer) & movingPlatformLayerMask) != 0;
     }
-    ///<sumary>
+    ///<summary>
     // Given a game object return if this motor consider the object as static.
-    ///</sumary>
+    ///</summary>
     public bool IsStatic(GameObject obj)
     {
         return ((0x1 << obj.layer) & staticEnvLayerMask) != 0;
@@ -1731,9 +1731,14 @@ public class PlatformerMotor2D : MonoBehaviour
         }
 
         Bounds checkBounds = _collider2D.bounds;
-        checkBounds.extents += Vector3.one * minDistanceFromEnv;
+        checkBounds.extents += new Vector3(
+            minDistanceFromEnv,
+            minDistanceFromEnv);
 
-        Collider2D col = Physics2D.OverlapArea(checkBounds.min, checkBounds.max, _collisionMask);
+        Collider2D col = Physics2D.OverlapArea(
+            checkBounds.min, 
+            checkBounds.max, 
+            _collisionMask);
 
         if (col != null)
         {
@@ -1888,8 +1893,6 @@ public class PlatformerMotor2D : MonoBehaviour
             _jumping.jumpTypeChanged = false;
             _jumping.jumpGraceFrames = GetFrameCount(jumpWindowWhenFalling);
         }
-
-
     }
 
     private void UpdateInformationFromMovement()
@@ -1957,6 +1960,13 @@ public class PlatformerMotor2D : MonoBehaviour
         _movingPlatformState.platform = null;
         _movingPlatformState.stuckToWall = CollidedSurface.None;
 
+        //Debug.Log(collidingAgainst);
+
+        if (HasFlag(CollidedSurface.Ground))
+        {
+            //Debug.Log(IsMovingPlatform(_collidersUpAgainst[DIRECTION_DOWN].gameObject));
+        }
+        
         if (HasFlag(CollidedSurface.Ground) && IsMovingPlatform(_collidersUpAgainst[DIRECTION_DOWN].gameObject))
         {
             _movingPlatformState.platform = _collidersUpAgainst[DIRECTION_DOWN].GetComponent<MovingPlatformMotor2D>();
@@ -3182,7 +3192,7 @@ public class PlatformerMotor2D : MonoBehaviour
             (HasFlag(CollidedSurface.Ground) && IsJumping()))
         {
             // Ground
-            surfaces |= CheckGround(envCheckDistance, false);
+            surfaces |= CheckGround(envCheckDistance);
 
             if (enableSlopes &&
                 stickOnGround &&
