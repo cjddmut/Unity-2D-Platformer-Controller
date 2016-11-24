@@ -282,9 +282,9 @@ public class PlatformerMotor2D : MonoBehaviour
     public bool enableDashes = true;
 
     /// <summary>
-    /// Is dashing in midair allowed?
+    /// Is dashing in air allowed?
     /// </summary>
-    public bool enableDashesInMidair = true;
+    public bool enableDashesInAir = true;
 
     /// <summary>
     /// How far the motor will dash.
@@ -1362,7 +1362,7 @@ public class PlatformerMotor2D : MonoBehaviour
             (_dashing.pressed &&
             _dashing.cooldownFrames < 0 &&
             !IsDashing() ||
-            _dashing.force))
+            _dashing.force) &&
         {
             StartDash();
         }
