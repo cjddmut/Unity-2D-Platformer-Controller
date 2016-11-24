@@ -107,6 +107,7 @@ public class PlatformerMotor2DEditor : Editor
     private readonly Property WALL_INTERACTION_THRESHOLD = new Property("wallInteractionThreshold", "Wall Interaction Threshold");
 
     private readonly Property ENABLE_DASHES = new Property("enableDashes", "Enable Dashes");
+    private readonly Property ENABLE_DASHES_IN_MIDAIR = new Property("enableDashesInMidair", "Enable Dashes in Midair");
     private readonly Property DASH_DISTANCE = new Property("dashDistance", "Dash Distance");
     private readonly Property DASH_EASING_FUNCTION = new Property("dashEasingFunction", "Dash Easing Function");
     private readonly Property DASH_DURATION = new Property("dashDuration", "Dash Duration");
@@ -312,6 +313,8 @@ public class PlatformerMotor2DEditor : Editor
 
             if (_properties[ENABLE_DASHES.name].hasMultipleDifferentValues || _properties[ENABLE_DASHES.name].boolValue)
             {
+                DisplayRegularField(ENABLE_DASHES_IN_MIDAIR);
+
                 DisplayRegularField(DASH_DISTANCE);
 
                 DisplayTimingField(DASH_DURATION);
