@@ -1363,6 +1363,9 @@ public class PlatformerMotor2D : MonoBehaviour
             _dashing.cooldownFrames < 0 &&
             !IsDashing() ||
             _dashing.force) &&
+            (!IsInAir() ||
+            (IsInAir() &&
+            enableDashesInAir)))
         {
             StartDash();
         }
