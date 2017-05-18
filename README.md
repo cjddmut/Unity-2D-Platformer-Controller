@@ -7,7 +7,7 @@ A customizable 2D platformer motor that handles mechanics such as double jumps, 
 
 <!---%=obtain%-->
 
-####Obtain!####
+#### Obtain! ####
 [Releases](https://github.com/cjddmut/Unity-2D-Platformer-Controller/releases)
 
 If you'd like the most up to date version (which is the most cool), then pull the repo or download it [here](https://github.com/cjddmut/Unity-2D-Platformer-Controller/archive/develop.zip) and copy the files in Assets to your project's Assets folder.
