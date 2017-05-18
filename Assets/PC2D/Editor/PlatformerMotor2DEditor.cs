@@ -73,6 +73,7 @@ public class PlatformerMotor2DEditor : Editor
         "Minimum Speed to Move Up Slippery Slope");
 
     private readonly Property SLOPES_SPEED_MULTIPLIER = new Property("speedMultiplierOnSlope", "Speed Multiplier on Slopes");
+    private readonly Property SLOPE_NORMAL = new Property("slopeNormal", "Touching slope angle");
     private readonly Property STICK_TO_GROUND = new Property("stickOnGround", "Stick to Ground");
     private readonly Property STICK_CHECK_DISTANCE = new Property("distanceToCheckToStick", "Ground Check Distance to Stick");
 
@@ -525,7 +526,13 @@ public class PlatformerMotor2DEditor : Editor
                 _properties[WALL_SLIDE_SPEED.name].floatValue / _properties[TIME_TO_WALL_SLIDE_SPEED.name].floatValue);
         }
 
-
+        if (_properties[ENABLE_SLOPES.name].boolValue)
+        {
+            sb.AppendFormat(
+                "\nColliding slope angle: {0}",
+                (Vector2.Angle(_properties[SLOPE_NORMAL.name].vector2Value, Vector2.up)));
+        }
+        
         return sb.ToString();
     }
 

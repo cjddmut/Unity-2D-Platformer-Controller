@@ -641,7 +641,7 @@ public class PlatformerMotor2D : MonoBehaviour
     /// <summary>
     /// The normal of the slope the motor is on. This value doesn't have meaning unless onSlope is true.
     /// </summary>
-    public Vector2 slopeNormal { get; private set; }
+    public Vector2 slopeNormal;
 
     /// <summary>
     /// Call this to have the GameObject try to jump, once called it will be handled in the FixedUpdate tick. The y axis is
@@ -3216,6 +3216,7 @@ public class PlatformerMotor2D : MonoBehaviour
                 Vector2 origin = new Vector2(_collider2D.bounds.max.x, _collider2D.bounds.min.y);
                 Vector2 rightNormal = Vector2.zero;
                 Vector2 leftNormal = Vector2.zero;
+                slopeNormal = Vector2.up;
 
                 closestHit = GetClosestHit(origin, dir, _cornerDistanceCheck, false);
 
