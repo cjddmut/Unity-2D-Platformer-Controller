@@ -417,7 +417,7 @@ Invoked when a motor makes contact with a moving platform and is considered 'att
 
 ### One Way Platforms ###
 
-To acheive one way platforms with the motor. Have a environment piece with a collider and a PlatformEffector2D component attached. Be sure to check Use One Way and to check Used By Effector on the edge collider. The direction of the one way platform is the local up Vector of the platform (same as how the Unity Physics engine considers it). The motor will collide with the platform if it's velocity points away from the 'up' of the platform.
+To achieve one way platforms with the motor. Have a environment piece with a collider and a PlatformEffector2D component attached. Be sure to check Use One Way and to check Used By Effector on the edge collider. The direction of the one way platform is the local up Vector of the platform (same as how the Unity Physics engine considers it). The motor will collide with the platform if it's velocity points away from the 'up' of the platform.
 
 See the One Way Platforms scene for examples.
 
