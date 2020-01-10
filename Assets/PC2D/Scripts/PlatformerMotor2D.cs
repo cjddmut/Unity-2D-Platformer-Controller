@@ -2564,7 +2564,14 @@ public class PlatformerMotor2D : MonoBehaviour
             _velocity.x > 0 &&
             _collidedNormals[DIRECTION_RIGHT] == Vector2.left)
         {
-            _velocity.x = 0;
+            if (IsGrounded())
+            {
+                velocity = Vector2.zero;
+            }
+            else
+            {
+                _velocity.x = 0;
+            }
         }
 
         if (IsGrounded() &&
