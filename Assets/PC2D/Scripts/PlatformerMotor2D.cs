@@ -1738,7 +1738,7 @@ public class PlatformerMotor2D : MonoBehaviour
         Collider2D col = Physics2D.OverlapArea(
             checkBounds.min, 
             checkBounds.max, 
-            _collisionMask);
+            movingPlatformLayerMask);
 
         if (col != null)
         {
